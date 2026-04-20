@@ -1,0 +1,70 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+venv/
+env/
+
+# Environment variables
+.env
+
+# Output files - charts
+output/charts/*.png
+
+# Output files - reports
+output/reports/*.json
+
+# Output files - exports
+output/exports/*.csv
+output/exports/*.json
+
+# Keep output directories
+!output/.gitkeep
+!output/charts/.gitkeep
+!output/reports/.gitkeep
+!output/exports/.gitkeep
+
+# Database (runtime data)
+*.db.backup_*
+data/asset_lens.db
+data/stock_analysis.db
+data/stock_klines.db
+data/stock_info_cache.json
+
+# Coverage
+.coverage
+htmlcov/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Frontend build artifacts
+frontend/node_modules/
+frontend/dist/
+frontend/*.tsbuildinfo
+frontend/vite.config.js
+frontend/vite.config.d.ts
+!frontend/vite.config.ts
+!frontend/postcss.config.js
+!frontend/tailwind.config.js
+
+# Web static (built from frontend)
+src/web/static/assets/
+src/web/static/index.html
+
+# OS files
+.DS_Store
+Thumbs.db
+*.log
