@@ -2,8 +2,6 @@
 Tests for Risk Alert System.
 """
 
-import pytest
-
 from src.scanner.risk_alert import (
     AlertLevel,
     AlertType,
