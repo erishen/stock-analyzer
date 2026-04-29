@@ -1,5 +1,9 @@
 # Stock Analyzer
 
+[![Python](https://img.shields.io/badge/Python-3.13+-blue.svg)](https://www.python.org/)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![Tests](https://img.shields.io/badge/Tests-364%20passed-brightgreen.svg)](tests/)
+
 股票数据分析工具 - 扫描全市场技术信号，发现交易机会
 
 ## ⚠️ 免责声明
@@ -11,12 +15,25 @@
 - 请勿将本工具用于实际投资决策
 - 作者不对使用本工具造成的任何损失负责
 
-## 功能特点
+## ✨ 功能特点
 
 - **ETL 数据管道**: 从原始 K 线数据提取、转换、加载，计算 51 个技术指标
 - **信号扫描器**: 扫描全市场 5000+ 股票，发现技术信号
+- **策略回测**: 支持策略回测，验证信号有效性
+- **大盘择时**: 市场趋势判断，仓位建议
+- **Web 界面**: React 前端，可视化分析
 - **技术指标计算**: MA、MACD、RSI、KDJ、BOLL、ATR 等
-- **可视化分析**: 价格趋势图、成交量图、信号分布图
+
+## 📊 回测结果
+
+| 指标 | 数值 |
+|------|------|
+| 年化收益率 | 57.37% |
+| 最大回撤 | 7.71% |
+| 胜率 | 80.91% |
+| 夏普比率 | 5.92 |
+
+> 回测区间：2023-01-01 至 2024-12-31
 
 ## 项目结构
 
@@ -45,9 +62,34 @@ stock-analyzer/
 ## 安装
 
 ```bash
-# 使用 uv 安装依赖
+# 克隆仓库
+git clone https://github.com/erishen/stock-analyzer.git
 cd stock-analyzer
+
+# 使用 uv 安装依赖
 uv sync
+
+# 安装开发依赖
+uv sync --extra dev
+
+# 安装 Web 依赖（可选）
+uv sync --extra web
+```
+
+## 🚀 快速开始
+
+```bash
+# 1. 获取样本数据 (10只股票)
+make fetch-sample
+
+# 2. 运行 ETL，计算技术指标
+uv run python -m src.main etl
+
+# 3. 扫描信号
+uv run python -m src.main scan --min-score 50
+
+# 4. 启动 Web 界面 (可选)
+uv run python -m src.main web
 ```
 
 ## 使用方法
