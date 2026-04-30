@@ -46,23 +46,25 @@ def temp_db():
     test_data = []
     for i in range(50):
         base_price = 10.0 + i * 0.1
-        test_data.append((
-            f"00000{i % 3 + 1:02d}",
-            f"2024-01-{(i % 28) + 1:02d}",
-            base_price,
-            base_price + 0.5,
-            base_price - 0.3,
-            base_price,
-            1000000 + i * 10000,
-            (i % 10) - 5 + 0.5,
-            0.1 + i * 0.001,
-            40 + (i % 40),
-            base_price - 0.2,
-            base_price - 0.3,
-            base_price - 0.5,
-            base_price + 0.8,
-            base_price - 0.8,
-        ))
+        test_data.append(
+            (
+                f"00000{i % 3 + 1:02d}",
+                f"2024-01-{(i % 28) + 1:02d}",
+                base_price,
+                base_price + 0.5,
+                base_price - 0.3,
+                base_price,
+                1000000 + i * 10000,
+                (i % 10) - 5 + 0.5,
+                0.1 + i * 0.001,
+                40 + (i % 40),
+                base_price - 0.2,
+                base_price - 0.3,
+                base_price - 0.5,
+                base_price + 0.8,
+                base_price - 0.8,
+            )
+        )
     conn.executemany(
         "INSERT INTO stock_analysis VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         test_data,

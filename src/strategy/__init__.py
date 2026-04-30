@@ -60,6 +60,18 @@ from .portfolio import (
     print_portfolio_result,
     run_portfolio_backtest,
 )
+from .risk_control import (
+    PortfolioOptimizationResult,
+    PortfolioOptimizer,
+    PositionLimit,
+    PositionSizer,
+    RiskAttributionResult,
+    RiskAttributor,
+    SignalBacktester,
+    SignalBacktestResult,
+    create_position_limit,
+    run_signal_backtest,
+)
 from .sector_rotation import (
     RotationSignal,
     SectorAnalysisResult,
@@ -159,4 +171,14 @@ __all__ = [
     "MultiStrategyPortfolio",
     "print_portfolio_result",
     "run_portfolio_backtest",
+    "SignalBacktester",
+    "SignalBacktestResult",
+    "PortfolioOptimizer",
+    "PortfolioOptimizationResult",
+    "RiskAttributor",
+    "RiskAttributionResult",
+    "PositionSizer",
+    "PositionLimit",
+    "create_position_limit",
+    "run_signal_backtest",
 ]

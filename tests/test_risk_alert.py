@@ -219,9 +219,7 @@ class TestRiskAlertSystem:
         ]
         assert not system.has_critical_alerts()
 
-        system.alerts.append(
-            RiskAlert(AlertType.MAX_DRAWDOWN, AlertLevel.CRITICAL, "2")
-        )
+        system.alerts.append(RiskAlert(AlertType.MAX_DRAWDOWN, AlertLevel.CRITICAL, "2"))
         assert system.has_critical_alerts()
 
     def test_summary(self):

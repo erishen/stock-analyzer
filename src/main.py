@@ -173,8 +173,16 @@ def run_scan(args):
 
     signal_type = args.type if args.type else None
     min_score = args.min_score if args.min_score else 0
+    parallel = args.parallel if hasattr(args, "parallel") else False
+    max_workers = args.workers if hasattr(args, "workers") else 4
 
-    result = run_scan(db_path=db_path, signal_type=signal_type, min_score=min_score)
+    result = run_scan(
+        db_path=db_path,
+        signal_type=signal_type,
+        min_score=min_score,
+        parallel=parallel,
+        max_workers=max_workers,
+    )
 
     print("\n📊 扫描结果:")
     print(f"   扫描股票: {result.total_stocks:,}")
@@ -843,6 +851,16 @@ def run_optimize(args):
         print(f"\n💾 报告已保存到: {output_path}")
 
 
+def run_interactive_mode(args):
+    """运行交互式模式"""
+    import sys
+
+    sys.path.insert(0, str(Path(__file__).parent))
+    from utils.interactive_cli import run_interactive
+
+    run_interactive()
+
+
 def run_db_optimize(args):
     """运行数据库性能优化"""
     import sys
@@ -881,6 +899,166 @@ def run_db_optimize(args):
     print(f"   优化后索引: {', '.join(result['indexes_after'])}")
 
     print("\n✅ 数据库优化完成！")
+
+
+def run_signal_backtest(args):
+    """运行信号有效性回测"""
+    import sys
+
+    sys.path.insert(0, str(Path(__file__).parent))
+    from strategy import run_signal_backtest as run_backtest
+
+    print("\n" + "=" * 60)
+    print("📊 信号有效性回测")
+    print("=" * 60)
+
+    db_path = Path(args.db) if args.db else DATA_DIR / "stock_analysis.db"
+
+    if not db_path.exists():
+        print(f"❌ 数据库不存在: {db_path}")
+        return
+
+    signal_type = args.type if hasattr(args, "type") else None
+    holding_days = args.holding_days if hasattr(args, "holding_days") else 5
+
+    print(f"\n持有天数: {holding_days}")
+
+    result = run_backtest(db_path=db_path, signal_type=signal_type, holding_days=holding_days)
+
+    if isinstance(result, list):
+        print(f"\n回测信号类型: {len(result)} 种\n")
+        print(f"{'信号类型':<20} {'总数':>8} {'胜率':>8} {'平均收益':>10} {'夏普':>8}")
+        print("-" * 60)
+        for r in sorted(result, key=lambda x: x.sharpe_ratio, reverse=True):
+            print(
+                f"{r.signal_type:<20} {r.total_signals:>8} "
+                f"{r.win_rate * 100:>7.2f}% {r.avg_return * 100:>+9.2f}% {r.sharpe_ratio:>8.2f}"
+            )
+
+        if args.output:
+            import json
+
+            output_path = Path(args.output)
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(output_path, "w", encoding="utf-8") as f:
+                json.dump([r.to_dict() for r in result], f, ensure_ascii=False, indent=2)
+            print(f"\n💾 结果已保存到: {output_path}")
+    else:
+        print(f"\n信号类型: {result.signal_type}")
+        print(f"总信号数: {result.total_signals}")
+        print(f"胜率: {result.win_rate * 100:.2f}%")
+        print(f"平均收益: {result.avg_return * 100:+.2f}%")
+        print(f"夏普比率: {result.sharpe_ratio:.2f}")
+
+
+def run_portfolio_opt(args):
+    """运行组合优化"""
+    import sys
+
+    import numpy as np
+
+    sys.path.insert(0, str(Path(__file__).parent))
+    from strategy import PortfolioOptimizer, create_position_limit
+
+    print("\n" + "=" * 60)
+    print("📐 组合优化")
+    print("=" * 60)
+
+    max_positions = args.max_positions if hasattr(args, "max_positions") else 10
+    max_single_pct = args.max_single_pct if hasattr(args, "max_single_pct") else 0.15
+    max_sector_pct = args.max_sector_pct if hasattr(args, "max_sector_pct") else 0.30
+
+    position_limit = create_position_limit(
+        max_positions=max_positions,
+        max_single_position_pct=max_single_pct,
+        max_sector_position_pct=max_sector_pct,
+    )
+
+    print("\n持仓限制:")
+    print(f"  最大持仓数量: {position_limit.max_positions}")
+    print(f"  单只股票最大仓位: {position_limit.max_single_position_pct * 100:.1f}%")
+    print(f"  行业最大仓位: {position_limit.max_sector_position_pct * 100:.1f}%")
+
+    optimizer = PortfolioOptimizer()
+
+    assets = ["000001", "000002", "000063", "000333", "000651"]
+    volatilities = {a: 0.02 + (hash(a) % 100) / 10000 for a in assets}
+    expected_returns = {a: 0.0005 + (hash(a) % 50) / 10000 for a in assets}
+
+    import pandas as pd
+
+    correlations = pd.DataFrame(1.0, index=assets, columns=assets)
+    np.fill_diagonal(correlations.values, 1.0)
+
+    result = optimizer.optimize_with_constraints(
+        assets=assets,
+        expected_returns=expected_returns,
+        volatilities=volatilities,
+        correlations=correlations,
+        position_limit=position_limit,
+    )
+
+    print("\n优化结果:")
+    print(f"  期望收益: {result.expected_return * 100:.2f}%")
+    print(f"  期望波动: {result.expected_volatility * 100:.2f}%")
+    print(f"  夏普比率: {result.sharpe_ratio:.2f}")
+    print(f"  分散度: {result.diversification_ratio:.2f}")
+    print(f"  集中度 HHI: {result.concentration_hhi:.4f}")
+
+    print("\n权重分配:")
+    for asset, weight in sorted(result.weights.items(), key=lambda x: -x[1]):
+        print(f"  {asset}: {weight * 100:.2f}%")
+
+    if args.output:
+        import json
+
+        output_path = Path(args.output)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(output_path, "w", encoding="utf-8") as f:
+            json.dump(result.to_dict(), f, ensure_ascii=False, indent=2)
+        print(f"\n💾 结果已保存到: {output_path}")
+
+
+def run_risk_attribution(args):
+    """运行风险归因分析"""
+    import sys
+
+    import numpy as np
+    import pandas as pd
+
+    sys.path.insert(0, str(Path(__file__).parent))
+    from strategy import RiskAttributor
+
+    print("\n" + "=" * 60)
+    print("📈 风险归因分析")
+    print("=" * 60)
+
+    np.random.seed(42)
+    dates = pd.date_range("2024-01-01", periods=100)
+    assets = ["000001", "000002", "000063", "000333", "000651"]
+    returns_data = pd.DataFrame(np.random.randn(100, 5) * 0.02, index=dates, columns=assets)
+    weights = {a: 0.2 for a in assets}
+
+    attributor = RiskAttributor(returns_data, weights)
+    result = attributor.calculate_risk_attribution()
+
+    print("\n风险分解:")
+    print(f"  总风险: {result.total_risk * 100:.2f}%")
+    print(f"  系统性风险: {result.systematic_risk * 100:.2f}%")
+    print(f"  特质风险: {result.idiosyncratic_risk * 100:.2f}%")
+
+    print("\n因子贡献:")
+    for factor, contrib in result.factor_contributions.items():
+        print(f"  {factor}: {contrib * 100:.2f}%")
+
+    if args.output:
+        import json
+
+        output_path = Path(args.output)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(output_path, "w", encoding="utf-8") as f:
+            json.dump(result.to_dict(), f, ensure_ascii=False, indent=2)
+        print(f"\n💾 结果已保存到: {output_path}")
 
 
 def main():
@@ -941,6 +1119,8 @@ def main():
     scan_parser.add_argument("--type", type=str, help="信号类型筛选")
     scan_parser.add_argument("--min-score", type=float, default=0, help="最低得分筛选")
     scan_parser.add_argument("--output", type=str, help="输出文件路径(JSON)")
+    scan_parser.add_argument("--parallel", action="store_true", help="并行扫描")
+    scan_parser.add_argument("--workers", type=int, default=4, help="并行工作数")
 
     visualize_parser = subparsers.add_parser("visualize", help="生成可视化图表")
     visualize_parser.add_argument("--input", type=str, help="扫描结果 JSON 文件路径")
@@ -1052,9 +1232,30 @@ def main():
     db_optimize_parser = subparsers.add_parser("db-optimize", help="数据库性能优化")
     db_optimize_parser.add_argument("--db", type=str, help="数据库路径")
 
+    subparsers.add_parser("interactive", help="交互式模式")
+
+    signal_backtest_parser = subparsers.add_parser("signal-backtest", help="信号有效性回测")
+    signal_backtest_parser.add_argument("--db", type=str, help="数据库路径")
+    signal_backtest_parser.add_argument("--type", type=str, help="信号类型 (不指定则测试全部)")
+    signal_backtest_parser.add_argument("--holding-days", type=int, default=5, help="持有天数")
+    signal_backtest_parser.add_argument("--output", type=str, help="输出文件路径")
+
+    portfolio_opt_parser = subparsers.add_parser("portfolio-opt", help="组合优化")
+    portfolio_opt_parser.add_argument("--db", type=str, help="数据库路径")
+    portfolio_opt_parser.add_argument("--max-positions", type=int, default=10, help="最大持仓数量")
+    portfolio_opt_parser.add_argument("--max-single-pct", type=float, default=0.15, help="单只股票最大仓位")
+    portfolio_opt_parser.add_argument("--max-sector-pct", type=float, default=0.30, help="行业最大仓位")
+    portfolio_opt_parser.add_argument("--output", type=str, help="输出文件路径")
+
+    risk_attr_parser = subparsers.add_parser("risk-attribution", help="风险归因分析")
+    risk_attr_parser.add_argument("--db", type=str, help="数据库路径")
+    risk_attr_parser.add_argument("--output", type=str, help="输出文件路径")
+
     args = parser.parse_args()
 
-    if args.command == "sync":
+    if args.command == "interactive":
+        run_interactive_mode(args)
+    elif args.command == "sync":
         run_sync(args)
     elif args.command == "sync-env":
         run_sync_env(args)
@@ -1100,6 +1301,12 @@ def main():
         run_web(args)
     elif args.command == "db-optimize":
         run_db_optimize(args)
+    elif args.command == "signal-backtest":
+        run_signal_backtest(args)
+    elif args.command == "portfolio-opt":
+        run_portfolio_opt(args)
+    elif args.command == "risk-attribution":
+        run_risk_attribution(args)
     else:
         parser.print_help()
 

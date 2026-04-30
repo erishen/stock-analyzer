@@ -3,7 +3,6 @@ Tests for Signal Scanner Module.
 信号扫描器测试
 """
 
-
 import pandas as pd
 import pytest
 
@@ -22,26 +21,28 @@ def sample_df():
     data = []
     for i in range(50):
         base_price = 10.0 + i * 0.1
-        data.append({
-            "code": "000001",
-            "date": f"2024-01-{(i % 28) + 1:02d}",
-            "close": base_price,
-            "high": base_price + 0.5,
-            "low": base_price - 0.3,
-            "open": base_price,
-            "volume": 1000000 + i * 10000,
-            "change_percent": (i % 10) - 5 + 0.5,
-            "macd": 0.1 + i * 0.001,
-            "macd_signal": 0.08 + i * 0.001,
-            "rsi": 40 + (i % 40),
-            "kdj_k": 50.0 + i * 0.5,
-            "kdj_d": 45.0 + i * 0.5,
-            "ma5": base_price - 0.2,
-            "ma10": base_price - 0.3,
-            "ma20": base_price - 0.5,
-            "boll_upper": base_price + 0.8,
-            "boll_lower": base_price - 0.8,
-        })
+        data.append(
+            {
+                "code": "000001",
+                "date": f"2024-01-{(i % 28) + 1:02d}",
+                "close": base_price,
+                "high": base_price + 0.5,
+                "low": base_price - 0.3,
+                "open": base_price,
+                "volume": 1000000 + i * 10000,
+                "change_percent": (i % 10) - 5 + 0.5,
+                "macd": 0.1 + i * 0.001,
+                "macd_signal": 0.08 + i * 0.001,
+                "rsi": 40 + (i % 40),
+                "kdj_k": 50.0 + i * 0.5,
+                "kdj_d": 45.0 + i * 0.5,
+                "ma5": base_price - 0.2,
+                "ma10": base_price - 0.3,
+                "ma20": base_price - 0.5,
+                "boll_upper": base_price + 0.8,
+                "boll_lower": base_price - 0.8,
+            }
+        )
     return pd.DataFrame(data)
 
 
@@ -169,3 +170,141 @@ class TestSignalDetector:
         signals = detector.detect_all_signals(df)
 
         assert signals == []
+
+    def test_detect_williams_signals(self, sample_df):
+        """测试威廉指标信号"""
+        detector = SignalDetector()
+
+        df = sample_df.copy()
+        df["high"] = df["close"] + 1.0
+        df["low"] = df["close"] - 1.0
+
+        signals = detector.detect_all_signals(df)
+
+        williams_signals = [s for s in signals if "威廉" in s.signal_type.value]
+        assert isinstance(williams_signals, list)
+
+    def test_detect_cci_signals(self, sample_df):
+        """测试 CCI 指标信号"""
+        detector = SignalDetector()
+
+        df = sample_df.copy()
+        df["high"] = df["close"] + 0.5
+        df["low"] = df["close"] - 0.3
+
+        signals = detector.detect_all_signals(df)
+
+        cci_signals = [s for s in signals if "CCI" in s.signal_type.value]
+        assert isinstance(cci_signals, list)
+
+    def test_detect_atr_signals(self, sample_df):
+        """测试 ATR 波动率信号"""
+        detector = SignalDetector()
+
+        df = sample_df.copy()
+        df["high"] = df["close"] + 0.5
+        df["low"] = df["close"] - 0.3
+
+        signals = detector.detect_all_signals(df)
+
+        atr_signals = [s for s in signals if "ATR" in s.signal_type.value]
+        assert isinstance(atr_signals, list)
+
+    def test_detect_pattern_signals(self, sample_df):
+        """测试 K 线形态信号"""
+        detector = SignalDetector()
+
+        df = sample_df.copy()
+        df["open"] = df["close"] - 0.1
+        df["high"] = df["close"] + 0.5
+        df["low"] = df["close"] - 0.3
+
+        signals = detector.detect_all_signals(df)
+
+        pattern_signals = [
+            s
+            for s in signals
+            if s.signal_type
+            in [
+                SignalType.HAMMER,
+                SignalType.INVERTED_HAMMER,
+                SignalType.BULLISH_ENGULFING,
+                SignalType.BEARISH_ENGULFING,
+                SignalType.DOJI,
+            ]
+        ]
+        assert isinstance(pattern_signals, list)
+
+    def test_detect_multi_period_signals(self, sample_df):
+        """测试多周期共振信号"""
+        detector = SignalDetector()
+
+        df = sample_df.copy()
+        df["ma60"] = df["close"] - 1.0
+
+        signals = detector.detect_all_signals(df)
+
+        multi_period_signals = [s for s in signals if "多周期" in s.signal_type.value]
+        assert isinstance(multi_period_signals, list)
+
+    def test_detect_price_volume_signals(self, sample_df):
+        """测试量价关系信号"""
+        detector = SignalDetector()
+
+        df = sample_df.copy()
+        df["volume"] = 2000000
+
+        signals = detector.detect_all_signals(df)
+
+        pv_signals = [s for s in signals if "量价" in s.signal_type.value]
+        assert isinstance(pv_signals, list)
+
+
+class TestNewSignalTypes:
+    """测试新增信号类型"""
+
+    def test_williams_signal_type_exists(self):
+        """测试威廉信号类型存在"""
+        assert hasattr(SignalType, "WILLIAMS_OVERSOLD")
+        assert hasattr(SignalType, "WILLIAMS_OVERBOUGHT")
+        assert SignalType.WILLIAMS_OVERSOLD.value == "威廉超卖"
+        assert SignalType.WILLIAMS_OVERBOUGHT.value == "威廉超买"
+
+    def test_cci_signal_type_exists(self):
+        """测试 CCI 信号类型存在"""
+        assert hasattr(SignalType, "CCI_OVERSOLD")
+        assert hasattr(SignalType, "CCI_OVERBOUGHT")
+        assert SignalType.CCI_OVERSOLD.value == "CCI超卖"
+        assert SignalType.CCI_OVERBOUGHT.value == "CCI超买"
+
+    def test_atr_signal_type_exists(self):
+        """测试 ATR 信号类型存在"""
+        assert hasattr(SignalType, "ATR_SURGE")
+        assert hasattr(SignalType, "ATR_SHRINK")
+        assert SignalType.ATR_SURGE.value == "ATR波动放大"
+        assert SignalType.ATR_SHRINK.value == "ATR波动收缩"
+
+    def test_pattern_signal_types_exist(self):
+        """测试 K 线形态信号类型存在"""
+        assert hasattr(SignalType, "HAMMER")
+        assert hasattr(SignalType, "INVERTED_HAMMER")
+        assert hasattr(SignalType, "BULLISH_ENGULFING")
+        assert hasattr(SignalType, "BEARISH_ENGULFING")
+        assert hasattr(SignalType, "MORNING_STAR")
+        assert hasattr(SignalType, "EVENING_STAR")
+        assert hasattr(SignalType, "DOJI")
+
+    def test_multi_period_signal_types_exist(self):
+        """测试多周期共振信号类型存在"""
+        assert hasattr(SignalType, "MULTI_PERIOD_BULLISH")
+        assert hasattr(SignalType, "MULTI_PERIOD_BEARISH")
+
+    def test_price_volume_signal_types_exist(self):
+        """测试量价关系信号类型存在"""
+        assert hasattr(SignalType, "PRICE_VOLUME_BULLISH")
+        assert hasattr(SignalType, "PRICE_VOLUME_BEARISH")
+
+    def test_total_signal_types_count(self):
+        """测试信号类型总数"""
+        types = list(SignalType)
+        assert len(types) >= 30

@@ -18,6 +18,7 @@ from typing import Any
 
 class AlertLevel(Enum):
     """预警级别"""
+
     INFO = "info"
     WARNING = "warning"
     DANGER = "danger"
@@ -26,6 +27,7 @@ class AlertLevel(Enum):
 
 class AlertType(Enum):
     """预警类型"""
+
     MAX_DRAWDOWN = "max_drawdown"
     VOLATILITY = "volatility"
     CONCENTRATION = "concentration"
@@ -39,6 +41,7 @@ class AlertType(Enum):
 @dataclass
 class RiskAlert:
     """风险预警项"""
+
     alert_type: AlertType
     level: AlertLevel
     message: str
@@ -64,6 +67,7 @@ class RiskAlert:
 @dataclass
 class RiskConfig:
     """风险配置"""
+
     max_drawdown_threshold: float = 0.10
     volatility_threshold: float = 0.30
     concentration_threshold: float = 0.30
@@ -117,6 +121,7 @@ class RiskAlertSystem:
             return None
 
         import numpy as np
+
         volatility = float(np.std(returns) * np.sqrt(252))
 
         if volatility >= self.config.volatility_threshold:
@@ -327,9 +332,7 @@ class RiskAlertSystem:
                 "warning": len(self.get_alerts_by_level(AlertLevel.WARNING)),
                 "info": len(self.get_alerts_by_level(AlertLevel.INFO)),
             },
-            "by_type": {
-                t.value: len(self.get_alerts_by_type(t)) for t in AlertType
-            },
+            "by_type": {t.value: len(self.get_alerts_by_type(t)) for t in AlertType},
             "has_critical": self.has_critical_alerts(),
             "has_danger": self.has_danger_alerts(),
             "alerts": [a.to_dict() for a in self.alerts],

@@ -85,9 +85,7 @@ class TestStockDataFetcher:
         fetcher.create_tables()
 
         conn = sqlite3.connect(str(temp_db))
-        cursor = conn.execute(
-            "SELECT name FROM sqlite_master WHERE type='table' AND name='stock_klines'"
-        )
+        cursor = conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='stock_klines'")
         assert cursor.fetchone() is not None
         conn.close()
 
@@ -221,10 +219,12 @@ class TestStockDataFetcher:
         """测试获取股票列表"""
         import pandas as pd
 
-        mock_df = pd.DataFrame({
-            "代码": ["000001", "000002", "600519"],
-            "名称": ["平安银行", "万科A", "贵州茅台"],
-        })
+        mock_df = pd.DataFrame(
+            {
+                "代码": ["000001", "000002", "600519"],
+                "名称": ["平安银行", "万科A", "贵州茅台"],
+            }
+        )
         mock_akshare.stock_zh_a_spot_em.return_value = mock_df
 
         fetcher = StockDataFetcher(temp_db)
@@ -239,19 +239,21 @@ class TestStockDataFetcher:
         """测试获取 K 线数据"""
         import pandas as pd
 
-        mock_df = pd.DataFrame({
-            "日期": ["2024-01-01", "2024-01-02"],
-            "开盘": [10.0, 10.5],
-            "收盘": [10.5, 10.3],
-            "最高": [10.8, 10.6],
-            "最低": [9.9, 10.2],
-            "成交量": [1000000, 1200000],
-            "成交额": [10500000, 12360000],
-            "振幅": [9.0, 3.8],
-            "涨跌幅": [5.0, -1.9],
-            "涨跌额": [0.5, -0.2],
-            "换手率": [1.5, 1.8],
-        })
+        mock_df = pd.DataFrame(
+            {
+                "日期": ["2024-01-01", "2024-01-02"],
+                "开盘": [10.0, 10.5],
+                "收盘": [10.5, 10.3],
+                "最高": [10.8, 10.6],
+                "最低": [9.9, 10.2],
+                "成交量": [1000000, 1200000],
+                "成交额": [10500000, 12360000],
+                "振幅": [9.0, 3.8],
+                "涨跌幅": [5.0, -1.9],
+                "涨跌额": [0.5, -0.2],
+                "换手率": [1.5, 1.8],
+            }
+        )
         mock_akshare.stock_zh_a_hist.return_value = mock_df
 
         fetcher = StockDataFetcher(temp_db)
@@ -263,11 +265,18 @@ class TestStockDataFetcher:
 
     def test_fetch_stock_klines_empty_result(self, temp_db):
         """测试获取 K 线数据返回空结果（当 akshare 未安装时）"""
-        fetcher = StockDataFetcher(temp_db)
-        fetcher._akshare = None
+        from unittest.mock import PropertyMock
 
-        records = fetcher.fetch_stock_klines("000001")
-        assert records == []
+        fetcher = StockDataFetcher(temp_db)
+
+        with patch.object(
+            StockDataFetcher,
+            "akshare",
+            new_callable=PropertyMock,
+            side_effect=ImportError("akshare not installed"),
+        ):
+            records = fetcher.fetch_stock_klines("000001")
+            assert records == []
 
 
 class TestRunFetch:

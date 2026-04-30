@@ -60,9 +60,7 @@ class DatabaseOptimizer:
         if not self.conn:
             self.connect()
 
-        cursor = self.conn.execute(
-            "SELECT name FROM sqlite_master WHERE type='index' AND name NOT LIKE 'sqlite_%'"
-        )
+        cursor = self.conn.execute("SELECT name FROM sqlite_master WHERE type='index' AND name NOT LIKE 'sqlite_%'")
         return [row[0] for row in cursor.fetchall()]
 
     def get_table_info(self, table: str = "stock_analysis") -> dict:
@@ -331,9 +329,7 @@ class IncrementalUpdater:
             self.connect()
 
         if code:
-            cursor = self.conn.execute(
-                "SELECT MAX(date) FROM stock_analysis WHERE code = ?", (code,)
-            )
+            cursor = self.conn.execute("SELECT MAX(date) FROM stock_analysis WHERE code = ?", (code,))
         else:
             cursor = self.conn.execute("SELECT MAX(date) FROM stock_analysis")
 

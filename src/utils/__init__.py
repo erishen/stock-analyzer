@@ -3,6 +3,28 @@ Utility Module for Stock Analyzer.
 工具模块
 """
 
+from .cli_utils import (
+    ColorScheme,
+    OutputConfig,
+    create_progress_bar,
+    format_number,
+    format_percent,
+    format_price,
+    interactive_confirm,
+    interactive_multiselect,
+    interactive_select,
+    interactive_text,
+    print_backtest_result,
+    print_error,
+    print_header,
+    print_info,
+    print_section,
+    print_signal_table,
+    print_success,
+    print_summary_box,
+    print_warning,
+    progress_iterate,
+)
 from .export import (
     export_backtest_trades,
     export_market_monitor,
@@ -13,6 +35,7 @@ from .export import (
     export_to_json,
 )
 from .font_config import get_chinese_font, setup_chinese_font
+from .interactive_cli import InteractiveCLI, run_interactive
 from .performance import (
     CacheManager,
     DatabaseOptimizer,
@@ -42,4 +65,26 @@ __all__ = [
     "run_parallel",
     "get_cache_manager",
     "get_incremental_updater",
+    "ColorScheme",
+    "OutputConfig",
+    "print_header",
+    "print_section",
+    "print_success",
+    "print_error",
+    "print_warning",
+    "print_info",
+    "print_signal_table",
+    "print_backtest_result",
+    "create_progress_bar",
+    "progress_iterate",
+    "interactive_select",
+    "interactive_multiselect",
+    "interactive_confirm",
+    "interactive_text",
+    "print_summary_box",
+    "format_number",
+    "format_percent",
+    "format_price",
+    "InteractiveCLI",
+    "run_interactive",
 ]
