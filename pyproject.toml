@@ -5,6 +5,7 @@ description = "Stock Analyzer - 股票数据分析工具"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
+    "investkit-shared @ file:///${PROJECT_ROOT}/../shared",
     "matplotlib",
     "numpy",
     "pandas",
