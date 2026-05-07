@@ -6,7 +6,7 @@ Parameter Optimization Module.
 from dataclasses import dataclass
 from itertools import product
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 from .backtest import (
     BacktestEngine,
@@ -53,7 +53,7 @@ def optimize_momentum_strategy(
     momentum_range: tuple[float, float] = (0.0, 0.1),
     volatility_range: tuple[float, float] = (0.05, 0.15),
     initial_capital: float = 100000.0,
-    progress_callback: callable = None,
+    progress_callback: Callable | None = None,
 ) -> OptimizationResult:
     """
     优化动量策略参数
@@ -157,7 +157,7 @@ def optimize_mean_reversion_strategy(
     rsi_range: tuple[int, int] = (20, 35),
     holding_range: tuple[int, int] = (3, 10),
     initial_capital: float = 100000.0,
-    progress_callback: callable = None,
+    progress_callback: Callable | None = None,
 ) -> OptimizationResult:
     """
     优化均值回归策略参数

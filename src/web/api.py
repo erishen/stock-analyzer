@@ -296,39 +296,37 @@ async def get_sector():
         return JSONResponse(content=SectorResponse(success=False, error="数据库不存在").to_dict())
 
     try:
-        import sys
-
         from strategy import run_sector_analysis
 
         result = run_sector_analysis(db_path)
 
         sectors = []
-        for s in result.sector_ranking[:20]:
+        for s in result.sectors[:20]:
             sectors.append(
                 SectorItem(
                     name=s.name,
                     momentum=s.momentum,
                     strength=s.strength.value,
-                    stock_count=s.stock_count,
-                    top_stocks=[ts.code for ts in s.top_stocks],
+                    stock_count=len(s.stocks),
+                    top_stocks=s.stocks[:5],
                 )
             )
 
         rotation_signals = []
-        for r in result.rotation_signals:
+        for r in result.rotations:
             rotation_signals.append(
                 {
-                    "from_sector": r.from_sector,
-                    "to_sector": r.to_sector,
-                    "signal_type": r.signal_type,
-                    "confidence": round(r.confidence, 2),
+                    "sector": r.sector,
+                    "signal": r.signal.value,
+                    "score": round(r.score, 2),
+                    "reason": r.reason,
                 }
             )
 
         return JSONResponse(
             content=SectorResponse(
                 success=True,
-                analysis_date=result.analysis_date,
+                analysis_date=result.date,
                 sectors=sectors,
                 rotation_signals=rotation_signals,
             ).to_dict()
@@ -344,26 +342,22 @@ async def get_market_timing():
         return JSONResponse(content=MarketTimingResponse(success=False, error="数据库不存在").to_dict())
 
     try:
-        import sys
-
         from strategy import run_market_timing
 
         result = run_market_timing(db_path)
-
-        indicators = {}
-        for ind in result.indicators:
-            indicators[ind.name] = {
-                "value": round(ind.value, 2),
-                "signal": ind.signal,
-            }
 
         return JSONResponse(
             content=MarketTimingResponse(
                 success=True,
                 state=result.state.value,
                 score=result.score,
-                position_advice=result.position_advice,
-                indicators=indicators,
+                position_advice=result.signal,
+                indicators={
+                    "ma_trend": result.ma_trend,
+                    "rsi_level": result.rsi_level,
+                    "volatility": result.volatility,
+                    "breadth": round(result.breadth * 100, 2),
+                },
             ).to_dict()
         )
     except Exception as e:

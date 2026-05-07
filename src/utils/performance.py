@@ -11,6 +11,7 @@ Performance Optimization Module for Stock Analyzer.
 
 import hashlib
 import json
+import re
 import sqlite3
 import time
 from collections.abc import Callable
@@ -65,6 +66,8 @@ class DatabaseOptimizer:
 
     def get_table_info(self, table: str = "stock_analysis") -> dict:
         """获取表信息"""
+        if not re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', table):
+            raise ValueError(f"Invalid table name: {table}")
         if not self.conn:
             self.connect()
 
@@ -93,6 +96,14 @@ class DatabaseOptimizer:
         if not self.conn:
             self.connect()
 
+        if not re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', index.name):
+            raise ValueError(f"Invalid index name: {index.name}")
+        if not re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', index.table):
+            raise ValueError(f"Invalid table name: {index.table}")
+        for col in index.columns:
+            if not re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', col):
+                raise ValueError(f"Invalid column name: {col}")
+
         existing = self.get_existing_indexes()
         if index.name in existing:
             return False
@@ -114,6 +125,9 @@ class DatabaseOptimizer:
         """删除索引"""
         if not self.conn:
             self.connect()
+
+        if not re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', index_name):
+            raise ValueError(f"Invalid index name: {index_name}")
 
         try:
             self.conn.execute(f"DROP INDEX IF EXISTS {index_name}")

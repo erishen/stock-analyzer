@@ -110,7 +110,7 @@ class StockDataFetcher:
                 code = row.get("代码", "")
                 name = row.get("名称", "")
                 if code and name:
-                    if not code.startswith(("688", "300", "301")) or True:
+                    if not code.startswith(("688", "300", "301")):
                         stocks.append(
                             {
                                 "code": code,

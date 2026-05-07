@@ -525,7 +525,7 @@ def run_breakout_backtest(
     exclude_st: bool = True,
 ) -> dict[str, Any]:
     """运行突破策略回测"""
-    from strategy.backtest import BacktestRunner
+    from strategy.backtest import BacktestEngine
 
     strategy = BreakoutStrategy(
         breakout_type=breakout_type,
@@ -534,14 +534,13 @@ def run_breakout_backtest(
         exclude_st=exclude_st,
     )
 
-    runner = BacktestRunner(
-        strategy=strategy,
-        initial_capital=initial_capital,
-        position_size=initial_capital * 0.1,
-    )
-
-    result = runner.run(db_path)
-    return result.to_dict()
+    engine = BacktestEngine(db_path)
+    engine.connect()
+    try:
+        result = engine.run_backtest(strategy, initial_capital)
+        return result.to_dict()
+    finally:
+        engine.close()
 
 
 def run_grid_backtest(
@@ -641,18 +640,17 @@ def run_event_backtest(
     initial_capital: float = 100000.0,
 ) -> dict[str, Any]:
     """运行事件驱动策略回测"""
-    from strategy.backtest import BacktestRunner
+    from strategy.backtest import BacktestEngine
 
     strategy = EventDrivenStrategy(
         event_types=event_types,
         holding_days=holding_days,
     )
 
-    runner = BacktestRunner(
-        strategy=strategy,
-        initial_capital=initial_capital,
-        position_size=initial_capital * 0.1,
-    )
-
-    result = runner.run(db_path)
-    return result.to_dict()
+    engine = BacktestEngine(db_path)
+    engine.connect()
+    try:
+        result = engine.run_backtest(strategy, initial_capital)
+        return result.to_dict()
+    finally:
+        engine.close()

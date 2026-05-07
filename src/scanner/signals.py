@@ -943,25 +943,26 @@ class MarketScanner:
             min_recent_days: 最近多少天有数据才算活跃（默认7天）
         """
         if exclude_delisted:
-            query = f"""
+            query = """
                 SELECT DISTINCT code FROM stock_analysis
-                WHERE date >= date((SELECT MAX(date) FROM stock_analysis), '-{min_recent_days} days')
+                WHERE date >= date((SELECT MAX(date) FROM stock_analysis), ? || ' days')
                 ORDER BY code
             """
+            cursor = self.conn.execute(query, (f"-{min_recent_days}",))
         else:
             query = "SELECT DISTINCT code FROM stock_analysis ORDER BY code"
-        cursor = self.conn.execute(query)
+            cursor = self.conn.execute(query)
         return [row[0] for row in cursor.fetchall()]
 
     def get_stock_data(self, code: str, days: int = 60) -> pd.DataFrame:
         """获取股票数据"""
-        query = f"""
+        query = """
             SELECT * FROM stock_analysis
             WHERE code = ?
             ORDER BY date DESC
-            LIMIT {days}
+            LIMIT ?
         """
-        df = pd.read_sql_query(query, self.conn, params=(code,))
+        df = pd.read_sql_query(query, self.conn, params=(code, days))
         if not df.empty:
             df = df.sort_values("date").reset_index(drop=True)
         return df
