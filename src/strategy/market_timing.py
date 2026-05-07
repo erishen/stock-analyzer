@@ -282,7 +282,7 @@ def run_market_timing(db_path: Path | None = None) -> MarketIndicator:
     """运行大盘择时分析"""
     project_root = Path(__file__).parent.parent.parent
     data_dir = project_root / "data"
-    db_path = db_path or data_dir / "stock_analysis.db"
+    db_path = db_path or get_stock_analysis_db_path()
 
     if not db_path.exists():
         raise FileNotFoundError(f"数据库不存在: {db_path}")

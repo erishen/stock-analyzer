@@ -20,6 +20,7 @@ import numpy as np
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
+from config import get_stock_analysis_db_path
 from constants import is_excluded_stock
 from data import get_stock_info_fetcher, get_stock_name
 
@@ -969,7 +970,7 @@ def run_backtest(
     project_root = Path(__file__).parent.parent.parent
     data_dir = project_root / "data"
 
-    db_path = db_path or data_dir / "stock_analysis.db"
+    db_path = db_path or get_stock_analysis_db_path()
 
     engine = BacktestEngine(db_path)
     engine.connect()

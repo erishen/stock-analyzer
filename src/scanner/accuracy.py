@@ -20,6 +20,7 @@ import numpy as np
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
+from config import get_stock_analysis_db_path
 from scanner.signals import SignalType
 
 
@@ -408,7 +409,7 @@ def run_accuracy_analysis(db_path: Path | None = None, holding_days: int = 5) ->
     project_root = Path(__file__).parent.parent.parent
     data_dir = project_root / "data"
 
-    db_path = db_path or data_dir / "stock_analysis.db"
+    db_path = db_path or get_stock_analysis_db_path()
 
     analyzer = SignalAccuracyAnalyzer(db_path)
     analyzer.connect()

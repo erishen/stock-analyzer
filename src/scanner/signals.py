@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Any
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
+from config import get_stock_analysis_db_path
 
 import pandas as pd
 
@@ -1211,7 +1212,7 @@ def run_scan(
     project_root = Path(__file__).parent.parent.parent
     data_dir = project_root / "data"
 
-    db_path = db_path or data_dir / "stock_analysis.db"
+    db_path = db_path or get_stock_analysis_db_path()
 
     scanner = MarketScanner(db_path)
     scanner.connect()

@@ -174,7 +174,7 @@ def run_comparison(
 
     project_root = Path(__file__).parent.parent.parent
     data_dir = project_root / "data"
-    db_path = db_path or data_dir / "stock_analysis.db"
+    db_path = db_path or get_stock_analysis_db_path()
 
     if strategies is None:
         strategies = ["momentum", "mean_reversion", "trend_following", "multi_factor"]

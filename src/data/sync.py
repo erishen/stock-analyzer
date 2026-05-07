@@ -125,7 +125,7 @@ def run_sync(backup: bool = True, source_path: str | Path | None = None) -> dict
     if not info["exists"]:
         print(f"\n❌ 数据库不存在: {info['path']}")
         print("\n请在 .env 文件中配置 ASSET_LENS_DB_PATH 指向 asset-lens 的数据库:")
-        print("  ASSET_LENS_DB_PATH=../asset-lens/data/asset_lens.db")
+        print("  ASSET_LENS_DB_PATH=../investkit_utils/data/asset_lens.db")
         return {"success": False, "message": "数据库不存在"}
 
     print(f"\n📁 数据库路径: {info['path']}")

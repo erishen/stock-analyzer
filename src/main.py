@@ -158,7 +158,7 @@ def run_scan(args):
     print("🔍 全市场信号扫描")
     print("=" * 60)
 
-    db_path = Path(args.db) if args.db else DATA_DIR / "stock_analysis.db"
+    db_path = Path(args.db) if args.db else get_stock_analysis_db_path()
 
     if not db_path.exists():
         print(f"❌ 数据库不存在: {db_path}")
@@ -299,7 +299,7 @@ def run_accuracy(args):
     print("📊 信号准确率分析")
     print("=" * 60)
 
-    db_path = Path(args.db) if args.db else DATA_DIR / "stock_analysis.db"
+    db_path = Path(args.db) if args.db else get_stock_analysis_db_path()
 
     if not db_path.exists():
         print(f"❌ 数据库不存在: {db_path}")
@@ -350,7 +350,7 @@ def run_score(args):
     print("📊 选股评分系统")
     print("=" * 60)
 
-    db_path = Path(args.db) if args.db else DATA_DIR / "stock_analysis.db"
+    db_path = Path(args.db) if args.db else get_stock_analysis_db_path()
 
     if not db_path.exists():
         print(f"❌ 数据库不存在: {db_path}")
@@ -406,7 +406,7 @@ def run_monitor(args):
 
     from scanner import run_monitor as run_market_monitor
 
-    db_path = Path(args.db) if args.db else DATA_DIR / "stock_analysis.db"
+    db_path = Path(args.db) if args.db else get_stock_analysis_db_path()
 
     if not db_path.exists():
         print(f"❌ 数据库不存在: {db_path}")
@@ -433,7 +433,7 @@ def run_backtest(args):
     print("📈 策略回测")
     print("=" * 60)
 
-    db_path = Path(args.db) if args.db else DATA_DIR / "stock_analysis.db"
+    db_path = Path(args.db) if args.db else get_stock_analysis_db_path()
 
     if not db_path.exists():
         print(f"❌ 数据库不存在: {db_path}")
@@ -539,7 +539,7 @@ def run_trade_report(args):
     print("📋 交易报告生成")
     print("=" * 60)
 
-    db_path = Path(args.db) if args.db else DATA_DIR / "stock_analysis.db"
+    db_path = Path(args.db) if args.db else get_stock_analysis_db_path()
 
     if not db_path.exists():
         print(f"❌ 数据库不存在: {db_path}")
@@ -595,7 +595,7 @@ def run_export(args):
     print("📤 数据导出")
     print("=" * 60)
 
-    db_path = Path(args.db) if args.db else DATA_DIR / "stock_analysis.db"
+    db_path = Path(args.db) if args.db else get_stock_analysis_db_path()
 
     if not db_path.exists():
         print(f"❌ 数据库不存在: {db_path}")
@@ -624,7 +624,7 @@ def run_market_timing(args):
 
     from strategy import run_market_timing
 
-    db_path = Path(args.db) if args.db else DATA_DIR / "stock_analysis.db"
+    db_path = Path(args.db) if args.db else get_stock_analysis_db_path()
 
     if not db_path.exists():
         print(f"❌ 数据库不存在: {db_path}")
@@ -640,7 +640,7 @@ def run_compare(args):
 
     from strategy import run_comparison
 
-    db_path = Path(args.db) if args.db else DATA_DIR / "stock_analysis.db"
+    db_path = Path(args.db) if args.db else get_stock_analysis_db_path()
 
     if not db_path.exists():
         print(f"❌ 数据库不存在: {db_path}")
@@ -669,7 +669,7 @@ def run_sector(args):
 
     from strategy import run_sector_analysis, run_sector_validation
 
-    db_path = Path(args.db) if args.db else DATA_DIR / "stock_analysis.db"
+    db_path = Path(args.db) if args.db else get_stock_analysis_db_path()
 
     if not db_path.exists():
         print(f"❌ 数据库不存在: {db_path}")
@@ -699,7 +699,7 @@ def run_portfolio(args):
     print("📊 多策略组合回测")
     print("=" * 60)
 
-    db_path = Path(args.db) if args.db else DATA_DIR / "stock_analysis.db"
+    db_path = Path(args.db) if args.db else get_stock_analysis_db_path()
 
     if not db_path.exists():
         print(f"❌ 数据库不存在: {db_path}")
@@ -773,7 +773,7 @@ def run_optimize(args):
     print("🔧 策略参数优化")
     print("=" * 60)
 
-    db_path = Path(args.db) if args.db else DATA_DIR / "stock_analysis.db"
+    db_path = Path(args.db) if args.db else get_stock_analysis_db_path()
 
     if not db_path.exists():
         print(f"❌ 数据库不存在: {db_path}")
@@ -824,7 +824,7 @@ def run_db_optimize(args):
     print("🔧 数据库性能优化")
     print("=" * 60)
 
-    db_path = Path(args.db) if args.db else DATA_DIR / "stock_analysis.db"
+    db_path = Path(args.db) if args.db else get_stock_analysis_db_path()
 
     if not db_path.exists():
         print(f"❌ 数据库不存在: {db_path}")
@@ -862,7 +862,7 @@ def run_signal_backtest(args):
     print("📊 信号有效性回测")
     print("=" * 60)
 
-    db_path = Path(args.db) if args.db else DATA_DIR / "stock_analysis.db"
+    db_path = Path(args.db) if args.db else get_stock_analysis_db_path()
 
     if not db_path.exists():
         print(f"❌ 数据库不存在: {db_path}")
