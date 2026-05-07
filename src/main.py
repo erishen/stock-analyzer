@@ -9,9 +9,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 
+from config import DATA_DIR, OUTPUT_DIR, get_asset_lens_db_path, get_stock_analysis_db_path
+
 PROJECT_ROOT = Path(__file__).parent.parent
-DATA_DIR = PROJECT_ROOT / "data"
-OUTPUT_DIR = PROJECT_ROOT / "output"
 CHARTS_DIR = OUTPUT_DIR / "charts"
 REPORTS_DIR = OUTPUT_DIR / "reports"
 
@@ -28,8 +28,8 @@ def run_etl(args):
     print("📦 ETL 数据管道")
     print("=" * 60)
 
-    source_db = args.source_db if args.source_db else DATA_DIR / "asset_lens.db"
-    target_db = args.target_db if args.target_db else DATA_DIR / "stock_analysis.db"
+    source_db = args.source_db if args.source_db else get_asset_lens_db_path()
+    target_db = args.target_db if args.target_db else get_stock_analysis_db_path()
 
     stock_codes = args.codes.split(",") if args.codes else None
 
@@ -75,7 +75,7 @@ def run_stats(args):
     """显示统计信息"""
     import sqlite3
 
-    db_path = args.db if args.db else DATA_DIR / "stock_analysis.db"
+    db_path = args.db if args.db else get_stock_analysis_db_path()
 
     if not Path(db_path).exists():
         print(f"❌ 数据库不存在: {db_path}")

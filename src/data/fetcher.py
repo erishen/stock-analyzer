@@ -6,11 +6,15 @@ Stock Data Fetcher for Stock Analyzer.
 """
 
 import sqlite3
+import sys
 import time
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Any
+
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from config import get_stock_klines_db_path
 
 
 @dataclass
@@ -347,7 +351,7 @@ def run_fetch(
     print("=" * 60)
 
     if db_path is None:
-        db_path = Path(__file__).parent.parent.parent / "data" / "stock_klines.db"
+        db_path = get_stock_klines_db_path()
 
     fetcher = StockDataFetcher(db_path)
 

@@ -54,101 +54,32 @@ def temp_source_db():
     db_path.unlink(missing_ok=True)
 
 
-@pytest.fixture
-def temp_target_dir():
-    """创建临时目标目录"""
-    with tempfile.TemporaryDirectory() as temp_dir:
-        yield Path(temp_dir)
-
-
 class TestSyncFromExternalDb:
-    """测试数据库同步"""
+    """测试数据库路径配置"""
 
-    def test_sync_no_source(self, temp_target_dir):
-        """测试未指定源路径"""
-        result = sync_from_external_db(source_path=None, target_path=temp_target_dir / "test.db")
-        assert result["success"] is False
-        assert "未指定" in result["message"]
-
-    def test_sync_source_not_exists(self, temp_target_dir):
+    def test_sync_source_not_exists(self):
         """测试源文件不存在"""
-        result = sync_from_external_db(
-            source_path="/nonexistent/path.db",
-            target_path=temp_target_dir / "test.db",
-        )
+        result = sync_from_external_db(source_path="/nonexistent/path.db")
         assert result["success"] is False
         assert "不存在" in result["message"]
 
-    def test_sync_success(self, temp_source_db, temp_target_dir):
-        """测试同步成功"""
-        target_path = temp_target_dir / "target.db"
-        result = sync_from_external_db(
-            source_path=temp_source_db,
-            target_path=target_path,
-            backup=False,
-        )
+    def test_sync_success(self, temp_source_db):
+        """测试配置成功"""
+        result = sync_from_external_db(source_path=temp_source_db)
 
         assert result["success"] is True
         assert result["source_size"] > 0
-        assert result["target_size"] > 0
-        assert target_path.exists()
 
-    def test_sync_with_backup(self, temp_source_db, temp_target_dir):
-        """测试带备份的同步"""
-        target_path = temp_target_dir / "target.db"
-
-        target_path.write_bytes(b"dummy")
-
-        result = sync_from_external_db(
-            source_path=temp_source_db,
-            target_path=target_path,
-            backup=True,
-        )
-
-        assert result["success"] is True
-        assert result["backup_created"] is True
-        assert result["backup_path"] is not None
-
-        backup_path = Path(result["backup_path"])
-        assert backup_path.exists()
-        backup_path.unlink(missing_ok=True)
-
-    def test_sync_no_backup(self, temp_source_db, temp_target_dir):
-        """测试不带备份的同步"""
-        target_path = temp_target_dir / "target.db"
-
-        target_path.write_bytes(b"dummy")
-
-        result = sync_from_external_db(
-            source_path=temp_source_db,
-            target_path=target_path,
-            backup=False,
-        )
-
-        assert result["success"] is True
-        assert result["backup_created"] is False
-
-    def test_sync_with_env_variable(self, temp_source_db, temp_target_dir):
+    def test_sync_with_env_variable(self, temp_source_db):
         """测试通过环境变量指定源路径"""
-        target_path = temp_target_dir / "target.db"
-
-        with patch.dict(os.environ, {"SYNC_DB_SOURCE": str(temp_source_db)}):
-            result = sync_from_external_db(
-                source_path=None,
-                target_path=target_path,
-            )
+        with patch.dict(os.environ, {"ASSET_LENS_DB_PATH": str(temp_source_db)}):
+            result = sync_from_external_db(source_path=None)
 
         assert result["success"] is True
 
 
 class TestGetDbInfo:
     """测试获取数据库信息"""
-
-    def test_get_info_no_path(self):
-        """测试未指定路径"""
-        info = get_db_info(source_path=None)
-        assert info["path"] is None
-        assert info["exists"] is False
 
     def test_get_info_not_exists(self):
         """测试文件不存在"""
@@ -168,7 +99,7 @@ class TestGetDbInfo:
 
     def test_get_info_with_env_variable(self, temp_source_db):
         """测试通过环境变量获取信息"""
-        with patch.dict(os.environ, {"SYNC_DB_SOURCE": str(temp_source_db)}):
+        with patch.dict(os.environ, {"ASSET_LENS_DB_PATH": str(temp_source_db)}):
             info = get_db_info(source_path=None)
 
         assert info["exists"] is True
@@ -193,24 +124,15 @@ class TestGetDbInfo:
 
 
 class TestRunSync:
-    """测试运行同步"""
-
-    def test_run_sync_no_source(self):
-        """测试未指定源"""
-        with patch.dict(os.environ, {}, clear=True):
-            result = run_sync(source_path=None)
-        assert result["success"] is False
+    """测试运行数据路径配置"""
 
     def test_run_sync_source_not_exists(self):
         """测试源不存在"""
         result = run_sync(source_path="/nonexistent/path.db")
         assert result["success"] is False
 
-    def test_run_sync_success(self, temp_source_db, temp_target_dir):
-        """测试同步成功"""
-        result = run_sync(
-            source_path=temp_source_db,
-            backup=False,
-        )
+    def test_run_sync_success(self, temp_source_db):
+        """测试配置成功"""
+        result = run_sync(source_path=temp_source_db)
 
         assert result["success"] is True

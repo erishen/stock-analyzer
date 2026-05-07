@@ -8,6 +8,9 @@ import sys
 from contextlib import asynccontextmanager
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from config import get_stock_analysis_db_path
+
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -27,12 +30,12 @@ from .schemas import (
 )
 
 PROJECT_ROOT = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(PROJECT_ROOT / "src"))
 DATA_DIR = PROJECT_ROOT / "data"
+sys.path.insert(0, str(PROJECT_ROOT / "src"))
 STATIC_DIR = Path(__file__).parent / "static"
 ASSETS_DIR = STATIC_DIR / "assets"
 
-db_path = DATA_DIR / "stock_analysis.db"
+db_path = get_stock_analysis_db_path()
 
 
 @asynccontextmanager

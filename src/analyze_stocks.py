@@ -13,11 +13,10 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).parent))
+from config import DATA_DIR, OUTPUT_DIR, get_asset_lens_db_path, get_stock_analysis_db_path
 from utils.font_config import setup_chinese_font
 
 PROJECT_ROOT = Path(__file__).parent.parent
-DATA_DIR = PROJECT_ROOT / "data"
-OUTPUT_DIR = PROJECT_ROOT / "output"
 
 OUTPUT_DIR.mkdir(exist_ok=True)
 
@@ -37,9 +36,9 @@ class StockAnalyzer:
         """
         if db_path is None:
             if use_analysis_db:
-                db_path = str(DATA_DIR / "stock_analysis.db")
+                db_path = str(get_stock_analysis_db_path())
             else:
-                db_path = str(DATA_DIR / "asset_lens.db")
+                db_path = str(get_asset_lens_db_path())
         self.db_path = db_path
         self.conn = None
         self.df = None

@@ -1,10 +1,3 @@
-EXCLUDED_KEYWORDS = ["ST", "st", "*ST", "SST", "S*ST", "退市", "退", "PT", "停牌"]
+from investkit_utils.db.constants import EXCLUDED_KEYWORDS, is_excluded_stock
 
-
-def is_excluded_stock(name: str, exclude_st: bool = True) -> bool:
-    if not exclude_st:
-        return False
-    for keyword in EXCLUDED_KEYWORDS:
-        if keyword in name:
-            return True
-    return False
+__all__ = ["EXCLUDED_KEYWORDS", "is_excluded_stock"]

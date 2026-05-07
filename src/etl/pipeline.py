@@ -9,6 +9,7 @@ ETL 数据管道 - 提取、转换、加载股票数据
 """
 
 import sqlite3
+import sys
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -16,6 +17,9 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
+
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from config import get_asset_lens_db_path, get_stock_analysis_db_path
 
 
 @dataclass
@@ -530,8 +534,8 @@ def run_etl(
     data_dir = project_root / "data"
 
     config = ETLConfig(
-        source_db=Path(source_db) if source_db else data_dir / "asset_lens.db",
-        target_db=Path(target_db) if target_db else data_dir / "stock_analysis.db",
+        source_db=Path(source_db) if source_db else get_asset_lens_db_path(),
+        target_db=Path(target_db) if target_db else get_stock_analysis_db_path(),
     )
 
     pipeline = ETLPipeline(config)
