@@ -20,6 +20,7 @@ import numpy as np
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
+from constants import is_excluded_stock
 from data import get_stock_info_fetcher, get_stock_name
 
 
@@ -122,8 +123,6 @@ class BacktestResult:
 class MomentumStrategy:
     """动量策略"""
 
-    EXCLUDED_KEYWORDS = ["ST", "st", "*ST", "SST", "S*ST", "退市", "退", "PT", "停牌"]
-
     def __init__(
         self,
         lookback_days: int = 20,
@@ -185,13 +184,7 @@ class MomentumStrategy:
         return returns.std()
 
     def is_excluded(self, name: str) -> bool:
-        """判断是否排除"""
-        if not self.exclude_st:
-            return False
-        for keyword in self.EXCLUDED_KEYWORDS:
-            if keyword in name:
-                return True
-        return False
+        return is_excluded_stock(name, self.exclude_st)
 
     def select_stocks(
         self,
@@ -247,8 +240,6 @@ class MomentumStrategy:
 class MeanReversionStrategy:
     """均值回归策略 (RSI 超卖反弹)"""
 
-    EXCLUDED_KEYWORDS = ["ST", "st", "*ST", "SST", "S*ST", "退市", "退", "PT", "停牌"]
-
     def __init__(
         self,
         rsi_oversold: float = 30,
@@ -270,13 +261,7 @@ class MeanReversionStrategy:
         self.take_profit = take_profit
 
     def is_excluded(self, name: str) -> bool:
-        """判断是否排除"""
-        if not self.exclude_st:
-            return False
-        for keyword in self.EXCLUDED_KEYWORDS:
-            if keyword in name:
-                return True
-        return False
+        return is_excluded_stock(name, self.exclude_st)
 
     def select_stocks(
         self,
@@ -315,8 +300,6 @@ class MeanReversionStrategy:
 class TrendFollowingStrategy:
     """趋势跟踪策略 (布林带突破)"""
 
-    EXCLUDED_KEYWORDS = ["ST", "st", "*ST", "SST", "S*ST", "退市", "退", "PT", "停牌"]
-
     def __init__(
         self,
         holding_days: int = 5,
@@ -336,12 +319,7 @@ class TrendFollowingStrategy:
         self.use_ma_cross = use_ma_cross
 
     def is_excluded(self, name: str) -> bool:
-        if not self.exclude_st:
-            return False
-        for keyword in self.EXCLUDED_KEYWORDS:
-            if keyword in name:
-                return True
-        return False
+        return is_excluded_stock(name, self.exclude_st)
 
     def select_stocks(
         self,
@@ -395,8 +373,6 @@ class TrendFollowingStrategy:
 class MultiFactorStrategy:
     """多因子策略 (综合评分选股)"""
 
-    EXCLUDED_KEYWORDS = ["ST", "st", "*ST", "SST", "S*ST", "退市", "退", "PT", "停牌"]
-
     def __init__(
         self,
         holding_days: int = 5,
@@ -422,12 +398,7 @@ class MultiFactorStrategy:
         self.volume_weight = volume_weight
 
     def is_excluded(self, name: str) -> bool:
-        if not self.exclude_st:
-            return False
-        for keyword in self.EXCLUDED_KEYWORDS:
-            if keyword in name:
-                return True
-        return False
+        return is_excluded_stock(name, self.exclude_st)
 
     def calculate_factors(self, df: pd.DataFrame, date_idx: int) -> dict:
         """计算因子得分"""

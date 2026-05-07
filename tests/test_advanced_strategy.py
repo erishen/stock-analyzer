@@ -3,13 +3,11 @@ Tests for Advanced Strategies.
 高级策略测试
 """
 
-import sys
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 
-sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from strategy.advanced import (
     BreakoutStrategy,

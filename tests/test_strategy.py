@@ -3,13 +3,11 @@ Tests for Strategy Module.
 策略模块测试
 """
 
-import sys
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 
-sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from strategy.backtest import (
     BacktestResult,

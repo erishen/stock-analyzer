@@ -79,53 +79,56 @@ class MarketTiming:
         Returns:
             市场指标
         """
-        conn = sqlite3.connect(str(db_path))
+        with sqlite3.connect(str(db_path)) as conn:
+            if date is None:
+                cursor = conn.execute("SELECT MAX(date) FROM stock_analysis")
+                date = cursor.fetchone()[0]
 
-        if date is None:
-            cursor = conn.execute("SELECT MAX(date) FROM stock_analysis")
-            date = cursor.fetchone()[0]
-
-        cursor = conn.execute(f"""
-            SELECT
-                COUNT(*) as total,
-                SUM(CASE WHEN change_percent > 0 THEN 1 ELSE 0 END) as up_count,
-                SUM(CASE WHEN change_percent < 0 THEN 1 ELSE 0 END) as down_count,
-                AVG(change_percent) as avg_change,
-                AVG(rsi) as avg_rsi,
-                AVG(ma5) as avg_ma5,
-                AVG(ma20) as avg_ma20
-            FROM stock_analysis
-            WHERE date = '{date}'
-        """)
-        row = cursor.fetchone()
-
-        if not row or row[0] == 0:
-            conn.close()
-            return MarketIndicator(
-                date=date,
-                state=MarketState.UNKNOWN,
-                score=0,
-                ma_trend="未知",
-                rsi_level="未知",
-                volatility="未知",
-                breadth=0,
-                signal="无数据",
+            cursor = conn.execute(
+                """
+                SELECT
+                    COUNT(*) as total,
+                    SUM(CASE WHEN change_percent > 0 THEN 1 ELSE 0 END) as up_count,
+                    SUM(CASE WHEN change_percent < 0 THEN 1 ELSE 0 END) as down_count,
+                    AVG(change_percent) as avg_change,
+                    AVG(rsi) as avg_rsi,
+                    AVG(ma5) as avg_ma5,
+                    AVG(ma20) as avg_ma20
+                FROM stock_analysis
+                WHERE date = ?
+            """,
+                (date,),
             )
+            row = cursor.fetchone()
 
-        total, up_count, down_count, avg_change, avg_rsi, avg_ma5, avg_ma20 = row
+            if not row or row[0] == 0:
+                return MarketIndicator(
+                    date=date,
+                    state=MarketState.UNKNOWN,
+                    score=0,
+                    ma_trend="未知",
+                    rsi_level="未知",
+                    volatility="未知",
+                    breadth=0,
+                    signal="无数据",
+                )
 
-        breadth = up_count / total if total > 0 else 0
+            total, up_count, down_count, avg_change, avg_rsi, avg_ma5, avg_ma20 = row
 
-        cursor = conn.execute(f"""
-            SELECT date, AVG(change_percent) as avg_change
-            FROM stock_analysis
-            WHERE date <= '{date}'
-            GROUP BY date
-            ORDER BY date DESC
-            LIMIT 30
-        """)
-        market_returns = pd.DataFrame(cursor.fetchall(), columns=["date", "avg_change"])
-        conn.close()
+            breadth = up_count / total if total > 0 else 0
+
+            cursor = conn.execute(
+                """
+                SELECT date, AVG(change_percent) as avg_change
+                FROM stock_analysis
+                WHERE date <= ?
+                GROUP BY date
+                ORDER BY date DESC
+                LIMIT 30
+            """,
+                (date,),
+            )
+            market_returns = pd.DataFrame(cursor.fetchall(), columns=["date", "avg_change"])
 
         volatility = 0
         if len(market_returns) > 1:

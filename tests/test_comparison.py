@@ -7,7 +7,6 @@ import sys
 from pathlib import Path
 from unittest.mock import MagicMock
 
-sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from strategy.comparison import (
     ComparisonResult,

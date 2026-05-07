@@ -76,12 +76,11 @@ class MarketSummary:
         }
 
 
-def get_latest_date(db_path: Path) -> str:
+def get_latest_date(db_path: Path) -> str | None:
     """获取最新日期"""
-    conn = sqlite3.connect(str(db_path))
-    cursor = conn.execute("SELECT MAX(date) FROM stock_analysis")
-    result = cursor.fetchone()
-    conn.close()
+    with sqlite3.connect(str(db_path)) as conn:
+        cursor = conn.execute("SELECT MAX(date) FROM stock_analysis")
+        result = cursor.fetchone()
     return result[0] if result else None
 
 
@@ -91,60 +90,75 @@ def get_market_summary(db_path: Path) -> MarketSummary:
     if not latest_date:
         raise ValueError("数据库中没有数据")
 
-    conn = sqlite3.connect(str(db_path))
+    with sqlite3.connect(str(db_path)) as conn:
+        cursor = conn.execute(
+            """
+            SELECT
+                COUNT(*) as total,
+                SUM(CASE WHEN change_percent > 0 THEN 1 ELSE 0 END) as up_count,
+                SUM(CASE WHEN change_percent < 0 THEN 1 ELSE 0 END) as down_count,
+                AVG(change_percent) as avg_change
+            FROM stock_analysis
+            WHERE date = ?
+            """,
+            (latest_date,),
+        )
+        row = cursor.fetchone()
+        total, up_count, down_count, avg_change = row
+        flat_count = total - up_count - down_count
 
-    cursor = conn.execute(f"""
-        SELECT
-            COUNT(*) as total,
-            SUM(CASE WHEN change_percent > 0 THEN 1 ELSE 0 END) as up_count,
-            SUM(CASE WHEN change_percent < 0 THEN 1 ELSE 0 END) as down_count,
-            AVG(change_percent) as avg_change
-        FROM stock_analysis
-        WHERE date = '{latest_date}'
-    """)
-    row = cursor.fetchone()
-    total, up_count, down_count, avg_change = row
-    flat_count = total - up_count - down_count
+        cursor = conn.execute(
+            """
+            SELECT code, change_percent
+            FROM stock_analysis
+            WHERE date = ?
+            ORDER BY change_percent DESC
+            LIMIT 1
+            """,
+            (latest_date,),
+        )
+        max_up_row = cursor.fetchone()
+        max_up = (max_up_row[0], max_up_row[0], max_up_row[1]) if max_up_row else ("", "", 0)
 
-    cursor = conn.execute(f"""
-        SELECT code, change_percent
-        FROM stock_analysis
-        WHERE date = '{latest_date}'
-        ORDER BY change_percent DESC
-        LIMIT 1
-    """)
-    max_up_row = cursor.fetchone()
-    max_up = (max_up_row[0], max_up_row[0], max_up_row[1]) if max_up_row else ("", "", 0)
+        cursor = conn.execute(
+            """
+            SELECT code, change_percent
+            FROM stock_analysis
+            WHERE date = ?
+            ORDER BY change_percent ASC
+            LIMIT 1
+            """,
+            (latest_date,),
+        )
+        max_down_row = cursor.fetchone()
+        max_down = (max_down_row[0], max_down_row[0], max_down_row[1]) if max_down_row else ("", "", 0)
 
-    cursor = conn.execute(f"""
-        SELECT code, change_percent
-        FROM stock_analysis
-        WHERE date = '{latest_date}'
-        ORDER BY change_percent ASC
-        LIMIT 1
-    """)
-    max_down_row = cursor.fetchone()
-    max_down = (max_down_row[0], max_down_row[0], max_down_row[1]) if max_down_row else ("", "", 0)
+        cursor = conn.execute(
+            """
+            SELECT COUNT(*) FROM stock_analysis
+            WHERE date = ? AND rsi IS NOT NULL AND rsi < 30
+            """,
+            (latest_date,),
+        )
+        oversold_count = cursor.fetchone()[0]
 
-    cursor = conn.execute(f"""
-        SELECT COUNT(*) FROM stock_analysis
-        WHERE date = '{latest_date}' AND rsi IS NOT NULL AND rsi < 30
-    """)
-    oversold_count = cursor.fetchone()[0]
+        cursor = conn.execute(
+            """
+            SELECT COUNT(*) FROM stock_analysis
+            WHERE date = ? AND rsi IS NOT NULL AND rsi > 70
+            """,
+            (latest_date,),
+        )
+        overbought_count = cursor.fetchone()[0]
 
-    cursor = conn.execute(f"""
-        SELECT COUNT(*) FROM stock_analysis
-        WHERE date = '{latest_date}' AND rsi IS NOT NULL AND rsi > 70
-    """)
-    overbought_count = cursor.fetchone()[0]
-
-    cursor = conn.execute(f"""
-        SELECT COUNT(*) FROM stock_analysis
-        WHERE date = '{latest_date}' AND macd > macd_signal AND macd_signal > 0
-    """)
-    golden_cross_count = cursor.fetchone()[0]
-
-    conn.close()
+        cursor = conn.execute(
+            """
+            SELECT COUNT(*) FROM stock_analysis
+            WHERE date = ? AND macd > macd_signal AND macd_signal > 0
+            """,
+            (latest_date,),
+        )
+        golden_cross_count = cursor.fetchone()[0]
 
     return MarketSummary(
         date=latest_date,
@@ -181,9 +195,9 @@ def get_live_signals(
     if not latest_date:
         return []
 
-    conn = sqlite3.connect(str(db_path))
+    conditions = ["date = ?"]
+    params: list[Any] = [latest_date]
 
-    conditions = []
     if signal_type == "oversold":
         conditions.append("rsi < 30")
     elif signal_type == "overbought":
@@ -193,9 +207,7 @@ def get_live_signals(
     elif signal_type == "ma_cross":
         conditions.append("ma5 > ma20 AND ma5 > 0")
 
-    where_clause = f"date = '{latest_date}'"
-    if conditions:
-        where_clause += " AND " + " AND ".join(conditions)
+    where_clause = " AND ".join(conditions)
 
     query = f"""
         SELECT code, close, change_percent, volume, rsi, macd, ma5, ma20
@@ -208,12 +220,13 @@ def get_live_signals(
                 ELSE 0
             END DESC,
             ABS(macd) DESC
-        LIMIT {limit}
+        LIMIT ?
     """
+    params.append(limit)
 
-    cursor = conn.execute(query)
-    rows = cursor.fetchall()
-    conn.close()
+    with sqlite3.connect(str(db_path)) as conn:
+        cursor = conn.execute(query, params)
+        rows = cursor.fetchall()
 
     signals = []
     for row in rows:

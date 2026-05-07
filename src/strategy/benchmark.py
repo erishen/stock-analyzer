@@ -58,16 +58,14 @@ def calculate_equal_weight_benchmark(
 
     模拟买入所有股票并持有到结束
     """
-    conn = sqlite3.connect(str(db_path))
-
     query = """
         SELECT code, date, close
         FROM stock_analysis
         WHERE close > 0
         ORDER BY date, code
     """
-    df = pd.read_sql_query(query, conn)
-    conn.close()
+    with sqlite3.connect(str(db_path)) as conn:
+        df = pd.read_sql_query(query, conn)
 
     df["date"] = pd.to_datetime(df["date"])
 

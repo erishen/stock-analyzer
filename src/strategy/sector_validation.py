@@ -69,14 +69,12 @@ def backtest_sector_rotation(
     Returns:
         回测结果
     """
-    conn = sqlite3.connect(str(db_path))
-
-    cursor = conn.execute("""
-        SELECT DISTINCT date FROM stock_analysis
-        ORDER BY date
-    """)
-    dates = [row[0] for row in cursor.fetchall()]
-    conn.close()
+    with sqlite3.connect(str(db_path)) as conn:
+        cursor = conn.execute("""
+            SELECT DISTINCT date FROM stock_analysis
+            ORDER BY date
+        """)
+        dates = [row[0] for row in cursor.fetchall()]
 
     if len(dates) < lookback_days + holding_days:
         raise ValueError("数据不足，无法进行回测")
@@ -167,8 +165,6 @@ def _get_sector_return(
     if not stocks:
         return None
 
-    conn = sqlite3.connect(str(db_path))
-
     placeholders = ",".join(["?" for _ in stocks])
     query = f"""
         SELECT code, date, close
@@ -179,10 +175,9 @@ def _get_sector_return(
     params = [start_date, end_date] + stocks
 
     try:
-        df = pd.read_sql_query(query, conn, params=params)
-        conn.close()
+        with sqlite3.connect(str(db_path)) as conn:
+            df = pd.read_sql_query(query, conn, params=params)
     except Exception:
-        conn.close()
         return None
 
     if df.empty:
@@ -211,11 +206,9 @@ def validate_sector_data(db_path: Path) -> dict[str, Any]:
     """
     from .sector_rotation import DEFAULT_SECTORS
 
-    conn = sqlite3.connect(str(db_path))
-
-    cursor = conn.execute("SELECT DISTINCT code FROM stock_analysis")
-    all_codes = set(row[0] for row in cursor.fetchall())
-    conn.close()
+    with sqlite3.connect(str(db_path)) as conn:
+        cursor = conn.execute("SELECT DISTINCT code FROM stock_analysis")
+        all_codes = set(row[0] for row in cursor.fetchall())
 
     results = {
         "total_stocks_in_db": len(all_codes),

@@ -4,7 +4,10 @@ Stock Analyzer - Main Entry Point
 """
 
 import argparse
+import sys
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).parent))
 
 PROJECT_ROOT = Path(__file__).parent.parent
 DATA_DIR = PROJECT_ROOT / "data"
@@ -18,9 +21,7 @@ REPORTS_DIR.mkdir(parents=True, exist_ok=True)
 
 def run_etl(args):
     """运行 ETL 流程"""
-    import sys
 
-    sys.path.insert(0, str(Path(__file__).parent))
     from etl import run_etl as etl_pipeline
 
     print("\n" + "=" * 60)
@@ -42,9 +43,7 @@ def run_etl(args):
 
 def run_analyze(args):
     """运行分析"""
-    import sys
 
-    sys.path.insert(0, str(Path(__file__).parent))
     from analyze_stocks import StockAnalyzer
 
     analyzer = StockAnalyzer()
@@ -83,81 +82,76 @@ def run_stats(args):
         print("   请先运行: python -m src.main etl")
         return
 
-    conn = sqlite3.connect(str(db_path))
+    with sqlite3.connect(str(db_path)) as conn:
+        print("\n" + "=" * 60)
+        print("📈 数据统计")
+        print("=" * 60)
 
-    print("\n" + "=" * 60)
-    print("📈 数据统计")
-    print("=" * 60)
+        cursor = conn.execute("""
+            SELECT
+                COUNT(DISTINCT code) as stock_count,
+                COUNT(*) as total_records,
+                MIN(date) as min_date,
+                MAX(date) as max_date
+            FROM stock_analysis
+        """)
+        row = cursor.fetchone()
+        print("\n📊 基本统计:")
+        print(f"   股票数量: {row[0]:,}")
+        print(f"   总记录数: {row[1]:,}")
+        print(f"   日期范围: {row[2]} ~ {row[3]}")
 
-    cursor = conn.execute("""
-        SELECT
-            COUNT(DISTINCT code) as stock_count,
-            COUNT(*) as total_records,
-            MIN(date) as min_date,
-            MAX(date) as max_date
-        FROM stock_analysis
-    """)
-    row = cursor.fetchone()
-    print("\n📊 基本统计:")
-    print(f"   股票数量: {row[0]:,}")
-    print(f"   总记录数: {row[1]:,}")
-    print(f"   日期范围: {row[2]} ~ {row[3]}")
+        cursor = conn.execute("""
+            SELECT code, COUNT(*) as cnt
+            FROM stock_analysis
+            GROUP BY code
+            ORDER BY cnt DESC
+            LIMIT 10
+        """)
+        print("\n📈 数据量 Top 10:")
+        for i, row in enumerate(cursor.fetchall(), 1):
+            print(f"   {i}. {row[0]}: {row[1]:,} 条")
 
-    cursor = conn.execute("""
-        SELECT code, COUNT(*) as cnt
-        FROM stock_analysis
-        GROUP BY code
-        ORDER BY cnt DESC
-        LIMIT 10
-    """)
-    print("\n📈 数据量 Top 10:")
-    for i, row in enumerate(cursor.fetchall(), 1):
-        print(f"   {i}. {row[0]}: {row[1]:,} 条")
+        cursor = conn.execute("""
+            SELECT
+                COUNT(*) as cnt
+            FROM stock_analysis
+            WHERE rsi IS NOT NULL AND rsi != 0
+        """)
+        indicator_count = cursor.fetchone()[0]
+        print("\n📐 技术指标:")
+        print(f"   已计算记录: {indicator_count:,}")
 
-    cursor = conn.execute("""
-        SELECT
-            COUNT(*) as cnt
-        FROM stock_analysis
-        WHERE rsi IS NOT NULL AND rsi != 0
-    """)
-    indicator_count = cursor.fetchone()[0]
-    print("\n📐 技术指标:")
-    print(f"   已计算记录: {indicator_count:,}")
-
-    cursor = conn.execute("PRAGMA table_info(stock_analysis)")
-    columns = cursor.fetchall()
-    indicator_cols = [
-        c[1]
-        for c in columns
-        if c[1]
-        not in [
-            "id",
-            "code",
-            "date",
-            "open",
-            "close",
-            "high",
-            "low",
-            "volume",
-            "amount",
-            "amplitude",
-            "change_percent",
-            "change_amount",
-            "turnover_rate",
-            "created_at",
+        cursor = conn.execute("PRAGMA table_info(stock_analysis)")
+        columns = cursor.fetchall()
+        indicator_cols = [
+            c[1]
+            for c in columns
+            if c[1]
+            not in [
+                "id",
+                "code",
+                "date",
+                "open",
+                "close",
+                "high",
+                "low",
+                "volume",
+                "amount",
+                "amplitude",
+                "change_percent",
+                "change_amount",
+                "turnover_rate",
+                "created_at",
+            ]
         ]
-    ]
-    print(f"   指标数量: {len(indicator_cols)}")
-    print(f"   指标列表: {', '.join(indicator_cols[:10])}...")
-
-    conn.close()
+        print(f"   指标数量: {len(indicator_cols)}")
+        print(f"   指标列表: {', '.join(indicator_cols[:10])}...")
 
 
 def run_scan(args):
     """运行信号扫描"""
-    import sys
 
-    sys.path.insert(0, str(Path(__file__).parent))
     from scanner import run_scan
 
     print("\n" + "=" * 60)
@@ -216,9 +210,7 @@ def run_scan(args):
 
 def run_visualize(args):
     """运行可视化"""
-    import sys
 
-    sys.path.insert(0, str(Path(__file__).parent))
     from scanner import visualize_scan_result
 
     print("\n" + "=" * 60)
@@ -244,9 +236,7 @@ def run_visualize(args):
 
 def run_sync(args):
     """运行数据同步"""
-    import sys
 
-    sys.path.insert(0, str(Path(__file__).parent))
     from data import run_sync
 
     result = run_sync(backup=not args.no_backup, source_path=args.source)
@@ -262,9 +252,7 @@ def run_sync(args):
 
 def run_refresh_names(args):
     """刷新股票名称缓存"""
-    import sys
 
-    sys.path.insert(0, str(Path(__file__).parent))
     from data import get_stock_info_fetcher
 
     print("\n" + "=" * 60)
@@ -279,9 +267,7 @@ def run_refresh_names(args):
 
 def run_fetch(args):
     """获取股票数据"""
-    import sys
 
-    sys.path.insert(0, str(Path(__file__).parent))
     from data import run_fetch
 
     codes = args.codes.split(",") if args.codes else None
@@ -297,9 +283,7 @@ def run_fetch(args):
 
 def run_sync_env(args):
     """同步环境变量"""
-    import sys
 
-    sys.path.insert(0, str(Path(__file__).parent))
     from data import run_sync_env
 
     run_sync_env(args.source)
@@ -308,9 +292,7 @@ def run_sync_env(args):
 def run_accuracy(args):
     """运行信号准确率分析"""
     import json
-    import sys
 
-    sys.path.insert(0, str(Path(__file__).parent))
     from scanner import run_accuracy_analysis
 
     print("\n" + "=" * 60)
@@ -361,9 +343,7 @@ def run_accuracy(args):
 def run_score(args):
     """运行选股评分"""
     import json
-    import sys
 
-    sys.path.insert(0, str(Path(__file__).parent))
     from scorer import run_scoring
 
     print("\n" + "=" * 60)
@@ -423,9 +403,7 @@ def run_score(args):
 def run_monitor(args):
     """运行市场监控"""
     import json
-    import sys
 
-    sys.path.insert(0, str(Path(__file__).parent))
     from scanner import run_monitor as run_market_monitor
 
     db_path = Path(args.db) if args.db else DATA_DIR / "stock_analysis.db"
@@ -448,9 +426,7 @@ def run_monitor(args):
 def run_backtest(args):
     """运行策略回测"""
     import json
-    import sys
 
-    sys.path.insert(0, str(Path(__file__).parent))
     from strategy import run_backtest as run_strategy_backtest
 
     print("\n" + "=" * 60)
@@ -533,9 +509,7 @@ def run_backtest(args):
         print(f"\n💾 报告已保存到: {output_path}")
 
     if args.benchmark:
-        import sys
 
-        sys.path.insert(0, str(Path(__file__).parent))
         from strategy import compare_with_benchmark, print_benchmark_comparison
 
         print("\n" + "=" * 60)
@@ -551,9 +525,7 @@ def run_backtest(args):
 
 def run_trade_report(args):
     """生成交易报告"""
-    import sys
 
-    sys.path.insert(0, str(Path(__file__).parent))
     from strategy import (
         generate_trade_report,
         print_trade_report,
@@ -591,9 +563,7 @@ def run_trade_report(args):
 
 def run_backtest_viz(args):
     """运行回测可视化"""
-    import sys
 
-    sys.path.insert(0, str(Path(__file__).parent))
     from strategy import visualize_backtest
 
     print("\n" + "=" * 60)
@@ -617,9 +587,7 @@ def run_backtest_viz(args):
 
 def run_export(args):
     """导出数据"""
-    import sys
 
-    sys.path.insert(0, str(Path(__file__).parent))
     from strategy import run_backtest as run_strategy_backtest
     from utils import export_backtest_trades
 
@@ -653,9 +621,7 @@ def run_export(args):
 
 def run_market_timing(args):
     """运行大盘择时"""
-    import sys
 
-    sys.path.insert(0, str(Path(__file__).parent))
     from strategy import run_market_timing
 
     db_path = Path(args.db) if args.db else DATA_DIR / "stock_analysis.db"
@@ -671,9 +637,7 @@ def run_market_timing(args):
 def run_compare(args):
     """运行策略对比"""
     import json
-    import sys
 
-    sys.path.insert(0, str(Path(__file__).parent))
     from strategy import run_comparison
 
     db_path = Path(args.db) if args.db else DATA_DIR / "stock_analysis.db"
@@ -702,9 +666,7 @@ def run_compare(args):
 def run_sector(args):
     """运行行业轮动分析"""
     import json
-    import sys
 
-    sys.path.insert(0, str(Path(__file__).parent))
     from strategy import run_sector_analysis, run_sector_validation
 
     db_path = Path(args.db) if args.db else DATA_DIR / "stock_analysis.db"
@@ -730,9 +692,7 @@ def run_sector(args):
 def run_portfolio(args):
     """运行多策略组合回测"""
     import json
-    import sys
 
-    sys.path.insert(0, str(Path(__file__).parent))
     from strategy import run_portfolio_backtest
 
     print("\n" + "=" * 60)
@@ -793,9 +753,7 @@ def run_portfolio(args):
 
 def run_web(args):
     """运行 Web 服务器"""
-    import sys
 
-    sys.path.insert(0, str(Path(__file__).parent))
     from web import run_server
 
     print("\n" + "=" * 60)
@@ -808,9 +766,7 @@ def run_web(args):
 def run_optimize(args):
     """运行参数优化"""
     import json
-    import sys
 
-    sys.path.insert(0, str(Path(__file__).parent))
     from strategy import run_optimization
 
     print("\n" + "=" * 60)
@@ -853,9 +809,7 @@ def run_optimize(args):
 
 def run_interactive_mode(args):
     """运行交互式模式"""
-    import sys
 
-    sys.path.insert(0, str(Path(__file__).parent))
     from utils.interactive_cli import run_interactive
 
     run_interactive()
@@ -863,9 +817,7 @@ def run_interactive_mode(args):
 
 def run_db_optimize(args):
     """运行数据库性能优化"""
-    import sys
 
-    sys.path.insert(0, str(Path(__file__).parent))
     from utils import optimize_database
 
     print("\n" + "=" * 60)
@@ -903,9 +855,7 @@ def run_db_optimize(args):
 
 def run_signal_backtest(args):
     """运行信号有效性回测"""
-    import sys
 
-    sys.path.insert(0, str(Path(__file__).parent))
     from strategy import run_signal_backtest as run_backtest
 
     print("\n" + "=" * 60)
@@ -953,11 +903,9 @@ def run_signal_backtest(args):
 
 def run_portfolio_opt(args):
     """运行组合优化"""
-    import sys
 
     import numpy as np
 
-    sys.path.insert(0, str(Path(__file__).parent))
     from strategy import PortfolioOptimizer, create_position_limit
 
     print("\n" + "=" * 60)
@@ -1021,12 +969,10 @@ def run_portfolio_opt(args):
 
 def run_risk_attribution(args):
     """运行风险归因分析"""
-    import sys
 
     import numpy as np
     import pandas as pd
 
-    sys.path.insert(0, str(Path(__file__).parent))
     from strategy import RiskAttributor
 
     print("\n" + "=" * 60)

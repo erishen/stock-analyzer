@@ -6,7 +6,6 @@ CLI 工具测试
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from utils.cli_utils import (
     ColorScheme,

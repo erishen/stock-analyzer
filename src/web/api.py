@@ -4,6 +4,7 @@ FastAPI 应用
 """
 
 import sqlite3
+import sys
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -26,6 +27,7 @@ from .schemas import (
 )
 
 PROJECT_ROOT = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(PROJECT_ROOT / "src"))
 DATA_DIR = PROJECT_ROOT / "data"
 STATIC_DIR = Path(__file__).parent / "static"
 ASSETS_DIR = STATIC_DIR / "assets"
@@ -68,56 +70,54 @@ async def get_stats():
     if not db_path.exists():
         return JSONResponse(content=StatsResponse(success=False, error="数据库不存在").to_dict())
 
-    conn = sqlite3.connect(str(db_path))
-    try:
-        cursor = conn.execute("""
-            SELECT
-                COUNT(DISTINCT code) as stock_count,
-                COUNT(*) as total_records,
-                MIN(date) as min_date,
-                MAX(date) as max_date
-            FROM stock_analysis
-        """)
-        row = cursor.fetchone()
+    with sqlite3.connect(str(db_path)) as conn:
+        try:
+            cursor = conn.execute("""
+                SELECT
+                    COUNT(DISTINCT code) as stock_count,
+                    COUNT(*) as total_records,
+                    MIN(date) as min_date,
+                    MAX(date) as max_date
+                FROM stock_analysis
+            """)
+            row = cursor.fetchone()
 
-        cursor = conn.execute("PRAGMA table_info(stock_analysis)")
-        columns = cursor.fetchall()
-        indicator_cols = [
-            c[1]
-            for c in columns
-            if c[1]
-            not in [
-                "id",
-                "code",
-                "date",
-                "open",
-                "close",
-                "high",
-                "low",
-                "volume",
-                "amount",
-                "amplitude",
-                "change_percent",
-                "change_amount",
-                "turnover_rate",
-                "created_at",
+            cursor = conn.execute("PRAGMA table_info(stock_analysis)")
+            columns = cursor.fetchall()
+            indicator_cols = [
+                c[1]
+                for c in columns
+                if c[1]
+                not in [
+                    "id",
+                    "code",
+                    "date",
+                    "open",
+                    "close",
+                    "high",
+                    "low",
+                    "volume",
+                    "amount",
+                    "amplitude",
+                    "change_percent",
+                    "change_amount",
+                    "turnover_rate",
+                    "created_at",
+                ]
             ]
-        ]
 
-        return JSONResponse(
-            content=StatsResponse(
-                success=True,
-                stock_count=row[0],
-                total_records=row[1],
-                min_date=row[2] or "",
-                max_date=row[3] or "",
-                indicator_count=len(indicator_cols),
-            ).to_dict()
-        )
-    except Exception as e:
-        return JSONResponse(content=StatsResponse(success=False, error=str(e)).to_dict())
-    finally:
-        conn.close()
+            return JSONResponse(
+                content=StatsResponse(
+                    success=True,
+                    stock_count=row[0],
+                    total_records=row[1],
+                    min_date=row[2] or "",
+                    max_date=row[3] or "",
+                    indicator_count=len(indicator_cols),
+                ).to_dict()
+            )
+        except Exception as e:
+            return JSONResponse(content=StatsResponse(success=False, error=str(e)).to_dict())
 
 
 @app.post("/api/scan")
@@ -129,7 +129,6 @@ async def scan_signals(request: ScanRequest):
     try:
         import sys
 
-        sys.path.insert(0, str(PROJECT_ROOT / "src"))
         from scanner import SignalType, run_scan
 
         signal_type = None
@@ -178,7 +177,6 @@ async def run_backtest(request: BacktestRequest):
     try:
         import sys
 
-        sys.path.insert(0, str(PROJECT_ROOT / "src"))
         from strategy import run_backtest as run_strategy_backtest
 
         result = run_strategy_backtest(
@@ -243,7 +241,6 @@ async def run_portfolio(request: PortfolioRequest):
     try:
         import sys
 
-        sys.path.insert(0, str(PROJECT_ROOT / "src"))
         from strategy import run_portfolio_backtest
 
         strategies = [
@@ -301,7 +298,6 @@ async def get_sector():
     try:
         import sys
 
-        sys.path.insert(0, str(PROJECT_ROOT / "src"))
         from strategy import run_sector_analysis
 
         result = run_sector_analysis(db_path)
@@ -350,7 +346,6 @@ async def get_market_timing():
     try:
         import sys
 
-        sys.path.insert(0, str(PROJECT_ROOT / "src"))
         from strategy import run_market_timing
 
         result = run_market_timing(db_path)

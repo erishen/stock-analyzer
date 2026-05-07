@@ -3,7 +3,10 @@ Interactive CLI for Stock Analyzer.
 交互式命令行界面 - 提供菜单驱动的交互体验
 """
 
+import sys
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from rich.console import Console
 from rich.panel import Panel
@@ -241,7 +244,6 @@ class InteractiveCLI:
         console.print("\n[cyan]正在同步数据...[/cyan]")
         import sys
 
-        sys.path.insert(0, str(Path(__file__).parent.parent))
         from data import run_sync
 
         result = run_sync()
@@ -254,7 +256,6 @@ class InteractiveCLI:
         console.print("\n[cyan]正在运行 ETL...[/cyan]")
         import sys
 
-        sys.path.insert(0, str(Path(__file__).parent.parent))
         from etl import run_etl
 
         result = run_etl()
@@ -267,25 +268,23 @@ class InteractiveCLI:
             console.print(f"[red]❌ 数据库不存在: {self.db_path}[/red]")
             return
 
-        conn = sqlite3.connect(str(self.db_path))
+        with sqlite3.connect(str(self.db_path)) as conn:
+            table = Table(title="数据统计")
+            table.add_column("指标", style="cyan")
+            table.add_column("值", style="white")
 
-        table = Table(title="数据统计")
-        table.add_column("指标", style="cyan")
-        table.add_column("值", style="white")
+            cursor = conn.execute("SELECT COUNT(DISTINCT code) FROM stock_analysis")
+            stock_count = cursor.fetchone()[0]
+            table.add_row("股票数量", f"{stock_count:,}")
 
-        cursor = conn.execute("SELECT COUNT(DISTINCT code) FROM stock_analysis")
-        stock_count = cursor.fetchone()[0]
-        table.add_row("股票数量", f"{stock_count:,}")
+            cursor = conn.execute("SELECT COUNT(*) FROM stock_analysis")
+            total_records = cursor.fetchone()[0]
+            table.add_row("总记录数", f"{total_records:,}")
 
-        cursor = conn.execute("SELECT COUNT(*) FROM stock_analysis")
-        total_records = cursor.fetchone()[0]
-        table.add_row("总记录数", f"{total_records:,}")
+            cursor = conn.execute("SELECT MIN(date), MAX(date) FROM stock_analysis")
+            row = cursor.fetchone()
+            table.add_row("日期范围", f"{row[0]} ~ {row[1]}")
 
-        cursor = conn.execute("SELECT MIN(date), MAX(date) FROM stock_analysis")
-        row = cursor.fetchone()
-        table.add_row("日期范围", f"{row[0]} ~ {row[1]}")
-
-        conn.close()
         console.print(table)
 
     def _export_data(self):
@@ -295,7 +294,6 @@ class InteractiveCLI:
         console.print("\n[cyan]正在扫描市场...[/cyan]")
         import sys
 
-        sys.path.insert(0, str(Path(__file__).parent.parent))
         from scanner import run_scan
 
         result = run_scan(db_path=self.db_path, min_score=min_score)
@@ -320,7 +318,6 @@ class InteractiveCLI:
         console.print("\n[cyan]正在运行回测...[/cyan]")
         import sys
 
-        sys.path.insert(0, str(Path(__file__).parent.parent))
         from strategy import run_backtest as run_strategy_backtest
 
         result = run_strategy_backtest(
@@ -338,7 +335,6 @@ class InteractiveCLI:
         console.print("\n[cyan]正在计算评分...[/cyan]")
         import sys
 
-        sys.path.insert(0, str(Path(__file__).parent.parent))
         from scorer import run_scoring
 
         report = run_scoring(db_path=self.db_path, top_n=top_n)
@@ -376,7 +372,6 @@ class InteractiveCLI:
         console.print("\n[cyan]正在分析准确率...[/cyan]")
         import sys
 
-        sys.path.insert(0, str(Path(__file__).parent.parent))
         from scanner import run_accuracy_analysis
 
         report = run_accuracy_analysis(db_path=self.db_path, holding_days=holding_days)
@@ -406,7 +401,6 @@ class InteractiveCLI:
         console.print("\n[cyan]正在启动 Web 服务...[/cyan]")
         import sys
 
-        sys.path.insert(0, str(Path(__file__).parent.parent))
         from web import run_server
 
         console.print("[green]🌐 Web 服务已启动: http://127.0.0.1:8000[/green]")

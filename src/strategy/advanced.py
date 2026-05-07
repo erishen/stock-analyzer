@@ -19,6 +19,7 @@ import numpy as np
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
+from constants import is_excluded_stock
 
 
 @dataclass
@@ -46,8 +47,6 @@ class PairInfo:
 class BreakoutStrategy:
     """突破策略 - 价格突破、布林带突破、成交量突破"""
 
-    EXCLUDED_KEYWORDS = ["ST", "st", "*ST", "SST", "S*ST", "退市", "退", "PT", "停牌"]
-
     def __init__(
         self,
         breakout_type: str = "price",
@@ -73,12 +72,7 @@ class BreakoutStrategy:
         self.take_profit = take_profit
 
     def is_excluded(self, name: str) -> bool:
-        if not self.exclude_st:
-            return False
-        for keyword in self.EXCLUDED_KEYWORDS:
-            if keyword in name:
-                return True
-        return False
+        return is_excluded_stock(name, self.exclude_st)
 
     def detect_price_breakout(self, df: pd.DataFrame, idx: int) -> tuple[bool, float]:
         """检测价格突破"""
@@ -374,8 +368,6 @@ class PairTradingStrategy:
 class EventDrivenStrategy:
     """事件驱动策略 - 财报事件、分红事件、技术事件"""
 
-    EXCLUDED_KEYWORDS = ["ST", "st", "*ST", "SST", "S*ST", "退市", "退", "PT", "停牌"]
-
     def __init__(
         self,
         event_types: list[str] | None = None,
@@ -391,12 +383,7 @@ class EventDrivenStrategy:
         self.exclude_st = exclude_st
 
     def is_excluded(self, name: str) -> bool:
-        if not self.exclude_st:
-            return False
-        for keyword in self.EXCLUDED_KEYWORDS:
-            if keyword in name:
-                return True
-        return False
+        return is_excluded_stock(name, self.exclude_st)
 
     def detect_earnings_event(self, df: pd.DataFrame, idx: int) -> tuple[bool, float]:
         """检测财报事件 - 基于成交量异常"""
@@ -566,13 +553,12 @@ def run_grid_backtest(
     """运行网格交易策略回测"""
     strategy = GridTradingStrategy(grid_count=grid_count)
 
-    conn = sqlite3.connect(str(db_path))
-    df = pd.read_sql_query(
-        "SELECT * FROM stock_analysis WHERE code = ? ORDER BY date",
-        conn,
-        params=(code,),
-    )
-    conn.close()
+    with sqlite3.connect(str(db_path)) as conn:
+        df = pd.read_sql_query(
+            "SELECT * FROM stock_analysis WHERE code = ? ORDER BY date",
+            conn,
+            params=(code,),
+        )
 
     if df.empty:
         return {"success": False, "error": "无数据"}
@@ -614,20 +600,18 @@ def run_pair_backtest(
     lookback_days: int = 60,
 ) -> dict[str, Any]:
     """运行配对交易策略回测"""
-    conn = sqlite3.connect(str(db_path))
-    codes = pd.read_sql_query("SELECT DISTINCT code FROM stock_analysis", conn)["code"].tolist()
+    with sqlite3.connect(str(db_path)) as conn:
+        codes = pd.read_sql_query("SELECT DISTINCT code FROM stock_analysis", conn)["code"].tolist()
 
-    all_data = {}
-    for code in codes[:50]:
-        df = pd.read_sql_query(
-            "SELECT date, close FROM stock_analysis WHERE code = ? ORDER BY date",
-            conn,
-            params=(code,),
-        )
-        if len(df) >= lookback_days:
-            all_data[code] = df
-
-    conn.close()
+        all_data = {}
+        for code in codes[:50]:
+            df = pd.read_sql_query(
+                "SELECT date, close FROM stock_analysis WHERE code = ? ORDER BY date",
+                conn,
+                params=(code,),
+            )
+            if len(df) >= lookback_days:
+                all_data[code] = df
 
     strategy = PairTradingStrategy(lookback_days=lookback_days)
     pairs = strategy.find_pairs(all_data)

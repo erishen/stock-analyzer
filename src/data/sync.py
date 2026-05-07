@@ -114,22 +114,19 @@ def get_db_info(source_path: Path | str | None = None) -> dict:
     info["size"] = source.stat().st_size
 
     try:
-        conn = sqlite3.connect(str(source))
+        with sqlite3.connect(str(source)) as conn:
+            cursor = conn.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
+            info["tables"] = [row[0] for row in cursor.fetchall()]
 
-        cursor = conn.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
-        info["tables"] = [row[0] for row in cursor.fetchall()]
+            if "stock_klines" in info["tables"]:
+                cursor = conn.execute("SELECT COUNT(DISTINCT code) FROM stock_klines")
+                info["stock_count"] = cursor.fetchone()[0]
 
-        if "stock_klines" in info["tables"]:
-            cursor = conn.execute("SELECT COUNT(DISTINCT code) FROM stock_klines")
-            info["stock_count"] = cursor.fetchone()[0]
+                cursor = conn.execute("SELECT COUNT(*) FROM stock_klines")
+                info["kline_count"] = cursor.fetchone()[0]
 
-            cursor = conn.execute("SELECT COUNT(*) FROM stock_klines")
-            info["kline_count"] = cursor.fetchone()[0]
-
-            cursor = conn.execute("SELECT MAX(date) FROM stock_klines")
-            info["last_update"] = cursor.fetchone()[0]
-
-        conn.close()
+                cursor = conn.execute("SELECT MAX(date) FROM stock_klines")
+                info["last_update"] = cursor.fetchone()[0]
     except Exception:
         pass
 

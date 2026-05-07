@@ -157,8 +157,6 @@ class SectorRotationAnalyzer:
         if not stocks:
             return None
 
-        conn = sqlite3.connect(str(db_path))
-
         placeholders = ",".join(["?" for _ in stocks])
         query = f"""
             SELECT code, change_percent, volume, close, ma5, ma20
@@ -168,10 +166,9 @@ class SectorRotationAnalyzer:
         params = [date] + stocks
 
         try:
-            df = pd.read_sql_query(query, conn, params=params)
-            conn.close()
+            with sqlite3.connect(str(db_path)) as conn:
+                df = pd.read_sql_query(query, conn, params=params)
         except Exception:
-            conn.close()
             return None
 
         if df.empty:
@@ -230,10 +227,9 @@ class SectorRotationAnalyzer:
             行业分析结果
         """
         if date is None:
-            conn = sqlite3.connect(str(db_path))
-            cursor = conn.execute("SELECT MAX(date) FROM stock_analysis")
-            date = cursor.fetchone()[0]
-            conn.close()
+            with sqlite3.connect(str(db_path)) as conn:
+                cursor = conn.execute("SELECT MAX(date) FROM stock_analysis")
+                date = cursor.fetchone()[0]
 
         sector_metrics = []
         for sector in self.sector_mapping.keys():

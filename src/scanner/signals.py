@@ -11,11 +11,14 @@ Signal Scanner for Stock Analyzer.
 """
 
 import sqlite3
+import sys
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
 from typing import Any
+
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import pandas as pd
 
@@ -977,9 +980,7 @@ class MarketScanner:
         Returns:
             扫描结果
         """
-        import sys
 
-        sys.path.insert(0, str(Path(__file__).parent.parent))
         from data import get_stock_name
 
         scan_time = datetime.now().isoformat()
@@ -1106,10 +1107,8 @@ class MarketScanner:
         Returns:
             扫描结果
         """
-        import sys
         from concurrent.futures import ThreadPoolExecutor, as_completed
 
-        sys.path.insert(0, str(Path(__file__).parent.parent))
         from data import get_stock_name
 
         scan_time = datetime.now().isoformat()

@@ -3,7 +3,6 @@ Tests for Signal Scanner.
 信号扫描器测试
 """
 
-import sys
 import tempfile
 from pathlib import Path
 
@@ -11,7 +10,6 @@ import numpy as np
 import pandas as pd
 import pytest
 
-sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from scanner.signals import (
     MarketScanner,
