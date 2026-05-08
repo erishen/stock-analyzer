@@ -10,7 +10,6 @@ from unittest.mock import patch
 
 import pytest
 
-
 from strategy.trade_report import (
     MonthlyPerformance,
     StockPerformance,

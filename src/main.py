@@ -9,7 +9,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 
-from config import DATA_DIR, OUTPUT_DIR, get_asset_lens_db_path, get_stock_analysis_db_path
+from config import DATA_DIR, OUTPUT_DIR, get_asset_lens_db_path, get_stock_analysis_db_path  # noqa: F401
 
 PROJECT_ROOT = Path(__file__).parent.parent
 CHARTS_DIR = OUTPUT_DIR / "charts"

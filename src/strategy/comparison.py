@@ -7,6 +7,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from config import get_stock_analysis_db_path
+
 
 @dataclass
 class StrategyMetrics:
@@ -173,7 +175,7 @@ def run_comparison(
     )
 
     project_root = Path(__file__).parent.parent.parent
-    data_dir = project_root / "data"
+    project_root / "data"
     db_path = db_path or get_stock_analysis_db_path()
 
     if strategies is None:

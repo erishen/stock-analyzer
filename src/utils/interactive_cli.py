@@ -8,10 +8,11 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from config import get_stock_analysis_db_path
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
+
+from config import get_stock_analysis_db_path
 
 console = Console()
 
@@ -243,7 +244,6 @@ class InteractiveCLI:
 
     def _run_sync(self):
         console.print("\n[cyan]正在同步数据...[/cyan]")
-        import sys
 
         from data import run_sync
 
@@ -255,7 +255,6 @@ class InteractiveCLI:
 
     def _run_etl(self):
         console.print("\n[cyan]正在运行 ETL...[/cyan]")
-        import sys
 
         from etl import run_etl
 
@@ -293,7 +292,6 @@ class InteractiveCLI:
 
     def _run_scan(self, signal_types: list[str], min_score: float, output_file: str):
         console.print("\n[cyan]正在扫描市场...[/cyan]")
-        import sys
 
         from scanner import run_scan
 
@@ -317,7 +315,6 @@ class InteractiveCLI:
 
     def _run_backtest(self, strategy: str, holding_days: int, capital: float, compare_benchmark: bool):
         console.print("\n[cyan]正在运行回测...[/cyan]")
-        import sys
 
         from strategy import run_backtest as run_strategy_backtest
 
@@ -334,7 +331,6 @@ class InteractiveCLI:
 
     def _run_score(self, top_n: int, output_file: str):
         console.print("\n[cyan]正在计算评分...[/cyan]")
-        import sys
 
         from scorer import run_scoring
 
@@ -371,7 +367,6 @@ class InteractiveCLI:
 
     def _run_accuracy(self, holding_days: int):
         console.print("\n[cyan]正在分析准确率...[/cyan]")
-        import sys
 
         from scanner import run_accuracy_analysis
 
@@ -400,7 +395,6 @@ class InteractiveCLI:
 
     def _start_web(self):
         console.print("\n[cyan]正在启动 Web 服务...[/cyan]")
-        import sys
 
         from web import run_server
 

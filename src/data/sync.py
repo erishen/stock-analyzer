@@ -4,9 +4,9 @@ Data Sync Module for Stock Analyzer.
 """
 
 import os
+import sys
 from pathlib import Path
 
-import sys
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from config import get_asset_lens_db_path
 

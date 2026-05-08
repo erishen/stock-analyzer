@@ -3,11 +3,9 @@ Tests for Strategy Module.
 策略模块测试
 """
 
-from pathlib import Path
 
 import numpy as np
 import pandas as pd
-
 
 from strategy.backtest import (
     BacktestResult,

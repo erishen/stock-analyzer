@@ -531,7 +531,7 @@ def run_etl(
         ETL 执行结果
     """
     project_root = Path(__file__).parent.parent
-    data_dir = project_root / "data"
+    project_root / "data"
 
     config = ETLConfig(
         source_db=Path(source_db) if source_db else get_asset_lens_db_path(),

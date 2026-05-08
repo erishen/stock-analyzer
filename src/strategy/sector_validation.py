@@ -11,6 +11,8 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
+from config import get_stock_analysis_db_path
+
 from .sector_rotation import (
     RotationSignal,
     SectorRotationAnalyzer,
@@ -300,7 +302,7 @@ def print_sector_backtest(result: SectorBacktestResult):
 def run_sector_validation(db_path: Path | None = None) -> dict[str, Any]:
     """运行行业验证"""
     project_root = Path(__file__).parent.parent.parent
-    data_dir = project_root / "data"
+    project_root / "data"
     db_path = db_path or get_stock_analysis_db_path()
 
     if not db_path.exists():

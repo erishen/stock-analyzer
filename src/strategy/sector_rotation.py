@@ -12,6 +12,8 @@ from typing import Any
 
 import pandas as pd
 
+from config import get_stock_analysis_db_path
+
 
 class SectorStrength(Enum):
     """行业强度"""
@@ -413,7 +415,7 @@ def run_sector_analysis(
 ) -> SectorAnalysisResult:
     """运行行业轮动分析"""
     project_root = Path(__file__).parent.parent.parent
-    data_dir = project_root / "data"
+    project_root / "data"
     db_path = db_path or get_stock_analysis_db_path()
 
     if not db_path.exists():

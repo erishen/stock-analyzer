@@ -3,10 +3,7 @@ Tests for Strategy Comparison Module.
 策略对比模块测试
 """
 
-import sys
-from pathlib import Path
 from unittest.mock import MagicMock
-
 
 from strategy.comparison import (
     ComparisonResult,

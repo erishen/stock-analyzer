@@ -347,7 +347,7 @@ class TrendFollowingStrategy:
                     continue
 
                 boll_upper = row.get("boll_upper", 0) or 0
-                boll_lower = row.get("boll_lower", 0) or 0
+                row.get("boll_lower", 0) or 0
                 ma5 = row.get("ma5", 0) or 0
                 ma10 = row.get("ma10", 0) or 0
                 ma20 = row.get("ma20", 0) or 0
@@ -411,7 +411,7 @@ class MultiFactorStrategy:
         ma5 = float(row.get("ma5", 0) or 0)
         ma10 = float(row.get("ma10", 0) or 0)
         ma20 = float(row.get("ma20", 0) or 0)
-        rsi = float(row.get("rsi", 50) or 50)
+        float(row.get("rsi", 50) or 50)
         volume = float(row.get("volume", 0) or 0)
 
         trend_score = 0
@@ -968,7 +968,7 @@ def run_backtest(
         回测结果
     """
     project_root = Path(__file__).parent.parent.parent
-    data_dir = project_root / "data"
+    project_root / "data"
 
     db_path = db_path or get_stock_analysis_db_path()
 

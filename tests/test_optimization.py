@@ -9,7 +9,6 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-
 from strategy.optimization import (
     OptimizationResult,
     optimize_mean_reversion_strategy,

@@ -248,7 +248,7 @@ class TestCLICommands:
         import subprocess
 
         result = subprocess.run(
-            ["python", "-m", "src.main", "scan", "--help"],
+            ["uv", "run", "python", "-m", "src.main", "scan", "--help"],
             capture_output=True,
             text=True,
             cwd="/Users/erishen/Workspace/CNB/individular-invest/InvestKit/stock-analyzer",
@@ -261,7 +261,7 @@ class TestCLICommands:
         import subprocess
 
         result = subprocess.run(
-            ["python", "-m", "src.main", "backtest", "--help"],
+            ["uv", "run", "python", "-m", "src.main", "backtest", "--help"],
             capture_output=True,
             text=True,
             cwd="/Users/erishen/Workspace/CNB/individular-invest/InvestKit/stock-analyzer",
@@ -273,7 +273,7 @@ class TestCLICommands:
         import subprocess
 
         result = subprocess.run(
-            ["python", "-m", "src.main", "score", "--help"],
+            ["uv", "run", "python", "-m", "src.main", "score", "--help"],
             capture_output=True,
             text=True,
             cwd="/Users/erishen/Workspace/CNB/individular-invest/InvestKit/stock-analyzer",
@@ -285,7 +285,7 @@ class TestCLICommands:
         import subprocess
 
         result = subprocess.run(
-            ["python", "-m", "src.main", "--help"],
+            ["uv", "run", "python", "-m", "src.main", "--help"],
             capture_output=True,
             text=True,
             cwd="/Users/erishen/Workspace/CNB/individular-invest/InvestKit/stock-analyzer",

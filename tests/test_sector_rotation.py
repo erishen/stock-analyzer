@@ -3,7 +3,6 @@ Tests for Sector Rotation Module.
 行业轮动模块测试
 """
 
-from pathlib import Path
 
 
 from strategy.sector_rotation import (

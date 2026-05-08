@@ -10,6 +10,8 @@ from typing import Any
 
 import numpy as np
 
+from config import get_stock_analysis_db_path
+
 from .backtest import (
     BacktestEngine,
     BacktestResult,
@@ -442,7 +444,7 @@ def run_portfolio_backtest(
         组合回测结果
     """
     project_root = Path(__file__).parent.parent.parent
-    data_dir = project_root / "data"
+    project_root / "data"
     db_path = db_path or get_stock_analysis_db_path()
 
     if not db_path.exists():

@@ -9,11 +9,11 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from config import get_stock_analysis_db_path
-
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+
+from config import get_stock_analysis_db_path
 
 from .schemas import (
     BacktestRequest,
@@ -130,7 +130,6 @@ async def scan_signals(request: ScanRequest):
         return JSONResponse(content=ScanResponse(success=False, error="数据库不存在").to_dict())
 
     try:
-        import sys
 
         from scanner import SignalType, run_scan
 
@@ -178,7 +177,6 @@ async def run_backtest(request: BacktestRequest):
         return JSONResponse(content=BacktestResponse(success=False, error="数据库不存在").to_dict())
 
     try:
-        import sys
 
         from strategy import run_backtest as run_strategy_backtest
 
@@ -242,7 +240,6 @@ async def run_portfolio(request: PortfolioRequest):
         return JSONResponse(content=PortfolioResponse(success=False, error="数据库不存在").to_dict())
 
     try:
-        import sys
 
         from strategy import run_portfolio_backtest
 

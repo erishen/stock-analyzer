@@ -19,9 +19,9 @@ from pathlib import Path
 from typing import Any
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from config import get_stock_analysis_db_path
-
 import pandas as pd
+
+from config import get_stock_analysis_db_path
 
 
 class SignalType(Enum):
@@ -1210,7 +1210,7 @@ def run_scan(
         扫描结果
     """
     project_root = Path(__file__).parent.parent.parent
-    data_dir = project_root / "data"
+    project_root / "data"
 
     db_path = db_path or get_stock_analysis_db_path()
 

@@ -9,7 +9,6 @@ from pathlib import Path
 
 import pytest
 
-
 from data.stock_info import (
     StockInfo,
     StockInfoFetcher,

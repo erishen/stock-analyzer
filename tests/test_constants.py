@@ -1,4 +1,3 @@
-import pytest
 
 from constants import EXCLUDED_KEYWORDS, is_excluded_stock
 

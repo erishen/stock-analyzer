@@ -3,10 +3,13 @@ Parameter Optimization Module.
 参数优化模块 - 网格搜索最优策略参数
 """
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from itertools import product
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
+
+from config import get_stock_analysis_db_path
 
 from .backtest import (
     BacktestEngine,
@@ -250,7 +253,7 @@ def run_optimization(
 ) -> OptimizationResult:
     """运行参数优化的便捷函数"""
     project_root = Path(__file__).parent.parent.parent
-    data_dir = project_root / "data"
+    project_root / "data"
 
     db_path = db_path or get_stock_analysis_db_path()
 

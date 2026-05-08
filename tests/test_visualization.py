@@ -10,7 +10,6 @@ from unittest.mock import patch
 
 import pytest
 
-
 from strategy.visualization import (
     BacktestChartData,
     generate_backtest_report,

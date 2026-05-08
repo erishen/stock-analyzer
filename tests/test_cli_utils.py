@@ -3,8 +3,6 @@ Tests for CLI Utilities.
 CLI 工具测试
 """
 
-import sys
-from pathlib import Path
 
 
 from utils.cli_utils import (

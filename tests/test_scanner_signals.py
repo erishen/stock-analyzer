@@ -3,11 +3,9 @@ Tests for Scanner Signals.
 信号扫描器测试
 """
 
-from pathlib import Path
 
 import pandas as pd
 import pytest
-
 
 from scanner.signals import (
     ScanResult,

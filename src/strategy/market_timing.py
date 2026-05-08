@@ -11,6 +11,8 @@ from typing import Any
 
 import pandas as pd
 
+from config import get_stock_analysis_db_path
+
 
 class MarketState(Enum):
     """市场状态"""
@@ -281,7 +283,7 @@ def print_market_timing(indicator: MarketIndicator):
 def run_market_timing(db_path: Path | None = None) -> MarketIndicator:
     """运行大盘择时分析"""
     project_root = Path(__file__).parent.parent.parent
-    data_dir = project_root / "data"
+    project_root / "data"
     db_path = db_path or get_stock_analysis_db_path()
 
     if not db_path.exists():

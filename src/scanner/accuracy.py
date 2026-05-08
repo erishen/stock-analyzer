@@ -407,7 +407,7 @@ def run_accuracy_analysis(db_path: Path | None = None, holding_days: int = 5) ->
         准确率报告
     """
     project_root = Path(__file__).parent.parent.parent
-    data_dir = project_root / "data"
+    project_root / "data"
 
     db_path = db_path or get_stock_analysis_db_path()
 

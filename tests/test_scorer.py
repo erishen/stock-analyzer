@@ -3,7 +3,6 @@ Tests for Scorer Module.
 评分模块测试
 """
 
-from pathlib import Path
 
 
 from scorer.ranking import (

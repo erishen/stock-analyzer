@@ -11,7 +11,6 @@ import numpy as np
 import pandas as pd
 import pytest
 
-
 from etl.pipeline import (
     DataExtractor,
     DataLoader,

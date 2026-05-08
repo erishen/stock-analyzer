@@ -3,11 +3,9 @@ Tests for Advanced Strategies.
 高级策略测试
 """
 
-from pathlib import Path
 
 import numpy as np
 import pandas as pd
-
 
 from strategy.advanced import (
     BreakoutStrategy,
