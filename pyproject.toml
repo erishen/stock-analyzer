@@ -3,7 +3,7 @@ name = "stock-analyzer"
 version = "0.1.0"
 description = "Stock Analyzer - 股票数据分析工具"
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.11,<3.14"
 dependencies = [
     "investkit-utils",
     "matplotlib",
@@ -33,7 +33,7 @@ web = [
 stock-analyzer = "src.main:main"
 
 [tool.ruff]
-target-version = "py313"
+target-version = "py311"
 line-length = 120
 
 [tool.ruff.lint]
@@ -49,7 +49,7 @@ quote-style = "double"
 indent-style = "space"
 
 [tool.pyright]
-pythonVersion = "3.13"
+pythonVersion = "3.11"
 typeCheckingMode = "basic"
 reportMissingImports = true
 reportMissingTypeStubs = false
@@ -72,3 +72,6 @@ exclude_lines = [
     "raise NotImplementedError",
 ]
 show_missing = true
+
+[tool.uv.sources]
+investkit-utils = { workspace = true }

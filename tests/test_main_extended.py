@@ -7,6 +7,8 @@ import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+PROJECT_DIR = Path(__file__).parent.parent
+
 
 class TestMainModule:
     """主模块测试"""
@@ -250,7 +252,7 @@ class TestCLICommands:
             ["uv", "run", "python", "-m", "src.main", "scan", "--help"],
             capture_output=True,
             text=True,
-            cwd="/Users/erishen/Workspace/CNB/individular-invest/InvestKit/stock-analyzer",
+            cwd=str(PROJECT_DIR),
         )
         assert result.returncode == 0
         assert "scan" in result.stdout.lower() or "信号" in result.stdout
@@ -263,7 +265,7 @@ class TestCLICommands:
             ["uv", "run", "python", "-m", "src.main", "backtest", "--help"],
             capture_output=True,
             text=True,
-            cwd="/Users/erishen/Workspace/CNB/individular-invest/InvestKit/stock-analyzer",
+            cwd=str(PROJECT_DIR),
         )
         assert result.returncode == 0
 
@@ -275,7 +277,7 @@ class TestCLICommands:
             ["uv", "run", "python", "-m", "src.main", "score", "--help"],
             capture_output=True,
             text=True,
-            cwd="/Users/erishen/Workspace/CNB/individular-invest/InvestKit/stock-analyzer",
+            cwd=str(PROJECT_DIR),
         )
         assert result.returncode == 0
 
@@ -287,6 +289,6 @@ class TestCLICommands:
             ["uv", "run", "python", "-m", "src.main", "--help"],
             capture_output=True,
             text=True,
-            cwd="/Users/erishen/Workspace/CNB/individular-invest/InvestKit/stock-analyzer",
+            cwd=str(PROJECT_DIR),
         )
         assert result.returncode == 0
