@@ -543,7 +543,7 @@ class DynamicStopLoss:
         self,
         entry_price: float,
         atr: float,
-        highest_price: float = None,
+        highest_price: float | None = None,
     ) -> tuple[float, str]:
         """计算 ATR 止损价"""
         stop_price = entry_price - self.atr_multiplier * atr

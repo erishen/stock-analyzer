@@ -200,10 +200,7 @@ def compare_with_benchmark(
 
         covariance = np.cov(strategy_returns, benchmark_returns)[0, 1]
         benchmark_variance = np.var(benchmark_returns)
-        if benchmark_variance > 0:
-            beta = covariance / benchmark_variance
-        else:
-            beta = 0.0
+        beta = covariance / benchmark_variance if benchmark_variance > 0 else 0.0
 
         rf = 0.02 / 252
         alpha = (np.mean(strategy_returns) - rf) - beta * (np.mean(benchmark_returns) - rf)
@@ -212,10 +209,7 @@ def compare_with_benchmark(
         excess_returns = [s - b for s, b in zip(strategy_returns, benchmark_returns, strict=False)]
         tracking_error = np.std(excess_returns) * np.sqrt(252)
 
-        if tracking_error > 0:
-            information_ratio = np.mean(excess_returns) * np.sqrt(252) / tracking_error
-        else:
-            information_ratio = 0.0
+        information_ratio = np.mean(excess_returns) * np.sqrt(252) / tracking_error if tracking_error > 0 else 0.0
     else:
         alpha = 0.0
         beta = 0.0

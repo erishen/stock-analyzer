@@ -55,7 +55,7 @@ class SignalVisualizer:
             print("没有信号数据")
             return
 
-        fig, ax = plt.subplots(figsize=self.config.figsize)
+        _fig, ax = plt.subplots(figsize=self.config.figsize)
 
         signals = list(summary.keys())
         counts = list(summary.values())
@@ -106,7 +106,7 @@ class SignalVisualizer:
             print("没有信号数据")
             return
 
-        fig, ax = plt.subplots(figsize=(10, 10))
+        _fig, ax = plt.subplots(figsize=(10, 10))
 
         bullish_count = sum(summary.get(s, 0) for s in self.SIGNAL_CATEGORIES["bullish"])
         bearish_count = sum(summary.get(s, 0) for s in self.SIGNAL_CATEGORIES["bearish"])
@@ -126,7 +126,7 @@ class SignalVisualizer:
             print("没有信号数据")
             return
 
-        wedges, texts, autotexts = ax.pie(
+        _wedges, _texts, _autotexts = ax.pie(
             sizes, labels=labels, colors=colors, autopct="%1.1f%%", startangle=90, explode=[0.02] * len(sizes)
         )
 
@@ -147,7 +147,7 @@ class SignalVisualizer:
             print("没有信号数据")
             return
 
-        fig, ax = plt.subplots(figsize=(14, 10))
+        _fig, ax = plt.subplots(figsize=(14, 10))
 
         codes = [f"{s['code']}\n{s.get('name', '')[:6]}" for s in signals[:20]]
         scores = [s["score"] for s in signals[:20]]
@@ -201,12 +201,12 @@ class SignalVisualizer:
             print("没有信号数据")
             return
 
-        fig, ax = plt.subplots(figsize=self.config.figsize)
+        _fig, ax = plt.subplots(figsize=self.config.figsize)
 
         scores = [s["score"] for s in signals]
 
         bins = np.arange(0, 110, 10)
-        n, bins_out, patches = ax.hist(scores, bins=bins, edgecolor="white", alpha=0.8)
+        _n, bins_out, patches = ax.hist(scores, bins=bins, edgecolor="white", alpha=0.8)
 
         for i, patch in enumerate(patches):
             if bins_out[i] >= 70:

@@ -474,7 +474,7 @@ class ETLPipeline:
                         )
 
                 except Exception as e:
-                    error_msg = f"{code}: {str(e)}"
+                    error_msg = f"{code}: {e!s}"
                     result.errors.append(error_msg)
                     print(f"   ⚠️ 错误: {error_msg}")
 

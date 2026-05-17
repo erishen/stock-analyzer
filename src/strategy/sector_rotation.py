@@ -165,7 +165,7 @@ class SectorRotationAnalyzer:
             FROM stock_analysis
             WHERE date = ? AND code IN ({placeholders})
         """
-        params = [date] + stocks
+        params = [date, *stocks]
 
         try:
             with sqlite3.connect(str(db_path)) as conn:
@@ -234,7 +234,7 @@ class SectorRotationAnalyzer:
                 date = cursor.fetchone()[0]
 
         sector_metrics = []
-        for sector in self.sector_mapping.keys():
+        for sector in self.sector_mapping:
             metrics = self.calculate_sector_metrics(sector, db_path, date)
             if metrics:
                 sector_metrics.append(metrics)

@@ -113,14 +113,13 @@ class StockDataFetcher:
             for _, row in df.iterrows():
                 code = row.get("代码", "")
                 name = row.get("名称", "")
-                if code and name:
-                    if not code.startswith(("688", "300", "301")):
-                        stocks.append(
-                            {
-                                "code": code,
-                                "name": name,
-                            }
-                        )
+                if code and name and not code.startswith(("688", "300", "301")):
+                    stocks.append(
+                        {
+                            "code": code,
+                            "name": name,
+                        }
+                    )
             return stocks
         except Exception as e:
             print(f"获取股票列表失败: {e}")
@@ -259,7 +258,7 @@ class StockDataFetcher:
                 time.sleep(delay)
 
             except Exception as e:
-                result.errors.append(f"{stock['code']}: {str(e)}")
+                result.errors.append(f"{stock['code']}: {e!s}")
 
         result.message = f"成功获取 {result.stocks_fetched} 只股票，共 {result.total_records:,} 条记录"
         return result
@@ -301,7 +300,7 @@ class StockDataFetcher:
                 time.sleep(delay)
 
             except Exception as e:
-                result.errors.append(f"{code}: {str(e)}")
+                result.errors.append(f"{code}: {e!s}")
                 print(f"  ✗ {code}: {e}")
 
         result.message = f"成功获取 {result.stocks_fetched} 只股票，共 {result.total_records:,} 条记录"

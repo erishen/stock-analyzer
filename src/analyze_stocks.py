@@ -35,10 +35,7 @@ class StockAnalyzer:
             use_analysis_db: 是否使用分析数据库 (含技术指标)
         """
         if db_path is None:
-            if use_analysis_db:
-                db_path = str(get_stock_analysis_db_path())
-            else:
-                db_path = str(get_asset_lens_db_path())
+            db_path = str(get_stock_analysis_db_path()) if use_analysis_db else str(get_asset_lens_db_path())
         self.db_path = db_path
         self.conn = None
         self.df = None
@@ -270,7 +267,7 @@ class StockAnalyzer:
             print(f"股票 {code} 没有数据")
             return
 
-        fig, axes = plt.subplots(4, 1, figsize=(14, 12), sharex=True)
+        _fig, axes = plt.subplots(4, 1, figsize=(14, 12), sharex=True)
 
         ax1 = axes[0]
         ax1.plot(df["date"], df["close"], label="收盘价", linewidth=1.5)

@@ -475,10 +475,7 @@ class SignalDetector:
         latest = df.iloc[-1]
         close = latest.get("close", price)
 
-        if high_14 != low_14:
-            williams = -100 * (high_14 - close) / (high_14 - low_14)
-        else:
-            williams = -50
+        williams = -100 * (high_14 - close) / (high_14 - low_14) if high_14 != low_14 else -50
 
         if williams > -20:
             strength = SignalStrength.STRONG if williams > -10 else SignalStrength.MEDIUM

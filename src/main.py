@@ -9,7 +9,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 
-from config import DATA_DIR, OUTPUT_DIR, get_asset_lens_db_path, get_stock_analysis_db_path  # noqa: F401
+from config import DATA_DIR, OUTPUT_DIR, get_asset_lens_db_path, get_stock_analysis_db_path
 
 PROJECT_ROOT = Path(__file__).parent.parent
 CHARTS_DIR = OUTPUT_DIR / "charts"
@@ -613,7 +613,7 @@ def run_export(args):
         )
         paths = export_backtest_trades(result, output_dir, format=format_type)
         print("\n✅ 已导出交易数据:")
-        for _name, path in paths.items():
+        for path in paths.values():
             print(f"   - {path}")
     else:
         print(f"❌ 未知导出类型: {args.type}")
@@ -676,10 +676,7 @@ def run_sector(args):
         print("   请先运行: python -m src.main etl")
         return
 
-    if args.validate:
-        result = run_sector_validation(db_path)
-    else:
-        result = run_sector_analysis(db_path, args.date)
+    result = run_sector_validation(db_path) if args.validate else run_sector_analysis(db_path, args.date)
 
     if args.output and not args.validate:
         output_path = Path(args.output)

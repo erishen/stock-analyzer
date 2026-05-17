@@ -174,7 +174,7 @@ def _get_sector_return(
         WHERE date IN (?, ?) AND code IN ({placeholders})
         ORDER BY date, code
     """
-    params = [start_date, end_date] + stocks
+    params = [start_date, end_date, *stocks]
 
     try:
         with sqlite3.connect(str(db_path)) as conn:

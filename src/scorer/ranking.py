@@ -341,15 +341,13 @@ class StockScorer:
 
         if len(df) >= 2:
             prev = df.iloc[-2]
-            if (prev.get("macd", 0) or 0) <= (prev.get("macd_signal", 0) or 0):
-                if (latest.get("macd", 0) or 0) > (latest.get("macd_signal", 0) or 0):
-                    score += 20
-                    details.append("MACD金叉信号")
+            if (prev.get("macd", 0) or 0) <= (prev.get("macd_signal", 0) or 0) and (latest.get("macd", 0) or 0) > (latest.get("macd_signal", 0) or 0):
+                score += 20
+                details.append("MACD金叉信号")
 
-            if (prev.get("kdj_k", 0) or 0) <= (prev.get("kdj_d", 0) or 0):
-                if (latest.get("kdj_k", 0) or 0) > (latest.get("kdj_d", 0) or 0):
-                    score += 15
-                    details.append("KDJ金叉信号")
+            if (prev.get("kdj_k", 0) or 0) <= (prev.get("kdj_d", 0) or 0) and (latest.get("kdj_k", 0) or 0) > (latest.get("kdj_d", 0) or 0):
+                score += 15
+                details.append("KDJ金叉信号")
 
         return ScoringFactor(
             name="信号因子",
@@ -457,10 +455,7 @@ class StockRankingSystem:
             "PT",
             "停牌",
         ]
-        for keyword in excluded_keywords:
-            if keyword in name:
-                return True
-        return False
+        return any(keyword in name for keyword in excluded_keywords)
 
     def _get_recommendation(self, total_score: float, factors: list[ScoringFactor]) -> str:
         """获取投资建议"""

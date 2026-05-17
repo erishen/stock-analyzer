@@ -140,9 +140,8 @@ class TestRunPortfolioOpt:
         args.max_sector_pct = 0.30
         args.output = None
 
-        with patch("builtins.print"):
-            with patch("numpy.fill_diagonal"):
-                run_portfolio_opt(args)
+        with patch("builtins.print"), patch("numpy.fill_diagonal"):
+            run_portfolio_opt(args)
 
 
 class TestRunRiskAttribution:

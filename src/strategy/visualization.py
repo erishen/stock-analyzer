@@ -55,7 +55,7 @@ def plot_equity_curve(
     """绘制资金曲线图"""
     setup_chinese_font()
 
-    fig, ax = plt.subplots(figsize=(14, 7))
+    _fig, ax = plt.subplots(figsize=(14, 7))
 
     dates = [datetime.strptime(e["date"], "%Y-%m-%d") for e in chart_data.equity_curve]
     equities = [e["equity"] for e in chart_data.equity_curve]
@@ -130,7 +130,7 @@ def plot_trade_distribution(
     """绘制交易收益分布图"""
     setup_chinese_font()
 
-    fig, axes = plt.subplots(1, 2, figsize=(14, 5))
+    _fig, axes = plt.subplots(1, 2, figsize=(14, 5))
 
     profits = [t["profit_percent"] * 100 for t in chart_data.trades if t.get("profit_percent")]
 
@@ -139,7 +139,7 @@ def plot_trade_distribution(
         axes[1].text(0.5, 0.5, "无交易数据", ha="center", va="center", fontsize=14)
     else:
         ax1 = axes[0]
-        n, bins, patches = ax1.hist(profits, bins=30, edgecolor="black", alpha=0.7)
+        _n, bins, patches = ax1.hist(profits, bins=30, edgecolor="black", alpha=0.7)
 
         for i, patch in enumerate(patches):
             if bins[i] < 0:
@@ -210,13 +210,10 @@ def plot_monthly_returns(
     returns = []
     for m in months:
         data = monthly_returns[m]
-        if data["start"] > 0:
-            ret = (data["end"] - data["start"]) / data["start"] * 100
-        else:
-            ret = 0
+        ret = (data["end"] - data["start"]) / data["start"] * 100 if data["start"] > 0 else 0
         returns.append(ret)
 
-    fig, ax = plt.subplots(figsize=(14, 6))
+    _fig, ax = plt.subplots(figsize=(14, 6))
 
     colors = ["green" if r >= 0 else "red" for r in returns]
     bars = ax.bar(months, returns, color=colors, edgecolor="black", alpha=0.7)
@@ -263,7 +260,7 @@ def plot_drawdown(
     if not chart_data.equity_curve:
         return Path("")
 
-    fig, ax = plt.subplots(figsize=(14, 5))
+    _fig, ax = plt.subplots(figsize=(14, 5))
 
     dates = [datetime.strptime(e["date"], "%Y-%m-%d") for e in chart_data.equity_curve]
     equities = [e["equity"] for e in chart_data.equity_curve]
@@ -273,10 +270,7 @@ def plot_drawdown(
     for equity in equities:
         if equity > peak:
             peak = equity
-        if peak > 0:
-            dd = (peak - equity) / peak * 100
-        else:
-            dd = 100
+        dd = (peak - equity) / peak * 100 if peak > 0 else 100
         drawdowns.append(dd)
 
     ax.fill_between(dates, 0, [-d for d in drawdowns], color="red", alpha=0.5)
@@ -354,7 +348,7 @@ def visualize_backtest(
     paths = generate_backtest_report(backtest_result_path, output_dir)
 
     print(f"✅ 已生成 {len(paths)} 个图表:")
-    for _name, path in paths.items():
+    for path in paths.values():
         print(f"   - {path}")
 
     return paths

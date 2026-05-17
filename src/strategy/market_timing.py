@@ -115,7 +115,7 @@ class MarketTiming:
                     signal="无数据",
                 )
 
-            total, up_count, down_count, avg_change, avg_rsi, avg_ma5, avg_ma20 = row
+            total, up_count, _down_count, avg_change, avg_rsi, avg_ma5, avg_ma20 = row
 
             breadth = up_count / total if total > 0 else 0
 

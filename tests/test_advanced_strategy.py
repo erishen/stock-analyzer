@@ -45,7 +45,7 @@ class TestBreakoutStrategy:
             }
         )
 
-        is_breakout, strength = strategy.detect_price_breakout(df, 24)
+        is_breakout, _strength = strategy.detect_price_breakout(df, 24)
         assert is_breakout is True
 
     def test_detect_bollinger_breakout(self):
@@ -61,7 +61,7 @@ class TestBreakoutStrategy:
             }
         )
 
-        is_breakout, strength = strategy.detect_bollinger_breakout(df, 24)
+        is_breakout, _strength = strategy.detect_bollinger_breakout(df, 24)
         assert is_breakout is True
 
     def test_detect_volume_breakout(self):
@@ -77,7 +77,7 @@ class TestBreakoutStrategy:
             }
         )
 
-        is_breakout, strength = strategy.detect_volume_breakout(df, 24)
+        is_breakout, _strength = strategy.detect_volume_breakout(df, 24)
         assert is_breakout is True
 
 
@@ -106,7 +106,7 @@ class TestGridTradingStrategy:
         strategy = GridTradingStrategy(grid_count=5, grid_spacing=0.1)
         strategy.initialize_grids("sh600000", 10.0)
 
-        action, shares, price = strategy.check_grid_trigger("sh600000", 8.5, 0.0)
+        action, _shares, _price = strategy.check_grid_trigger("sh600000", 8.5, 0.0)
         assert action == "buy"
 
     def test_grid_level(self):
@@ -167,7 +167,7 @@ class TestPairTradingStrategy:
             correlation=0.9,
         )
 
-        signal, z_score = strategy.generate_signal(pair, 105.0, 50.0)
+        signal, _z_score = strategy.generate_signal(pair, 105.0, 50.0)
         assert signal in ["long_spread", "short_spread", "close", "hold"]
 
     def test_pair_info(self):
@@ -213,7 +213,7 @@ class TestEventDrivenStrategy:
             }
         )
 
-        is_event, strength = strategy.detect_earnings_event(df, 24)
+        is_event, _strength = strategy.detect_earnings_event(df, 24)
         assert is_event is True
 
     def test_detect_technical_event(self):
@@ -235,5 +235,5 @@ class TestEventDrivenStrategy:
             }
         )
 
-        is_event, strength = strategy.detect_technical_event(df, 34)
+        is_event, _strength = strategy.detect_technical_event(df, 34)
         assert is_event is True

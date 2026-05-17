@@ -239,7 +239,7 @@ class TestSectorRotationAnalyzer:
                 )
             )
 
-        signal, score, reason, weight = analyzer._generate_rotation_signal(sector, all_sectors)
+        signal, score, _reason, weight = analyzer._generate_rotation_signal(sector, all_sectors)
 
         assert signal == RotationSignal.ENTER
         assert score >= 50
@@ -275,7 +275,7 @@ class TestSectorRotationAnalyzer:
                 )
             )
 
-        signal, score, reason, weight = analyzer._generate_rotation_signal(sector, all_sectors)
+        signal, score, _reason, _weight = analyzer._generate_rotation_signal(sector, all_sectors)
 
         assert signal == RotationSignal.EXIT
         assert score < 0

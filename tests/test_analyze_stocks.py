@@ -284,9 +284,8 @@ class TestStockAnalyzerCalculateMA:
         analyzer = StockAnalyzer(db_path=str(temp_db))
         analyzer.load_data()
 
-        with patch("matplotlib.pyplot.savefig"):
-            with patch("matplotlib.pyplot.close"):
-                analyzer.calculate_moving_average(window=5, top_n=1)
+        with patch("matplotlib.pyplot.savefig"), patch("matplotlib.pyplot.close"):
+            analyzer.calculate_moving_average(window=5, top_n=1)
 
 
 class TestStockAnalyzerPlotting:
@@ -340,16 +339,14 @@ class TestStockAnalyzerPlotting:
         """测试价格趋势图"""
         analyzer = StockAnalyzer(db_path=str(temp_db))
 
-        with patch("matplotlib.pyplot.savefig"):
-            with patch("matplotlib.pyplot.close"):
-                analyzer.load_data()
-                analyzer.plot_price_trend(top_n=1)
+        with patch("matplotlib.pyplot.savefig"), patch("matplotlib.pyplot.close"):
+            analyzer.load_data()
+            analyzer.plot_price_trend(top_n=1)
 
     def test_plot_volume_trend(self, temp_db):
         """测试成交量趋势图"""
         analyzer = StockAnalyzer(db_path=str(temp_db))
 
-        with patch("matplotlib.pyplot.savefig"):
-            with patch("matplotlib.pyplot.close"):
-                analyzer.load_data()
-                analyzer.plot_volume_trend(top_n=1)
+        with patch("matplotlib.pyplot.savefig"), patch("matplotlib.pyplot.close"):
+            analyzer.load_data()
+            analyzer.plot_volume_trend(top_n=1)

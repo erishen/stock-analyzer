@@ -452,7 +452,7 @@ class RiskAttributor:
             benchmark_returns: 基准收益率
             sector_mapping: 股票-行业映射
         """
-        assets = [a for a in self.weights.keys() if a in self.returns_data.columns]
+        assets = [a for a in self.weights if a in self.returns_data.columns]
 
         if not assets:
             return RiskAttributionResult(

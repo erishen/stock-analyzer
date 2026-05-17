@@ -37,9 +37,8 @@ class TestDbConnection:
             assert cursor.fetchone()[0] == 1
 
     def test_connection_on_error(self, temp_db):
-        with pytest.raises(sqlite3.OperationalError):
-            with db_connection(temp_db) as conn:
-                conn.execute("SELECT * FROM nonexistent_table")
+        with pytest.raises(sqlite3.OperationalError), db_connection(temp_db) as conn:
+            conn.execute("SELECT * FROM nonexistent_table")
 
 
 class TestDbTransaction:

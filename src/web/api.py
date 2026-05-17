@@ -5,7 +5,7 @@ FastAPI 应用
 
 import sqlite3
 import sys
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -135,10 +135,8 @@ async def scan_signals(request: ScanRequest):
 
         signal_type = None
         if request.signal_type:
-            try:
+            with suppress(ValueError):
                 signal_type = SignalType(request.signal_type)
-            except ValueError:
-                pass
 
         result = run_scan(db_path=db_path, signal_type=signal_type, min_score=request.min_score)
 
