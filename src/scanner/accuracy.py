@@ -14,7 +14,7 @@ import sys
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, ClassVar
 
 import numpy as np
 import pandas as pd
@@ -86,7 +86,7 @@ class AccuracyReport:
 class SignalAccuracyAnalyzer:
     """信号准确率分析器"""
 
-    BULLISH_SIGNALS = [
+    BULLISH_SIGNALS: ClassVar[list[SignalType]] = [
         SignalType.MACD_GOLDEN_CROSS,
         SignalType.KDJ_GOLDEN_CROSS,
         SignalType.MA5_CROSS_UP_MA20,
@@ -95,7 +95,7 @@ class SignalAccuracyAnalyzer:
         SignalType.TREND_UP,
     ]
 
-    BEARISH_SIGNALS = [
+    BEARISH_SIGNALS: ClassVar[list[SignalType]] = [
         SignalType.MACD_DEATH_CROSS,
         SignalType.KDJ_DEATH_CROSS,
         SignalType.MA5_CROSS_DOWN_MA20,
@@ -104,7 +104,7 @@ class SignalAccuracyAnalyzer:
         SignalType.TREND_DOWN,
     ]
 
-    HOLDING_PERIODS = [1, 3, 5, 10, 20]
+    HOLDING_PERIODS: ClassVar[list[int]] = [1, 3, 5, 10, 20]
 
     def __init__(self, db_path: Path):
         self.db_path = db_path

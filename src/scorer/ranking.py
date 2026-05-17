@@ -15,7 +15,7 @@ import sys
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, ClassVar
 
 import numpy as np
 import pandas as pd
@@ -98,7 +98,7 @@ class ScoringReport:
 class StockScorer:
     """股票评分器"""
 
-    FACTOR_WEIGHTS = {
+    FACTOR_WEIGHTS: ClassVar[dict[str, float]] = {
         "trend": 0.25,
         "momentum": 0.25,
         "volatility": 0.15,

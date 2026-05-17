@@ -6,7 +6,7 @@ Multi-Strategy Portfolio Module.
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Any
+from typing import Any, ClassVar
 
 import numpy as np
 
@@ -94,7 +94,7 @@ class PortfolioResult:
 class MultiStrategyPortfolio:
     """多策略组合"""
 
-    STRATEGY_MAP = {
+    STRATEGY_MAP: ClassVar[dict[str, type]] = {
         "momentum": MomentumStrategy,
         "mean_reversion": MeanReversionStrategy,
         "trend_following": TrendFollowingStrategy,

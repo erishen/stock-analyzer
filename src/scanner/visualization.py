@@ -7,6 +7,7 @@ import json
 import sys
 from dataclasses import dataclass
 from pathlib import Path
+from typing import ClassVar
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -29,14 +30,14 @@ class VisualizationConfig:
 class SignalVisualizer:
     """信号可视化器"""
 
-    COLORS = {
+    COLORS: ClassVar[dict[str, str]] = {
         "bullish": "#2ecc71",
         "bearish": "#e74c3c",
         "neutral": "#3498db",
         "highlight": "#f39c12",
     }
 
-    SIGNAL_CATEGORIES = {
+    SIGNAL_CATEGORIES: ClassVar[dict[str, list[str]]] = {
         "bullish": ["MACD金叉", "KDJ金叉", "MA5上穿MA20", "RSI超卖", "跌破布林下轨", "上升趋势"],
         "bearish": ["MACD死叉", "KDJ死叉", "MA5下穿MA20", "RSI超买", "突破布林上轨", "下降趋势"],
         "neutral": ["成交量异动"],

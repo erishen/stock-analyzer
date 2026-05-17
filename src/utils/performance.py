@@ -19,7 +19,7 @@ from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_compl
 from dataclasses import dataclass
 from functools import wraps
 from pathlib import Path
-from typing import Any
+from typing import Any, ClassVar
 
 
 @dataclass
@@ -35,7 +35,7 @@ class IndexInfo:
 class DatabaseOptimizer:
     """数据库优化器"""
 
-    RECOMMENDED_INDEXES = [
+    RECOMMENDED_INDEXES: ClassVar[list[IndexInfo]] = [
         IndexInfo("idx_code", "stock_analysis", ["code"]),
         IndexInfo("idx_date", "stock_analysis", ["date"]),
         IndexInfo("idx_code_date", "stock_analysis", ["code", "date"], unique=True),

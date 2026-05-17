@@ -5,7 +5,7 @@ CLI Utilities for Stock Analyzer.
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, ClassVar
 
 from rich.console import Console
 from rich.panel import Panel
@@ -17,7 +17,7 @@ console = Console()
 
 
 class ColorScheme:
-    COLORS = {
+    COLORS: ClassVar[dict[str, str]] = {
         "bullish": "green",
         "bearish": "red",
         "neutral": "yellow",
