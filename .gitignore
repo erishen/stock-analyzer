@@ -68,3 +68,6 @@ src/web/static/index.html
 .DS_Store
 Thumbs.db
 *.log
+fix_logger.py
+fix_logger2.py
+replace_print.py
