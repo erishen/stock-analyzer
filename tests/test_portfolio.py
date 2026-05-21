@@ -3,10 +3,10 @@ Tests for Multi-Strategy Portfolio Module.
 多策略组合模块测试
 """
 
+import logging
 from pathlib import Path
 from unittest.mock import patch
 
-import logging
 import numpy as np
 import pytest
 
