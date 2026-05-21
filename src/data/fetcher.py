@@ -5,6 +5,7 @@ Stock Data Fetcher for Stock Analyzer.
 数据源: AkShare (开源免费，无需 API Key)
 """
 
+import logging
 import sqlite3
 import sys
 import time
@@ -15,6 +16,8 @@ from typing import Any
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from config import get_stock_klines_db_path
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -98,7 +101,9 @@ class StockDataFetcher:
 
         self._conn.execute("CREATE INDEX IF NOT EXISTS idx_klines_code ON stock_klines(code)")
         self._conn.execute("CREATE INDEX IF NOT EXISTS idx_klines_date ON stock_klines(date)")
-        self._conn.execute("CREATE INDEX IF NOT EXISTS idx_klines_code_date ON stock_klines(code, date)")
+        self._conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_klines_code_date ON stock_klines(code, date)"
+        )
 
         self._conn.commit()
 
@@ -122,7 +127,7 @@ class StockDataFetcher:
                     )
             return stocks
         except Exception as e:
-            print(f"获取股票列表失败: {e}")
+            logger.error(f"获取股票列表失败: {e}")
             return []
 
     def fetch_stock_klines(
@@ -175,7 +180,7 @@ class StockDataFetcher:
                 )
             return records
         except Exception as e:
-            print(f"获取 {code} K线数据失败: {e}")
+            logger.error(f"获取 {code} K线数据失败: {e}")
             return []
 
     def save_klines(self, records: list[dict]):
@@ -260,7 +265,9 @@ class StockDataFetcher:
             except Exception as e:
                 result.errors.append(f"{stock['code']}: {e!s}")
 
-        result.message = f"成功获取 {result.stocks_fetched} 只股票，共 {result.total_records:,} 条记录"
+        result.message = (
+            f"成功获取 {result.stocks_fetched} 只股票，共 {result.total_records:,} 条记录"
+        )
         return result
 
     def fetch_stocks(
@@ -295,15 +302,17 @@ class StockDataFetcher:
                     self.save_klines(records)
                     result.stocks_fetched += 1
                     result.total_records += len(records)
-                    print(f"  ✓ {code}: {len(records)} 条记录")
+                    logger.info(f"  ✓ {code}: {len(records)} 条记录")
 
                 time.sleep(delay)
 
             except Exception as e:
                 result.errors.append(f"{code}: {e!s}")
-                print(f"  ✗ {code}: {e}")
+                logger.info(f"  ✗ {code}: {e}")
 
-        result.message = f"成功获取 {result.stocks_fetched} 只股票，共 {result.total_records:,} 条记录"
+        result.message = (
+            f"成功获取 {result.stocks_fetched} 只股票，共 {result.total_records:,} 条记录"
+        )
         return result
 
     def get_stats(self) -> dict:
@@ -345,9 +354,9 @@ def run_fetch(
         end_date: 结束日期
         limit: 限制获取数量
     """
-    print("\n" + "=" * 60)
-    print("📥 获取股票数据")
-    print("=" * 60)
+    logger.info("\n" + "=" * 60)
+    logger.info("📥 获取股票数据")
+    logger.info("=" * 60)
 
     if db_path is None:
         db_path = get_stock_klines_db_path()
@@ -355,20 +364,20 @@ def run_fetch(
     fetcher = StockDataFetcher(db_path)
 
     if codes:
-        print(f"\n📊 获取指定股票: {', '.join(codes)}")
+        logger.info(f"\n📊 获取指定股票: {', '.join(codes)}")
         result = fetcher.fetch_stocks(
             codes=codes,
             start_date=start_date,
             end_date=end_date,
         )
     else:
-        print("\n📊 获取全市场股票数据...")
+        logger.info("\n📊 获取全市场股票数据...")
         if limit:
-            print(f"   限制数量: {limit} 只")
+            logger.info(f"   限制数量: {limit} 只")
 
         def progress(current, total, code, records):
             pct = current / total * 100
-            print(f"\r   进度: {current}/{total} ({pct:.1f}%) - {code}: {records} 条", end="")
+            logger.info(f"\r   进度: {current}/{total} ({pct:.1f}%) - {code}: {records} 条", end="")
 
         result = fetcher.fetch_all_stocks(
             start_date=start_date,
@@ -376,20 +385,20 @@ def run_fetch(
             limit=limit,
             progress_callback=progress,
         )
-        print()
+        logger.info("")
 
-    print(f"\n{'✅' if result.success else '❌'} {result.message}")
+    logger.error(f"\n{'✅' if result.success else '❌'} {result.message}")
 
     if result.errors:
-        print(f"\n⚠️ 有 {len(result.errors)} 个错误:")
+        logger.error(f"\n⚠️ 有 {len(result.errors)} 个错误:")
         for err in result.errors[:5]:
-            print(f"   - {err}")
+            logger.info(f"   - {err}")
 
     stats = fetcher.get_stats()
-    print("\n📊 数据库统计:")
-    print(f"   股票数量: {stats['stock_count']:,}")
-    print(f"   总记录数: {stats['total_records']:,}")
-    print(f"   日期范围: {stats['min_date']} ~ {stats['max_date']}")
+    logger.info("\n📊 数据库统计:")
+    logger.info(f"   股票数量: {stats['stock_count']:,}")
+    logger.info(f"   总记录数: {stats['total_records']:,}")
+    logger.info(f"   日期范围: {stats['min_date']} ~ {stats['max_date']}")
 
     fetcher.close()
 

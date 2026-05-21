@@ -9,6 +9,7 @@ Signal Accuracy Analyzer for Stock Analyzer.
 - 信号有效性评分
 """
 
+import logging
 import sqlite3
 import sys
 from dataclasses import dataclass, field
@@ -22,6 +23,8 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from config import get_stock_analysis_db_path
 from scanner.signals import SignalType
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -251,7 +254,7 @@ class SignalAccuracyAnalyzer:
                 "loss_count": 0,
             }
 
-        print(f"\n📊 分析 {len(codes)} 只股票的信号准确率...")
+        logger.info(f"\n📊 分析 {len(codes)} 只股票的信号准确率...")
 
         for i, code in enumerate(codes, 1):
             try:
@@ -277,7 +280,7 @@ class SignalAccuracyAnalyzer:
                 continue
 
             if i % 500 == 0:
-                print(f"   进度: {i}/{len(codes)} ({i / len(codes) * 100:.1f}%)")
+                logger.info(f"   进度: {i}/{len(codes)} ({i / len(codes) * 100:.1f}%)")
 
         performances = []
         for signal_type, stats in signal_stats.items():
@@ -382,15 +385,21 @@ class SignalAccuracyAnalyzer:
 
         high_win_signals = [p for p in performances if p.win_rate > 0.55]
         if high_win_signals:
-            recommendations.append(f"高胜率信号: {', '.join([p.signal_type.value for p in high_win_signals[:3]])}")
+            recommendations.append(
+                f"高胜率信号: {', '.join([p.signal_type.value for p in high_win_signals[:3]])}"
+            )
 
         high_return_signals = [p for p in performances if p.avg_return > 0.02]
         if high_return_signals:
-            recommendations.append(f"高收益信号: {', '.join([p.signal_type.value for p in high_return_signals[:3]])}")
+            recommendations.append(
+                f"高收益信号: {', '.join([p.signal_type.value for p in high_return_signals[:3]])}"
+            )
 
         low_win_signals = [p for p in performances if p.win_rate < 0.45]
         if low_win_signals:
-            recommendations.append(f"谨慎使用: {', '.join([p.signal_type.value for p in low_win_signals[:3]])}")
+            recommendations.append(
+                f"谨慎使用: {', '.join([p.signal_type.value for p in low_win_signals[:3]])}"
+            )
 
         return recommendations
 

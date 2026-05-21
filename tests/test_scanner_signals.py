@@ -3,7 +3,6 @@ Tests for Scanner Signals.
 信号扫描器测试
 """
 
-
 import pandas as pd
 import pytest
 

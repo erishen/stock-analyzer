@@ -177,7 +177,16 @@ def export_signals(
         signals = [s.to_dict() for s in signals]
 
     if format == "csv":
-        fieldnames = ["code", "name", "date", "signal_type", "strength", "price", "volume", "description"]
+        fieldnames = [
+            "code",
+            "name",
+            "date",
+            "signal_type",
+            "strength",
+            "price",
+            "volume",
+            "description",
+        ]
         return export_to_csv(signals, output_path.with_suffix(".csv"), fieldnames=fieldnames)
     else:
         return export_to_json(signals, output_path.with_suffix(".json"))

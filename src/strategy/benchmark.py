@@ -3,6 +3,7 @@ Benchmark Comparison Module.
 基准对比模块 - 与基准指数对比策略表现
 """
 
+import logging
 import sqlite3
 from dataclasses import dataclass
 from pathlib import Path
@@ -10,6 +11,8 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -110,7 +113,9 @@ def calculate_equal_weight_benchmark(
 
     for i, ret in enumerate(daily_returns):
         equity *= 1 + ret
-        equity_curve.append({"date": dates[i + 1].strftime("%Y-%m-%d"), "equity": round(equity * 100000, 2)})
+        equity_curve.append(
+            {"date": dates[i + 1].strftime("%Y-%m-%d"), "equity": round(equity * 100000, 2)}
+        )
 
     return equity_curve
 
@@ -187,9 +192,13 @@ def compare_with_benchmark(
 
     for i in range(1, min_len):
         if strategy_equities[i - 1] > 0:
-            strategy_returns.append((strategy_equities[i] - strategy_equities[i - 1]) / strategy_equities[i - 1])
+            strategy_returns.append(
+                (strategy_equities[i] - strategy_equities[i - 1]) / strategy_equities[i - 1]
+            )
         if benchmark_equities[i - 1] > 0:
-            benchmark_returns.append((benchmark_equities[i] - benchmark_equities[i - 1]) / benchmark_equities[i - 1])
+            benchmark_returns.append(
+                (benchmark_equities[i] - benchmark_equities[i - 1]) / benchmark_equities[i - 1]
+            )
 
     min_returns = min(len(strategy_returns), len(benchmark_returns))
     strategy_returns = strategy_returns[:min_returns]
@@ -209,7 +218,9 @@ def compare_with_benchmark(
         excess_returns = [s - b for s, b in zip(strategy_returns, benchmark_returns, strict=False)]
         tracking_error = np.std(excess_returns) * np.sqrt(252)
 
-        information_ratio = np.mean(excess_returns) * np.sqrt(252) / tracking_error if tracking_error > 0 else 0.0
+        information_ratio = (
+            np.mean(excess_returns) * np.sqrt(252) / tracking_error if tracking_error > 0 else 0.0
+        )
     else:
         alpha = 0.0
         beta = 0.0
@@ -236,24 +247,24 @@ def compare_with_benchmark(
 
 def print_benchmark_comparison(result: BenchmarkResult):
     """打印基准对比结果"""
-    print("\n📊 基准对比结果:")
-    print(f"   策略: {result.strategy_name}")
-    print("   基准: 等权买入持有")
+    logger.info("\n📊 基准对比结果:")
+    logger.info(f"   策略: {result.strategy_name}")
+    logger.info("   基准: 等权买入持有")
 
-    print("\n📈 收益对比:")
-    print(f"   策略收益: {result.strategy_return * 100:+.2f}%")
-    print(f"   基准收益: {result.benchmark_return * 100:+.2f}%")
-    print(f"   超额收益: {result.excess_return * 100:+.2f}%")
+    logger.info("\n📈 收益对比:")
+    logger.info(f"   策略收益: {result.strategy_return * 100:+.2f}%")
+    logger.info(f"   基准收益: {result.benchmark_return * 100:+.2f}%")
+    logger.info(f"   超额收益: {result.excess_return * 100:+.2f}%")
 
-    print("\n📉 风险对比:")
-    print(f"   策略夏普: {result.strategy_sharpe:.2f}")
-    print(f"   基准夏普: {result.benchmark_sharpe:.2f}")
-    print(f"   策略回撤: {result.strategy_drawdown * 100:.2f}%")
-    print(f"   基准回撤: {result.benchmark_drawdown * 100:.2f}%")
+    logger.info("\n📉 风险对比:")
+    logger.info(f"   策略夏普: {result.strategy_sharpe:.2f}")
+    logger.info(f"   基准夏普: {result.benchmark_sharpe:.2f}")
+    logger.info(f"   策略回撤: {result.strategy_drawdown * 100:.2f}%")
+    logger.info(f"   基准回撤: {result.benchmark_drawdown * 100:.2f}%")
 
-    print("\n📐 风险指标:")
-    print(f"   Alpha: {result.alpha * 100:+.2f}%")
-    print(f"   Beta: {result.beta:.2f}")
-    print(f"   相关性: {result.correlation:.2f}")
-    print(f"   信息比率: {result.information_ratio:.2f}")
-    print(f"   跟踪误差: {result.tracking_error * 100:.2f}%")
+    logger.info("\n📐 风险指标:")
+    logger.info(f"   Alpha: {result.alpha * 100:+.2f}%")
+    logger.info(f"   Beta: {result.beta:.2f}")
+    logger.info(f"   相关性: {result.correlation:.2f}")
+    logger.info(f"   信息比率: {result.information_ratio:.2f}")
+    logger.error(f"   跟踪误差: {result.tracking_error * 100:.2f}%")

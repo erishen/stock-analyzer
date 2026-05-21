@@ -3,6 +3,7 @@ FastAPI Application for Stock Analyzer.
 FastAPI 应用
 """
 
+import logging
 import sqlite3
 import sys
 from contextlib import asynccontextmanager, suppress
@@ -29,6 +30,8 @@ from .schemas import (
     StatsResponse,
 )
 
+logger = logging.getLogger(__name__)
+
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 DATA_DIR = PROJECT_ROOT / "data"
 sys.path.insert(0, str(PROJECT_ROOT / "src"))
@@ -40,11 +43,11 @@ db_path = get_stock_analysis_db_path()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    print("\n📊 Stock Analyzer Web Server")
-    print(f"   数据库: {db_path}")
-    print(f"   状态: {'✅ 已连接' if db_path.exists() else '❌ 不存在'}")
+    logger.info("\n📊 Stock Analyzer Web Server")
+    logger.info(f"   数据库: {db_path}")
+    logger.error(f"   状态: {'✅ 已连接' if db_path.exists() else '❌ 不存在'}")
     yield
-    print("\n👋 服务器关闭")
+    logger.info("\n👋 服务器关闭")
 
 
 app = FastAPI(
@@ -130,7 +133,6 @@ async def scan_signals(request: ScanRequest):
         return JSONResponse(content=ScanResponse(success=False, error="数据库不存在").to_dict())
 
     try:
-
         from scanner import SignalType, run_scan
 
         signal_type = None
@@ -175,7 +177,6 @@ async def run_backtest(request: BacktestRequest):
         return JSONResponse(content=BacktestResponse(success=False, error="数据库不存在").to_dict())
 
     try:
-
         from strategy import run_backtest as run_strategy_backtest
 
         result = run_strategy_backtest(
@@ -235,10 +236,11 @@ async def run_backtest(request: BacktestRequest):
 async def run_portfolio(request: PortfolioRequest):
     """运行组合回测"""
     if not db_path.exists():
-        return JSONResponse(content=PortfolioResponse(success=False, error="数据库不存在").to_dict())
+        return JSONResponse(
+            content=PortfolioResponse(success=False, error="数据库不存在").to_dict()
+        )
 
     try:
-
         from strategy import run_portfolio_backtest
 
         strategies = [
@@ -337,7 +339,9 @@ async def get_sector():
 async def get_market_timing():
     """获取大盘择时"""
     if not db_path.exists():
-        return JSONResponse(content=MarketTimingResponse(success=False, error="数据库不存在").to_dict())
+        return JSONResponse(
+            content=MarketTimingResponse(success=False, error="数据库不存在").to_dict()
+        )
 
     try:
         from strategy import run_market_timing
@@ -383,7 +387,7 @@ def run_server(host: str = "127.0.0.1", port: int = 8000):
     """运行服务器"""
     import uvicorn
 
-    print("\n🚀 启动 Web 服务器")
-    print(f"   地址: http://{host}:{port}")
-    print(f"   文档: http://{host}:{port}/docs")
+    logger.info("\n🚀 启动 Web 服务器")
+    logger.info(f"   地址: http://{host}:{port}")
+    logger.info(f"   文档: http://{host}:{port}/docs")
     uvicorn.run(app, host=host, port=port, log_level="warning")

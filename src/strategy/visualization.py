@@ -4,6 +4,7 @@ Backtest Visualization Module.
 """
 
 import json
+import logging
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -13,6 +14,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from utils.font_config import setup_chinese_font
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -61,7 +64,9 @@ def plot_equity_curve(
     equities = [e["equity"] for e in chart_data.equity_curve]
 
     ax.plot(dates, equities, "b-", linewidth=1.5, label="账户权益")
-    ax.axhline(y=chart_data.initial_capital, color="gray", linestyle="--", alpha=0.5, label="初始资金")
+    ax.axhline(
+        y=chart_data.initial_capital, color="gray", linestyle="--", alpha=0.5, label="初始资金"
+    )
 
     peak = chart_data.initial_capital
     for i, equity in enumerate(equities):
@@ -109,7 +114,15 @@ def plot_equity_curve(
             f"胜率: {chart_data.win_rate:.2f}%"
         )
         props = dict(boxstyle="round", facecolor="wheat", alpha=0.8)
-        ax.text(0.02, 0.98, stats_text, transform=ax.transAxes, fontsize=10, verticalalignment="top", bbox=props)
+        ax.text(
+            0.02,
+            0.98,
+            stats_text,
+            transform=ax.transAxes,
+            fontsize=10,
+            verticalalignment="top",
+            bbox=props,
+        )
 
     plt.tight_layout()
 
@@ -149,7 +162,11 @@ def plot_trade_distribution(
 
         ax1.axvline(x=0, color="black", linestyle="--", linewidth=2)
         ax1.axvline(
-            x=np.mean(profits), color="blue", linestyle="-", linewidth=2, label=f"平均: {np.mean(profits):.2f}%"
+            x=np.mean(profits),
+            color="blue",
+            linestyle="-",
+            linewidth=2,
+            label=f"平均: {np.mean(profits):.2f}%",
         )
 
         ax1.set_xlabel("收益率 (%)", fontsize=12)
@@ -162,7 +179,11 @@ def plot_trade_distribution(
         holding_days = [t["holding_days"] for t in chart_data.trades if t.get("holding_days")]
         if holding_days:
             ax2.hist(
-                holding_days, bins=range(1, max(holding_days) + 2), edgecolor="black", alpha=0.7, color="steelblue"
+                holding_days,
+                bins=range(1, max(holding_days) + 2),
+                edgecolor="black",
+                alpha=0.7,
+                color="steelblue",
             )
             ax2.set_xlabel("持有天数", fontsize=12)
             ax2.set_ylabel("交易次数", fontsize=12)
@@ -277,7 +298,10 @@ def plot_drawdown(
     ax.plot(dates, [-d for d in drawdowns], "r-", linewidth=1)
 
     ax.axhline(
-        y=-chart_data.max_drawdown, color="darkred", linestyle="--", label=f"最大回撤: {chart_data.max_drawdown:.2f}%"
+        y=-chart_data.max_drawdown,
+        color="darkred",
+        linestyle="--",
+        label=f"最大回撤: {chart_data.max_drawdown:.2f}%",
     )
 
     ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y-%m"))
@@ -316,7 +340,9 @@ def generate_backtest_report(
 
     paths = {}
 
-    paths["equity_curve"] = plot_equity_curve(chart_data, output_dir / f"{chart_data.strategy_name.lower()}_equity.png")
+    paths["equity_curve"] = plot_equity_curve(
+        chart_data, output_dir / f"{chart_data.strategy_name.lower()}_equity.png"
+    )
 
     paths["trade_distribution"] = plot_trade_distribution(
         chart_data, output_dir / f"{chart_data.strategy_name.lower()}_distribution.png"
@@ -326,7 +352,9 @@ def generate_backtest_report(
         chart_data, output_dir / f"{chart_data.strategy_name.lower()}_monthly.png"
     )
 
-    paths["drawdown"] = plot_drawdown(chart_data, output_dir / f"{chart_data.strategy_name.lower()}_drawdown.png")
+    paths["drawdown"] = plot_drawdown(
+        chart_data, output_dir / f"{chart_data.strategy_name.lower()}_drawdown.png"
+    )
 
     return paths
 
@@ -340,15 +368,15 @@ def visualize_backtest(
         backtest_result_path = Path("output/reports/backtest_report.json")
 
     if not backtest_result_path.exists():
-        print(f"❌ 回测报告不存在: {backtest_result_path}")
+        logger.error(f"❌ 回测报告不存在: {backtest_result_path}")
         return {}
 
-    print("\n📊 生成回测可视化报告...")
+    logger.info("\n📊 生成回测可视化报告...")
 
     paths = generate_backtest_report(backtest_result_path, output_dir)
 
-    print(f"✅ 已生成 {len(paths)} 个图表:")
+    logger.info(f"✅ 已生成 {len(paths)} 个图表:")
     for path in paths.values():
-        print(f"   - {path}")
+        logger.info(f"   - {path}")
 
     return paths

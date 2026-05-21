@@ -6,6 +6,7 @@ Tests for Multi-Strategy Portfolio Module.
 from pathlib import Path
 from unittest.mock import patch
 
+import logging
 import numpy as np
 import pytest
 
@@ -226,7 +227,7 @@ class TestMultiStrategyPortfolio:
 class TestPrintPortfolioResult:
     """测试打印组合结果"""
 
-    def test_print_portfolio_result(self, capsys):
+    def test_print_portfolio_result(self, caplog):
         result = PortfolioResult(
             name="TestPortfolio",
             start_date="2025-01-01",
@@ -248,11 +249,12 @@ class TestPrintPortfolioResult:
             },
             diversification_ratio=1.2,
         )
-        print_portfolio_result(result)
-        captured = capsys.readouterr()
-        assert "TestPortfolio" in captured.out
-        assert "总收益率: +20.00%" in captured.out
-        assert "夏普比率: 1.50" in captured.out
+        with caplog.at_level(logging.INFO, logger="src.strategy.portfolio"):
+            print_portfolio_result(result)
+        log_output = caplog.text
+        assert "TestPortfolio" in log_output
+        assert "总收益率: +20.00%" in log_output
+        assert "夏普比率: 1.50" in log_output
 
 
 class TestRunPortfolioBacktest:

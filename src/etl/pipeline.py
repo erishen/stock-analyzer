@@ -8,6 +8,7 @@ ETL 数据管道 - 提取、转换、加载股票数据
 3. Load: 保存处理后的数据到分析数据库
 """
 
+import logging
 import sqlite3
 import sys
 from dataclasses import dataclass, field
@@ -20,6 +21,8 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from config import get_asset_lens_db_path, get_stock_analysis_db_path
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -216,14 +219,18 @@ class DataTransformer:
         df["rsi_overbought"] = (df["rsi"] > 70).astype(int)
         return df
 
-    def _calculate_boll(self, df: pd.DataFrame, period: int = 20, std_dev: float = 2.0) -> pd.DataFrame:
+    def _calculate_boll(
+        self, df: pd.DataFrame, period: int = 20, std_dev: float = 2.0
+    ) -> pd.DataFrame:
         """计算布林带"""
         df["boll_mid"] = df["close"].rolling(window=period).mean()
         df["boll_std"] = df["close"].rolling(window=period).std()
         df["boll_upper"] = df["boll_mid"] + std_dev * df["boll_std"]
         df["boll_lower"] = df["boll_mid"] - std_dev * df["boll_std"]
         df["boll_width"] = (df["boll_upper"] - df["boll_lower"]) / df["boll_mid"]
-        df["boll_position"] = (df["close"] - df["boll_lower"]) / (df["boll_upper"] - df["boll_lower"])
+        df["boll_position"] = (df["close"] - df["boll_lower"]) / (
+            df["boll_upper"] - df["boll_lower"]
+        )
         return df
 
     def _calculate_kdj(self, df: pd.DataFrame, n: int = 9) -> pd.DataFrame:
@@ -234,7 +241,9 @@ class DataTransformer:
         df["kdj_k"] = df["kdj_rsv"].ewm(alpha=1 / 3, adjust=False).mean()
         df["kdj_d"] = df["kdj_k"].ewm(alpha=1 / 3, adjust=False).mean()
         df["kdj_j"] = 3 * df["kdj_k"] - 2 * df["kdj_d"]
-        df["kdj_cross"] = ((df["kdj_k"] > df["kdj_d"]) & (df["kdj_k"].shift(1) <= df["kdj_d"].shift(1))).astype(int)
+        df["kdj_cross"] = (
+            (df["kdj_k"] > df["kdj_d"]) & (df["kdj_k"].shift(1) <= df["kdj_d"].shift(1))
+        ).astype(int)
         return df
 
     def _calculate_atr(self, df: pd.DataFrame, period: int = 14) -> pd.DataFrame:
@@ -437,12 +446,12 @@ class ETLPipeline:
         result = ETLResult()
         run_id = start_time.strftime("%Y%m%d_%H%M%S")
 
-        print(f"\n{'=' * 60}")
-        print("🚀 ETL Pipeline 开始执行")
-        print(f"   Run ID: {run_id}")
-        print(f"   源数据库: {self.config.source_db}")
-        print(f"   目标数据库: {self.config.target_db}")
-        print(f"{'=' * 60}\n")
+        logger.info(f"\n{'=' * 60}")
+        logger.info("🚀 ETL Pipeline 开始执行")
+        logger.info(f"   Run ID: {run_id}")
+        logger.info(f"   源数据库: {self.config.source_db}")
+        logger.info(f"   目标数据库: {self.config.target_db}")
+        logger.info(f"{'=' * 60}\n")
 
         try:
             self.extractor.connect()
@@ -450,7 +459,7 @@ class ETLPipeline:
 
             codes = stock_codes if stock_codes else self.extractor.get_stock_codes()
             total_codes = len(codes)
-            print(f"📊 待处理股票数量: {total_codes}")
+            logger.info(f"📊 待处理股票数量: {total_codes}")
 
             for i, code in enumerate(codes, 1):
                 try:
@@ -468,7 +477,7 @@ class ETLPipeline:
                     result.stocks_processed += 1
 
                     if i % 100 == 0 or i == total_codes:
-                        print(
+                        logger.info(
                             f"   进度: {i}/{total_codes} ({i / total_codes * 100:.1f}%) - "
                             f"已处理 {result.stocks_processed} 只股票"
                         )
@@ -476,7 +485,7 @@ class ETLPipeline:
                 except Exception as e:
                     error_msg = f"{code}: {e!s}"
                     result.errors.append(error_msg)
-                    print(f"   ⚠️ 错误: {error_msg}")
+                    logger.error(f"   ⚠️ 错误: {error_msg}")
 
             self.loader.log_etl_run(result, run_id)
 
@@ -486,15 +495,15 @@ class ETLPipeline:
 
         result.duration_seconds = (datetime.now() - start_time).total_seconds()
 
-        print(f"\n{'=' * 60}")
-        print("✅ ETL Pipeline 执行完成")
-        print(f"   处理股票: {result.stocks_processed}")
-        print(f"   提取记录: {result.records_extracted}")
-        print(f"   转换记录: {result.records_transformed}")
-        print(f"   加载记录: {result.records_loaded}")
-        print(f"   错误数量: {len(result.errors)}")
-        print(f"   执行时间: {result.duration_seconds:.2f} 秒")
-        print(f"{'=' * 60}\n")
+        logger.info(f"\n{'=' * 60}")
+        logger.info("✅ ETL Pipeline 执行完成")
+        logger.info(f"   处理股票: {result.stocks_processed}")
+        logger.info(f"   提取记录: {result.records_extracted}")
+        logger.info(f"   转换记录: {result.records_transformed}")
+        logger.info(f"   加载记录: {result.records_loaded}")
+        logger.error(f"   错误数量: {len(result.errors)}")
+        logger.info(f"   执行时间: {result.duration_seconds:.2f} 秒")
+        logger.info(f"{'=' * 60}\n")
 
         return result
 
@@ -511,13 +520,19 @@ class ETLPipeline:
                 FROM stock_analysis
             """)
             row = cursor.fetchone()
-            return {"stock_count": row[0], "total_records": row[1], "date_range": f"{row[2]} ~ {row[3]}"}
+            return {
+                "stock_count": row[0],
+                "total_records": row[1],
+                "date_range": f"{row[2]} ~ {row[3]}",
+            }
         finally:
             self.loader.close()
 
 
 def run_etl(
-    source_db: str | Path | None = None, target_db: str | Path | None = None, stock_codes: list[str] | None = None
+    source_db: str | Path | None = None,
+    target_db: str | Path | None = None,
+    stock_codes: list[str] | None = None,
 ) -> ETLResult:
     """
     运行 ETL 流程的便捷函数

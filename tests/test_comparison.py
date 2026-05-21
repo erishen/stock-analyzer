@@ -3,6 +3,7 @@ Tests for Strategy Comparison Module.
 策略对比模块测试
 """
 
+import logging
 from unittest.mock import MagicMock
 
 from strategy.comparison import (
@@ -218,7 +219,7 @@ class TestCompareStrategies:
 class TestPrintComparison:
     """打印对比结果测试"""
 
-    def test_print_comparison(self, capsys):
+    def test_print_comparison(self, caplog):
         """测试打印对比结果"""
         metrics = StrategyMetrics(
             name="TestStrategy",
@@ -243,9 +244,10 @@ class TestPrintComparison:
             overall_ranking=[("TestStrategy", 100.0)],
         )
 
-        print_comparison(result)
-        captured = capsys.readouterr()
+        with caplog.at_level(logging.INFO, logger="strategy.comparison"):
+            print_comparison(result)
 
-        assert "TestStrategy" in captured.out
-        assert "策略对比报告" in captured.out
-        assert "综合排名" in captured.out
+        log_output = caplog.text
+        assert "TestStrategy" in log_output
+        assert "策略对比报告" in log_output
+        assert "综合排名" in log_output

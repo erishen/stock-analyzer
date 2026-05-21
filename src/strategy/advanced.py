@@ -223,7 +223,9 @@ class GridTradingStrategy:
         self.grids[code] = grids
         return grids
 
-    def check_grid_trigger(self, code: str, current_price: float, position: float) -> tuple[str, int, float]:
+    def check_grid_trigger(
+        self, code: str, current_price: float, position: float
+    ) -> tuple[str, int, float]:
         """检查网格触发"""
         if code not in self.grids:
             self.initialize_grids(code, current_price)
@@ -568,7 +570,9 @@ def run_grid_backtest(
 
     for _, row in df.iterrows():
         current_price = float(row["close"])
-        action, shares, price = strategy.check_grid_trigger(code, current_price, position / initial_capital)
+        action, shares, price = strategy.check_grid_trigger(
+            code, current_price, position / initial_capital
+        )
 
         if action == "buy" and capital >= price * shares:
             capital -= price * shares

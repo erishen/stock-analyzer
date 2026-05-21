@@ -3,7 +3,6 @@ Tests for Advanced Strategies.
 高级策略测试
 """
 
-
 import numpy as np
 import pandas as pd
 

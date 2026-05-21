@@ -9,6 +9,7 @@ Strategy Backtester for Stock Analyzer.
 - 突破策略: 价格突破布林带
 """
 
+import logging
 import sqlite3
 import sys
 from dataclasses import dataclass
@@ -23,6 +24,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from config import get_stock_analysis_db_path
 from constants import is_excluded_stock
 from data import get_stock_info_fetcher, get_stock_name
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -674,18 +677,18 @@ class BacktestEngine:
         def calc_commission(amount: float) -> float:
             return max(amount * commission_rate, min_commission)
 
-        print(f"\n📈 回测策略: {strategy.__class__.__name__}")
-        print(f"   初始资金: {initial_capital:,.0f}")
-        print(f"   回测区间: {dates[0]} ~ {dates[-1]}")
-        print(f"   佣金费率: {commission_rate * 100:.3f}% (最低{min_commission}元)")
-        print(f"   印花税率: {stamp_tax_rate * 100:.2f}% (仅卖出)")
+        logger.info(f"\n📈 回测策略: {strategy.__class__.__name__}")
+        logger.info(f"   初始资金: {initial_capital:,.0f}")
+        logger.info(f"   回测区间: {dates[0]} ~ {dates[-1]}")
+        logger.info(f"   佣金费率: {commission_rate * 100:.3f}% (最低{min_commission}元)")
+        logger.info(f"   印花税率: {stamp_tax_rate * 100:.2f}% (仅卖出)")
 
         stop_loss = getattr(strategy, "stop_loss", 0.0)
         take_profit = getattr(strategy, "take_profit", 0.0)
         if stop_loss > 0:
-            print(f"   止损比例: {stop_loss * 100:.1f}%")
+            logger.info(f"   止损比例: {stop_loss * 100:.1f}%")
         if take_profit > 0:
-            print(f"   止盈比例: {take_profit * 100:.1f}%")
+            logger.info(f"   止盈比例: {take_profit * 100:.1f}%")
 
         for i, date in enumerate(dates):
             for code, trade in list(holdings.items()):
@@ -730,7 +733,9 @@ class BacktestEngine:
                     total_commission += sell_commission
                     total_stamp_tax += sell_stamp_tax
 
-                    trade.profit = (exit_price - trade.entry_price) * trade.shares - trade.total_cost
+                    trade.profit = (
+                        exit_price - trade.entry_price
+                    ) * trade.shares - trade.total_cost
                     trade.profit_percent = trade.profit / (trade.entry_price * trade.shares)
 
                     capital += sell_amount - sell_cost
@@ -740,7 +745,13 @@ class BacktestEngine:
             if i % holding_days == 0:
                 select_kwargs = {"all_data": all_data, "date_idx": i, "date": date}
                 if isinstance(
-                    strategy, (MomentumStrategy, MeanReversionStrategy, TrendFollowingStrategy, MultiFactorStrategy)
+                    strategy,
+                    (
+                        MomentumStrategy,
+                        MeanReversionStrategy,
+                        TrendFollowingStrategy,
+                        MultiFactorStrategy,
+                    ),
                 ):
                     select_kwargs["stock_names"] = stock_names
                 selected = strategy.select_stocks(**select_kwargs)
@@ -819,7 +830,9 @@ class BacktestEngine:
                     total_commission += sell_commission
                     total_stamp_tax += sell_stamp_tax
 
-                    trade.profit = (last_price - trade.entry_price) * trade.shares - trade.total_cost
+                    trade.profit = (
+                        last_price - trade.entry_price
+                    ) * trade.shares - trade.total_cost
                     trade.profit_percent = trade.profit / (trade.entry_price * trade.shares)
                     capital += sell_amount - sell_cost
             trades.append(trade)
@@ -849,7 +862,9 @@ class BacktestEngine:
         """计算回测结果"""
         total_return = (final_capital - initial_capital) / initial_capital
 
-        days = (datetime.strptime(dates[-1], "%Y-%m-%d") - datetime.strptime(dates[0], "%Y-%m-%d")).days
+        days = (
+            datetime.strptime(dates[-1], "%Y-%m-%d") - datetime.strptime(dates[0], "%Y-%m-%d")
+        ).days
         annualized_return = (1 + total_return) ** (365 / max(days, 1)) - 1
 
         equities = [e["equity"] for e in equity_curve]

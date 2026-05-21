@@ -160,4 +160,9 @@ class TestMarketTiming:
 
         assert isinstance(result, MarketIndicator)
         assert result.date is not None
-        assert result.state in [MarketState.BULL, MarketState.BEAR, MarketState.SIDEWAYS, MarketState.UNKNOWN]
+        assert result.state in [
+            MarketState.BULL,
+            MarketState.BEAR,
+            MarketState.SIDEWAYS,
+            MarketState.UNKNOWN,
+        ]

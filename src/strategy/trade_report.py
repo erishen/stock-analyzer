@@ -3,10 +3,13 @@ Trade Report Module.
 交易报告模块 - 生成详细的交易分析报告
 """
 
+import logging
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -312,7 +315,9 @@ def generate_trade_report(backtest_result: Any) -> TradeReport:
         day: {
             "trades": data["trades"],
             "win_rate": round(data["wins"] / data["trades"] * 100, 2) if data["trades"] > 0 else 0,
-            "avg_return": round(data["total_return"] / data["trades"] * 100, 2) if data["trades"] > 0 else 0,
+            "avg_return": round(data["total_return"] / data["trades"] * 100, 2)
+            if data["trades"] > 0
+            else 0,
         }
         for day, data in weekday_data.items()
     }
@@ -336,79 +341,83 @@ def generate_trade_report(backtest_result: Any) -> TradeReport:
 
 def print_trade_report(report: TradeReport):
     """打印交易报告"""
-    print("\n" + "=" * 70)
-    print(f"📋 交易分析报告 - {report.strategy_name}")
-    print("=" * 70)
+    logger.info("\n" + "=" * 70)
+    logger.info(f"📋 交易分析报告 - {report.strategy_name}")
+    logger.info("=" * 70)
 
-    print(f"\n📅 回测区间: {report.start_date} ~ {report.end_date}")
-    print(f"💰 初始资金: {report.initial_capital:,.0f} 元")
-    print(f"💰 最终资金: {report.final_capital:,.0f} 元")
-    print(f"📈 总收益率: {report.total_return * 100:+.2f}%")
+    logger.info(f"\n📅 回测区间: {report.start_date} ~ {report.end_date}")
+    logger.info(f"💰 初始资金: {report.initial_capital:,.0f} 元")
+    logger.info(f"💰 最终资金: {report.final_capital:,.0f} 元")
+    logger.info(f"📈 总收益率: {report.total_return * 100:+.2f}%")
 
     stats = report.statistics
-    print("\n📊 交易统计:")
-    print(f"   总交易次数: {stats.total_trades}")
-    print(f"   盈利交易: {stats.winning_trades} ({stats.win_rate:.1f}%)")
-    print(f"   亏损交易: {stats.losing_trades}")
-    print(f"   持平交易: {stats.even_trades}")
-    print(f"   平均盈利: {stats.avg_profit:+.2f}%")
-    print(f"   平均亏损: {stats.avg_loss:.2f}%")
-    print(f"   盈亏比: {stats.profit_factor:.2f}")
-    print(f"   期望收益: {stats.expectancy:+.2f}%")
-    print(f"   平均持仓: {stats.avg_holding_days:.1f} 天")
-    print(f"   最大单笔盈利: {stats.max_profit_trade:+.2f}%")
-    print(f"   最大单笔亏损: {stats.max_loss_trade:.2f}%")
+    logger.info("\n📊 交易统计:")
+    logger.info(f"   总交易次数: {stats.total_trades}")
+    logger.info(f"   盈利交易: {stats.winning_trades} ({stats.win_rate:.1f}%)")
+    logger.info(f"   亏损交易: {stats.losing_trades}")
+    logger.info(f"   持平交易: {stats.even_trades}")
+    logger.info(f"   平均盈利: {stats.avg_profit:+.2f}%")
+    logger.info(f"   平均亏损: {stats.avg_loss:.2f}%")
+    logger.info(f"   盈亏比: {stats.profit_factor:.2f}")
+    logger.info(f"   期望收益: {stats.expectancy:+.2f}%")
+    logger.info(f"   平均持仓: {stats.avg_holding_days:.1f} 天")
+    logger.info(f"   最大单笔盈利: {stats.max_profit_trade:+.2f}%")
+    logger.info(f"   最大单笔亏损: {stats.max_loss_trade:.2f}%")
 
     if report.monthly_performance:
-        print("\n📅 月度表现:")
-        print(f"{'月份':<10} {'交易':<8} {'胜率':<10} {'收益率':<12}")
-        print("-" * 45)
+        logger.info("\n📅 月度表现:")
+        logger.info(f"{'月份':<10} {'交易':<8} {'胜率':<10} {'收益率':<12}")
+        logger.info("-" * 45)
         for m in report.monthly_performance[-6:]:
-            print(f"{m.month:<10} {m.trades:<8} {m.win_rate * 100:.1f}%      {m.return_pct * 100:+.2f}%")
+            logger.info(
+                f"{m.month:<10} {m.trades:<8} {m.win_rate * 100:.1f}%      {m.return_pct * 100:+.2f}%"
+            )
 
     if report.top_winners:
-        print("\n🏆 盈利 Top 10:")
-        print(f"{'代码':<12} {'名称':<10} {'买入日期':<12} {'收益率':<10} {'持仓天数':<8}")
-        print("-" * 60)
+        logger.info("\n🏆 盈利 Top 10:")
+        logger.info(f"{'代码':<12} {'名称':<10} {'买入日期':<12} {'收益率':<10} {'持仓天数':<8}")
+        logger.info("-" * 60)
         for t in report.top_winners:
-            print(
+            logger.info(
                 f"{t['code']:<12} {t['name'][:8]:<10} {t['entry_date']:<12} {t['profit_pct']:+.2f}%     {t['holding_days']:<8}"
             )
 
     if report.top_losers:
-        print("\n📉 亏损 Top 10:")
-        print(f"{'代码':<12} {'名称':<10} {'买入日期':<12} {'收益率':<10} {'持仓天数':<8}")
-        print("-" * 60)
+        logger.info("\n📉 亏损 Top 10:")
+        logger.info(f"{'代码':<12} {'名称':<10} {'买入日期':<12} {'收益率':<10} {'持仓天数':<8}")
+        logger.info("-" * 60)
         for t in report.top_losers:
-            print(
+            logger.info(
                 f"{t['code']:<12} {t['name'][:8]:<10} {t['entry_date']:<12} {t['profit_pct']:.2f}%      {t['holding_days']:<8}"
             )
 
     if report.stock_performance:
-        print("\n📈 个股表现 Top 10:")
-        print(f"{'代码':<12} {'名称':<10} {'交易次数':<10} {'胜率':<10} {'总收益':<12}")
-        print("-" * 60)
+        logger.info("\n📈 个股表现 Top 10:")
+        logger.info(f"{'代码':<12} {'名称':<10} {'交易次数':<10} {'胜率':<10} {'总收益':<12}")
+        logger.info("-" * 60)
         for s in report.stock_performance[:10]:
-            print(
+            logger.info(
                 f"{s.code:<12} {s.name[:8]:<10} {s.trades:<10} {s.win_rate * 100:.1f}%      {s.total_profit * 100:+.2f}%"
             )
 
     if report.holding_distribution:
-        print("\n⏱️ 持仓天数分布:")
+        logger.info("\n⏱️ 持仓天数分布:")
         for bucket in sorted(report.holding_distribution.keys()):
             count = report.holding_distribution[bucket]
             bar = "█" * (count // 5 + 1)
-            print(f"   {bucket} 天: {bar} ({count})")
+            logger.info(f"   {bucket} 天: {bar} ({count})")
 
     if report.weekday_performance:
-        print("\n📆 按买入日分析:")
-        print(f"{'星期':<12} {'交易次数':<10} {'胜率':<10} {'平均收益':<12}")
-        print("-" * 50)
+        logger.info("\n📆 按买入日分析:")
+        logger.info(f"{'星期':<12} {'交易次数':<10} {'胜率':<10} {'平均收益':<12}")
+        logger.info("-" * 50)
         weekday_order = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
         for day in weekday_order:
             if day in report.weekday_performance:
                 data = report.weekday_performance[day]
-                print(f"{day:<12} {data['trades']:<10} {data['win_rate']:.1f}%      {data['avg_return']:+.2f}%")
+                logger.info(
+                    f"{day:<12} {data['trades']:<10} {data['win_rate']:.1f}%      {data['avg_return']:+.2f}%"
+                )
 
 
 def save_trade_report(report: TradeReport, output_path: Path):

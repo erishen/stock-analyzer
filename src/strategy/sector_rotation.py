@@ -4,6 +4,7 @@ Sector Rotation Analysis Module.
 """
 
 import json
+import logging
 import sqlite3
 from dataclasses import dataclass
 from enum import Enum
@@ -13,6 +14,8 @@ from typing import Any
 import pandas as pd
 
 from config import get_stock_analysis_db_path
+
+logger = logging.getLogger(__name__)
 
 
 class SectorStrength(Enum):
@@ -101,7 +104,16 @@ class SectorAnalysisResult:
 
 
 DEFAULT_SECTORS = {
-    "银行": ["sh600000", "sh600016", "sh600036", "sh601166", "sh601288", "sh601398", "sh601939", "sh601988"],
+    "银行": [
+        "sh600000",
+        "sh600016",
+        "sh600036",
+        "sh601166",
+        "sh601288",
+        "sh601398",
+        "sh601939",
+        "sh601988",
+    ],
     "证券": ["sh600030", "sh600837", "sh601211", "sh601688", "sh601901"],
     "保险": ["sh601318", "sh601601", "sh601628"],
     "房地产": ["sh000002", "sh600048", "sh600383", "sh001979"],
@@ -361,52 +373,52 @@ class SectorRotationAnalyzer:
 
 def print_sector_analysis(result: SectorAnalysisResult):
     """打印行业分析结果"""
-    print(f"\n{'=' * 70}")
-    print("📊 行业轮动分析")
-    print(f"{'=' * 70}")
+    logger.info(f"\n{'=' * 70}")
+    logger.info("📊 行业轮动分析")
+    logger.info(f"{'=' * 70}")
 
-    print(f"\n📅 日期: {result.date}")
-    print(f"📈 市场宽度: {result.market_breadth * 100:.1f}% 行业强势")
+    logger.info(f"\n📅 日期: {result.date}")
+    logger.info(f"📈 市场宽度: {result.market_breadth * 100:.1f}% 行业强势")
 
-    print("\n🏆 行业排名 (按动量):")
-    print(f"{'排名':<6} {'行业':<12} {'强度':<8} {'动量':<12} {'趋势':<8} {'信号':<8}")
-    print("-" * 65)
+    logger.info("\n🏆 行业排名 (按动量):")
+    logger.info(f"{'排名':<6} {'行业':<12} {'强度':<8} {'动量':<12} {'趋势':<8} {'信号':<8}")
+    logger.info("-" * 65)
 
     sector_signal_map = {r.sector: r for r in result.rotations}
 
     for sector in result.sectors[:10]:
         rotation = sector_signal_map.get(sector.name)
         signal_str = rotation.signal.value if rotation else "hold"
-        print(
+        logger.info(
             f"{sector.rank:<6} {sector.name:<12} {sector.strength.value:<8} "
             f"{sector.momentum * 100:>+8.2f}%    {sector.trend:<8} {signal_str:<8}"
         )
 
-    print("\n📈 强势行业 (建议关注):")
+    logger.info("\n📈 强势行业 (建议关注):")
     for sector in result.top_sectors:
-        print(f"   ✅ {sector}")
+        logger.info(f"   ✅ {sector}")
 
-    print("\n📉 弱势行业 (建议回避):")
+    logger.info("\n📉 弱势行业 (建议回避):")
     for sector in result.bottom_sectors:
-        print(f"   ⚠️ {sector}")
+        logger.error(f"   ⚠️ {sector}")
 
-    print("\n💡 轮动信号:")
+    logger.info("\n💡 轮动信号:")
     enter_signals = [r for r in result.rotations if r.signal == RotationSignal.ENTER]
     exit_signals = [r for r in result.rotations if r.signal == RotationSignal.EXIT]
 
     if enter_signals:
-        print(f"   🟢 建议进入: {', '.join([r.sector for r in enter_signals])}")
+        logger.info(f"   🟢 建议进入: {', '.join([r.sector for r in enter_signals])}")
     if exit_signals:
-        print(f"   🔴 建议退出: {', '.join([r.sector for r in exit_signals])}")
+        logger.info(f"   🔴 建议退出: {', '.join([r.sector for r in exit_signals])}")
 
-    print("\n📊 配置建议:")
+    logger.info("\n📊 配置建议:")
     analyzer = SectorRotationAnalyzer()
     allocation = analyzer.get_sector_allocation(result)
 
     if allocation:
         total = sum(allocation.values())
         for sector, weight in sorted(allocation.items(), key=lambda x: x[1], reverse=True):
-            print(f"   {sector}: {weight / total * 100:.1f}%")
+            logger.info(f"   {sector}: {weight / total * 100:.1f}%")
 
 
 def run_sector_analysis(

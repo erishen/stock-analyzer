@@ -10,6 +10,7 @@ Signal Scanner for Stock Analyzer.
 - 趋势信号: MA 排列, 动量
 """
 
+import logging
 import sqlite3
 import sys
 from dataclasses import dataclass, field
@@ -22,6 +23,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 import pandas as pd
 
 from config import get_stock_analysis_db_path
+
+logger = logging.getLogger(__name__)
 
 
 class SignalType(Enum):
@@ -168,10 +171,14 @@ class SignalDetector:
         pattern_signals = self._detect_pattern_signals(df, code, date, price, change_percent)
         signals.extend(pattern_signals)
 
-        multi_period_signals = self._detect_multi_period_signals(df, code, date, price, change_percent)
+        multi_period_signals = self._detect_multi_period_signals(
+            df, code, date, price, change_percent
+        )
         signals.extend(multi_period_signals)
 
-        price_volume_signals = self._detect_price_volume_signals(df, code, date, price, change_percent)
+        price_volume_signals = self._detect_price_volume_signals(
+            df, code, date, price, change_percent
+        )
         signals.extend(price_volume_signals)
 
         for signal in signals:
@@ -374,7 +381,10 @@ class SignalDetector:
                     date=date,
                     price=price,
                     change_percent=change_percent,
-                    details={"boll_upper": round(boll_upper, 2), "position": round(boll_position, 2)},
+                    details={
+                        "boll_upper": round(boll_upper, 2),
+                        "position": round(boll_position, 2),
+                    },
                 )
             )
 
@@ -387,7 +397,10 @@ class SignalDetector:
                     date=date,
                     price=price,
                     change_percent=change_percent,
-                    details={"boll_lower": round(boll_lower, 2), "position": round(boll_position, 2)},
+                    details={
+                        "boll_lower": round(boll_lower, 2),
+                        "position": round(boll_position, 2),
+                    },
                 )
             )
 
@@ -417,7 +430,10 @@ class SignalDetector:
                         date=date,
                         price=price,
                         change_percent=change_percent,
-                        details={"volume_ratio": round(volume_ratio, 2), "turnover_rate": round(turnover_rate, 2)},
+                        details={
+                            "volume_ratio": round(volume_ratio, 2),
+                            "turnover_rate": round(turnover_rate, 2),
+                        },
                     )
                 )
 
@@ -625,7 +641,12 @@ class SignalDetector:
         lower_shadow = min(open_price, close_price) - low_price
         total_range = high_price - low_price if high_price != low_price else 1
 
-        if lower_shadow > body * 2 and upper_shadow < body * 0.5 and close_price > open_price and change_percent < 0:
+        if (
+            lower_shadow > body * 2
+            and upper_shadow < body * 0.5
+            and close_price > open_price
+            and change_percent < 0
+        ):
             signals.append(
                 Signal(
                     code=code,
@@ -638,7 +659,12 @@ class SignalDetector:
                 )
             )
 
-        if upper_shadow > body * 2 and lower_shadow < body * 0.5 and close_price < open_price and change_percent > 0:
+        if (
+            upper_shadow > body * 2
+            and lower_shadow < body * 0.5
+            and close_price < open_price
+            and change_percent > 0
+        ):
             signals.append(
                 Signal(
                     code=code,
@@ -651,7 +677,12 @@ class SignalDetector:
                 )
             )
 
-        if prev_close < prev_open and close_price > open_price and close_price > prev_open and open_price < prev_close:
+        if (
+            prev_close < prev_open
+            and close_price > open_price
+            and close_price > prev_open
+            and open_price < prev_close
+        ):
             signals.append(
                 Signal(
                     code=code,
@@ -664,7 +695,12 @@ class SignalDetector:
                 )
             )
 
-        if prev_close > prev_open and close_price < open_price and close_price < prev_open and open_price > prev_close:
+        if (
+            prev_close > prev_open
+            and close_price < open_price
+            and close_price < prev_open
+            and open_price > prev_close
+        ):
             signals.append(
                 Signal(
                     code=code,
@@ -966,7 +1002,10 @@ class MarketScanner:
         return df
 
     def scan_all(
-        self, signal_types: list[SignalType] | None = None, min_score: float = 0, exclude_delisted: bool = True
+        self,
+        signal_types: list[SignalType] | None = None,
+        min_score: float = 0,
+        exclude_delisted: bool = True,
     ) -> ScanResult:
         """
         扫描全市场
@@ -988,7 +1027,7 @@ class MarketScanner:
         codes = self.get_stock_codes(exclude_delisted=exclude_delisted)
         total_stocks = len(codes)
 
-        print(f"\n🔍 开始扫描 {total_stocks} 只股票...")
+        logger.info(f"\n🔍 开始扫描 {total_stocks} 只股票...")
 
         name_cache: dict[str, str] = {}
 
@@ -1015,7 +1054,7 @@ class MarketScanner:
                 all_signals.extend(signals)
 
                 if i % 500 == 0:
-                    print(f"   进度: {i}/{total_stocks} ({i / total_stocks * 100:.1f}%)")
+                    logger.info(f"   进度: {i}/{total_stocks} ({i / total_stocks * 100:.1f}%)")
 
             except Exception:
                 continue
@@ -1038,7 +1077,7 @@ class MarketScanner:
             top_signals=top_signals,
         )
 
-        print(f"\n✅ 扫描完成: 发现 {len(all_signals)} 个信号")
+        logger.info(f"\n✅ 扫描完成: 发现 {len(all_signals)} 个信号")
 
         return result
 
@@ -1116,7 +1155,7 @@ class MarketScanner:
         codes = self.get_stock_codes(exclude_delisted=exclude_delisted)
         total_stocks = len(codes)
 
-        print(f"\n🔍 开始并行扫描 {total_stocks} 只股票 (workers={max_workers})...")
+        logger.info(f"\n🔍 开始并行扫描 {total_stocks} 只股票 (workers={max_workers})...")
 
         name_cache: dict[str, str] = {}
         completed = 0
@@ -1159,7 +1198,9 @@ class MarketScanner:
 
                 completed += 1
                 if completed % 500 == 0:
-                    print(f"   进度: {completed}/{total_stocks} ({completed / total_stocks * 100:.1f}%)")
+                    logger.info(
+                        f"   进度: {completed}/{total_stocks} ({completed / total_stocks * 100:.1f}%)"
+                    )
 
         all_signals.sort(key=lambda x: x.score, reverse=True)
 
@@ -1179,7 +1220,7 @@ class MarketScanner:
             top_signals=top_signals,
         )
 
-        print(f"\n✅ 并行扫描完成: 发现 {len(all_signals)} 个信号")
+        logger.info(f"\n✅ 并行扫描完成: 发现 {len(all_signals)} 个信号")
 
         return result
 
@@ -1221,7 +1262,7 @@ def run_scan(
                 st = SignalType(signal_type)
                 signal_types = [st]
             except ValueError:
-                print(f"未知的信号类型: {signal_type}")
+                logger.info(f"未知的信号类型: {signal_type}")
 
         if parallel:
             return scanner.scan_parallel(

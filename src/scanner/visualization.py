@@ -4,6 +4,7 @@ Signal Visualization for Stock Analyzer.
 """
 
 import json
+import logging
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -14,6 +15,8 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from utils.font_config import setup_chinese_font
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -53,7 +56,7 @@ class SignalVisualizer:
     def plot_signal_distribution(self, summary: dict[str, int], title: str = "信号分布"):
         """绘制信号分布图"""
         if not summary:
-            print("没有信号数据")
+            logger.info("没有信号数据")
             return
 
         _fig, ax = plt.subplots(figsize=self.config.figsize)
@@ -80,7 +83,13 @@ class SignalVisualizer:
         ax.set_title(title)
 
         for _i, (bar, count) in enumerate(zip(bars, counts, strict=False)):
-            ax.text(bar.get_width() + 5, bar.get_y() + bar.get_height() / 2, str(count), va="center", fontsize=10)
+            ax.text(
+                bar.get_width() + 5,
+                bar.get_y() + bar.get_height() / 2,
+                str(count),
+                va="center",
+                fontsize=10,
+            )
 
         from matplotlib.patches import Patch
 
@@ -98,13 +107,13 @@ class SignalVisualizer:
         plt.savefig(output_path, dpi=self.config.dpi, bbox_inches="tight")
         plt.close()
 
-        print(f"信号分布图已保存: {output_path}")
+        logger.info(f"信号分布图已保存: {output_path}")
         return output_path
 
     def plot_signal_pie(self, summary: dict[str, int], title: str = "信号类型占比"):
         """绘制信号饼图"""
         if not summary:
-            print("没有信号数据")
+            logger.info("没有信号数据")
             return
 
         _fig, ax = plt.subplots(figsize=(10, 10))
@@ -114,21 +123,36 @@ class SignalVisualizer:
         neutral_count = sum(summary.get(s, 0) for s in self.SIGNAL_CATEGORIES["neutral"])
 
         sizes = [bullish_count, bearish_count, neutral_count]
-        labels = [f"看涨信号\n{bullish_count}", f"看跌信号\n{bearish_count}", f"中性信号\n{neutral_count}"]
+        labels = [
+            f"看涨信号\n{bullish_count}",
+            f"看跌信号\n{bearish_count}",
+            f"中性信号\n{neutral_count}",
+        ]
         colors = [self.COLORS["bullish"], self.COLORS["bearish"], self.COLORS["neutral"]]
 
         sizes = [s for s in sizes if s > 0]
         labels = [
-            label for label, s in zip(labels, [bullish_count, bearish_count, neutral_count], strict=False) if s > 0
+            label
+            for label, s in zip(labels, [bullish_count, bearish_count, neutral_count], strict=False)
+            if s > 0
         ]
-        colors = [c for c, s in zip(colors, [bullish_count, bearish_count, neutral_count], strict=False) if s > 0]
+        colors = [
+            c
+            for c, s in zip(colors, [bullish_count, bearish_count, neutral_count], strict=False)
+            if s > 0
+        ]
 
         if not sizes:
-            print("没有信号数据")
+            logger.info("没有信号数据")
             return
 
         _wedges, _texts, _autotexts = ax.pie(
-            sizes, labels=labels, colors=colors, autopct="%1.1f%%", startangle=90, explode=[0.02] * len(sizes)
+            sizes,
+            labels=labels,
+            colors=colors,
+            autopct="%1.1f%%",
+            startangle=90,
+            explode=[0.02] * len(sizes),
         )
 
         ax.set_title(title, fontsize=14, fontweight="bold")
@@ -139,13 +163,13 @@ class SignalVisualizer:
         plt.savefig(output_path, dpi=self.config.dpi, bbox_inches="tight")
         plt.close()
 
-        print(f"信号饼图已保存: {output_path}")
+        logger.info(f"信号饼图已保存: {output_path}")
         return output_path
 
     def plot_top_signals(self, signals: list[dict], title: str = "Top 20 高分信号"):
         """绘制高分信号图"""
         if not signals:
-            print("没有信号数据")
+            logger.info("没有信号数据")
             return
 
         _fig, ax = plt.subplots(figsize=(14, 10))
@@ -174,7 +198,11 @@ class SignalVisualizer:
 
         for _i, (bar, score, st) in enumerate(zip(bars, scores, signal_types, strict=False)):
             ax.text(
-                bar.get_width() + 1, bar.get_y() + bar.get_height() / 2, f"{score:.1f} | {st}", va="center", fontsize=9
+                bar.get_width() + 1,
+                bar.get_y() + bar.get_height() / 2,
+                f"{score:.1f} | {st}",
+                va="center",
+                fontsize=9,
             )
 
         from matplotlib.patches import Patch
@@ -193,13 +221,13 @@ class SignalVisualizer:
         plt.savefig(output_path, dpi=self.config.dpi, bbox_inches="tight")
         plt.close()
 
-        print(f"高分信号图已保存: {output_path}")
+        logger.info(f"高分信号图已保存: {output_path}")
         return output_path
 
     def plot_score_distribution(self, signals: list[dict], title: str = "信号得分分布"):
         """绘制得分分布直方图"""
         if not signals:
-            print("没有信号数据")
+            logger.info("没有信号数据")
             return
 
         _fig, ax = plt.subplots(figsize=self.config.figsize)
@@ -233,14 +261,14 @@ class SignalVisualizer:
         plt.savefig(output_path, dpi=self.config.dpi, bbox_inches="tight")
         plt.close()
 
-        print(f"得分分布图已保存: {output_path}")
+        logger.info(f"得分分布图已保存: {output_path}")
         return output_path
 
     def generate_report(self, scan_result: dict) -> list[Path]:
         """生成完整可视化报告"""
         output_paths = []
 
-        print("\n📊 生成可视化报告...")
+        logger.info("\n📊 生成可视化报告...")
 
         if "summary" in scan_result:
             path = self.plot_signal_distribution(scan_result["summary"])
@@ -260,7 +288,7 @@ class SignalVisualizer:
             if path:
                 output_paths.append(path)
 
-        print(f"\n✅ 已生成 {len(output_paths)} 个图表")
+        logger.info(f"\n✅ 已生成 {len(output_paths)} 个图表")
         return output_paths
 
 

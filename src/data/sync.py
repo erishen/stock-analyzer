@@ -3,12 +3,15 @@ Data Sync Module for Stock Analyzer.
 数据同步模块 - 配置外部数据库路径
 """
 
+import logging
 import os
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from config import get_asset_lens_db_path
+
+logger = logging.getLogger(__name__)
 
 
 def sync_from_external_db(
@@ -116,23 +119,23 @@ def run_sync(backup: bool = True, source_path: str | Path | None = None) -> dict
     Returns:
         配置结果
     """
-    print("\n" + "=" * 60)
-    print("🔄 数据路径配置")
-    print("=" * 60)
+    logger.info("\n" + "=" * 60)
+    logger.info("🔄 数据路径配置")
+    logger.info("=" * 60)
 
     info = get_db_info(source_path)
 
     if not info["exists"]:
-        print(f"\n❌ 数据库不存在: {info['path']}")
-        print("\n请在 .env 文件中配置 ASSET_LENS_DB_PATH 指向 asset-lens 的数据库:")
-        print("  ASSET_LENS_DB_PATH=../investkit_utils/data/asset_lens.db")
+        logger.error(f"\n❌ 数据库不存在: {info['path']}")
+        logger.info("\n请在 .env 文件中配置 ASSET_LENS_DB_PATH 指向 asset-lens 的数据库:")
+        logger.info("  ASSET_LENS_DB_PATH=../investkit_utils/data/asset_lens.db")
         return {"success": False, "message": "数据库不存在"}
 
-    print(f"\n📁 数据库路径: {info['path']}")
-    print(f"   文件大小: {info['size'] / 1024 / 1024:.2f} MB")
-    print(f"   股票数量: {info['stock_count']:,}")
-    print(f"   K线数量: {info['kline_count']:,}")
-    print(f"   最后更新: {info['last_update']}")
-    print("\n✅ 数据路径已配置，stock-analyzer 将直接读取此数据库")
+    logger.info(f"\n📁 数据库路径: {info['path']}")
+    logger.info(f"   文件大小: {info['size'] / 1024 / 1024:.2f} MB")
+    logger.info(f"   股票数量: {info['stock_count']:,}")
+    logger.info(f"   K线数量: {info['kline_count']:,}")
+    logger.info(f"   最后更新: {info['last_update']}")
+    logger.info("\n✅ 数据路径已配置，stock-analyzer 将直接读取此数据库")
 
     return {"success": True, "message": f"数据路径已配置: {info['path']}"}

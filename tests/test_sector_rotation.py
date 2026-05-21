@@ -3,8 +3,6 @@ Tests for Sector Rotation Module.
 行业轮动模块测试
 """
 
-
-
 from strategy.sector_rotation import (
     RotationSignal,
     SectorAnalysisResult,

@@ -3,6 +3,7 @@ Tests for Main Module - Extended Coverage.
 主模块扩展测试
 """
 
+import logging
 import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -51,16 +52,16 @@ class TestMainModule:
 class TestRunStats:
     """统计命令测试"""
 
-    def test_run_stats_no_db(self):
+    def test_run_stats_no_db(self, caplog):
         """测试无数据库时的统计"""
         from src.main import run_stats
 
         args = MagicMock()
         args.db = "/nonexistent/path.db"
 
-        with patch("builtins.print") as mock_print:
+        with caplog.at_level(logging.ERROR, logger="src.main"):
             run_stats(args)
-            mock_print.assert_called()
+        assert "数据库不存在" in caplog.text
 
     def test_run_stats_with_temp_db(self):
         """测试有数据库时的统计"""

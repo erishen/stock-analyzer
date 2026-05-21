@@ -6,10 +6,10 @@ readme = "README.md"
 requires-python = ">=3.11,<3.14"
 dependencies = [
     "investkit-utils",
-    "matplotlib",
-    "numpy",
-    "pandas",
-    "akshare",
+    "matplotlib>=3.7.0",
+    "numpy>=1.24.0",
+    "pandas>=2.0.0",
+    "akshare>=1.10.0",
     "rich>=13.0.0",
     "questionary>=2.0.0",
 ]
@@ -33,20 +33,10 @@ web = [
 stock-analyzer = "src.main:main"
 
 [tool.ruff]
-target-version = "py311"
-line-length = 120
-
-[tool.ruff.lint]
-select = ["E", "W", "F", "I", "N", "UP", "B", "SIM", "PERF", "RUF"]
-ignore = ["S101", "RUF001", "RUF002", "RUF003", "PERF203", "PERF401", "RUF012", "SIM117", "E501", "E402", "N806", "N803", "E741", "B008", "SIM115"]
+extend = "../../pyproject.toml"
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**" = ["S", "B", "RUF012"]
 "src/main.py" = ["F401"]
-
-[tool.ruff.format]
-quote-style = "double"
-indent-style = "space"
 
 [tool.pyright]
 pythonVersion = "3.11"

@@ -11,6 +11,7 @@ Performance Optimization Module for Stock Analyzer.
 
 import hashlib
 import json
+import logging
 import re
 import sqlite3
 import time
@@ -20,6 +21,8 @@ from dataclasses import dataclass
 from functools import wraps
 from pathlib import Path
 from typing import Any, ClassVar
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -61,12 +64,14 @@ class DatabaseOptimizer:
         if not self.conn:
             self.connect()
 
-        cursor = self.conn.execute("SELECT name FROM sqlite_master WHERE type='index' AND name NOT LIKE 'sqlite_%'")
+        cursor = self.conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='index' AND name NOT LIKE 'sqlite_%'"
+        )
         return [row[0] for row in cursor.fetchall()]
 
     def get_table_info(self, table: str = "stock_analysis") -> dict:
         """获取表信息"""
-        if not re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', table):
+        if not re.match(r"^[a-zA-Z_][a-zA-Z0-9_]*$", table):
             raise ValueError(f"Invalid table name: {table}")
         if not self.conn:
             self.connect()
@@ -96,12 +101,12 @@ class DatabaseOptimizer:
         if not self.conn:
             self.connect()
 
-        if not re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', index.name):
+        if not re.match(r"^[a-zA-Z_][a-zA-Z0-9_]*$", index.name):
             raise ValueError(f"Invalid index name: {index.name}")
-        if not re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', index.table):
+        if not re.match(r"^[a-zA-Z_][a-zA-Z0-9_]*$", index.table):
             raise ValueError(f"Invalid table name: {index.table}")
         for col in index.columns:
-            if not re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', col):
+            if not re.match(r"^[a-zA-Z_][a-zA-Z0-9_]*$", col):
                 raise ValueError(f"Invalid column name: {col}")
 
         existing = self.get_existing_indexes()
@@ -118,7 +123,7 @@ class DatabaseOptimizer:
             self.conn.commit()
             return True
         except Exception as e:
-            print(f"创建索引失败: {e}")
+            logger.error(f"创建索引失败: {e}")
             return False
 
     def drop_index(self, index_name: str) -> bool:
@@ -126,7 +131,7 @@ class DatabaseOptimizer:
         if not self.conn:
             self.connect()
 
-        if not re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', index_name):
+        if not re.match(r"^[a-zA-Z_][a-zA-Z0-9_]*$", index_name):
             raise ValueError(f"Invalid index name: {index_name}")
 
         try:
@@ -343,7 +348,9 @@ class IncrementalUpdater:
             self.connect()
 
         if code:
-            cursor = self.conn.execute("SELECT MAX(date) FROM stock_analysis WHERE code = ?", (code,))
+            cursor = self.conn.execute(
+                "SELECT MAX(date) FROM stock_analysis WHERE code = ?", (code,)
+            )
         else:
             cursor = self.conn.execute("SELECT MAX(date) FROM stock_analysis")
 

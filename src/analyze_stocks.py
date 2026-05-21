@@ -5,6 +5,7 @@ Stock Analyzer - 股票分析器
 分析股票数据并生成可视化图表
 """
 
+import logging
 import sqlite3
 import sys
 from pathlib import Path
@@ -16,6 +17,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 from config import DATA_DIR, OUTPUT_DIR, get_asset_lens_db_path, get_stock_analysis_db_path
 from utils.font_config import setup_chinese_font
 
+logger = logging.getLogger(__name__)
 PROJECT_ROOT = Path(__file__).parent.parent
 
 OUTPUT_DIR.mkdir(exist_ok=True)
@@ -35,7 +37,11 @@ class StockAnalyzer:
             use_analysis_db: 是否使用分析数据库 (含技术指标)
         """
         if db_path is None:
-            db_path = str(get_stock_analysis_db_path()) if use_analysis_db else str(get_asset_lens_db_path())
+            db_path = (
+                str(get_stock_analysis_db_path())
+                if use_analysis_db
+                else str(get_asset_lens_db_path())
+            )
         self.db_path = db_path
         self.conn = None
         self.df = None
@@ -46,9 +52,14 @@ class StockAnalyzer:
             raise FileNotFoundError(f"数据库不存在: {self.db_path}")
 
         self.conn = sqlite3.connect(self.db_path)
-        print(f"已连接数据库: {self.db_path}")
+        logger.info(f"已连接数据库: {self.db_path}")
 
-    def load_data(self, table_name: str = "stock_analysis", limit: int | None = None, codes: list[str] | None = None):
+    def load_data(
+        self,
+        table_name: str = "stock_analysis",
+        limit: int | None = None,
+        codes: list[str] | None = None,
+    ):
         """
         从数据库加载数据
 
@@ -76,7 +87,7 @@ class StockAnalyzer:
             query += f" LIMIT {limit}"
 
         self.df = pd.read_sql_query(query, self.conn)
-        print(f"已加载 {len(self.df)} 条记录")
+        logger.info(f"已加载 {len(self.df)} 条记录")
 
         if "date" in self.df.columns:
             self.df["date"] = pd.to_datetime(self.df["date"])
@@ -114,32 +125,32 @@ class StockAnalyzer:
         if self.df is None:
             self.load_data()
 
-        print("\n=== 股票分析 ===")
+        logger.info("\n=== 股票分析 ===")
 
-        print("\n基本统计:")
-        print(self.df.describe())
+        logger.info("\n基本统计:")
+        logger.info(self.df.describe())
 
         if "code" in self.df.columns:
-            print(f"\n按股票代码分析 (前 {top_n} 只):")
+            logger.info(f"\n按股票代码分析 (前 {top_n} 只):")
             stock_groups = self.df.groupby("code")
             stock_counts = stock_groups.size().sort_values(ascending=False).head(top_n)
 
             for code in stock_counts.index:
                 group = stock_groups.get_group(code)
-                print(f"\n股票: {code}")
-                print(f"  记录数: {len(group)}")
-                print(f"  日期范围: {group['date'].min()} ~ {group['date'].max()}")
-                print(f"  平均价: {group['close'].mean():.2f}")
-                print(f"  最高价: {group['close'].max():.2f}")
-                print(f"  最低价: {group['close'].min():.2f}")
-                print(f"  平均成交量: {group['volume'].mean():,.0f}")
+                logger.info(f"\n股票: {code}")
+                logger.info(f"  记录数: {len(group)}")
+                logger.info(f"  日期范围: {group['date'].min()} ~ {group['date'].max()}")
+                logger.info(f"  平均价: {group['close'].mean():.2f}")
+                logger.info(f"  最高价: {group['close'].max():.2f}")
+                logger.info(f"  最低价: {group['close'].min():.2f}")
+                logger.info(f"  平均成交量: {group['volume'].mean():,.0f}")
 
                 if "rsi" in group.columns:
                     latest = group.iloc[-1]
-                    print(f"  最新 RSI: {latest['rsi']:.2f}")
+                    logger.info(f"  最新 RSI: {latest['rsi']:.2f}")
                 if "macd" in group.columns:
                     latest = group.iloc[-1]
-                    print(f"  最新 MACD: {latest['macd']:.4f}")
+                    logger.info(f"  最新 MACD: {latest['macd']:.4f}")
 
     def plot_price_trend(self, top_n: int = 5):
         """绘制价格趋势图"""
@@ -147,7 +158,7 @@ class StockAnalyzer:
             self.load_data()
 
         if "date" not in self.df.columns or "close" not in self.df.columns:
-            print("错误: 缺少 date 或 close 列")
+            logger.error("错误: 缺少 date 或 close 列")
             return
 
         plt.figure(figsize=(14, 7))
@@ -173,7 +184,7 @@ class StockAnalyzer:
         output_path = OUTPUT_DIR / "price_trend.png"
         plt.savefig(output_path, dpi=150)
         plt.close()
-        print(f"价格趋势图已保存: {output_path}")
+        logger.info(f"价格趋势图已保存: {output_path}")
 
     def plot_volume_trend(self, top_n: int = 5):
         """绘制成交量趋势图"""
@@ -181,7 +192,7 @@ class StockAnalyzer:
             self.load_data()
 
         if "date" not in self.df.columns or "volume" not in self.df.columns:
-            print("错误: 缺少 date 或 volume 列")
+            logger.error("错误: 缺少 date 或 volume 列")
             return
 
         plt.figure(figsize=(14, 7))
@@ -207,7 +218,7 @@ class StockAnalyzer:
         output_path = OUTPUT_DIR / "volume_trend.png"
         plt.savefig(output_path, dpi=150)
         plt.close()
-        print(f"成交量趋势图已保存: {output_path}")
+        logger.info(f"成交量趋势图已保存: {output_path}")
 
     def calculate_moving_average(self, window: int = 20, top_n: int = 3):
         """计算移动平均线"""
@@ -215,10 +226,10 @@ class StockAnalyzer:
             self.load_data()
 
         if "close" not in self.df.columns:
-            print("错误: 缺少 close 列")
+            logger.error("错误: 缺少 close 列")
             return
 
-        print(f"\n=== 移动平均线 (窗口={window}) ===")
+        logger.info(f"\n=== 移动平均线 (窗口={window}) ===")
 
         if "code" in self.df.columns:
             stock_groups = self.df.groupby("code")
@@ -235,17 +246,31 @@ class StockAnalyzer:
                     ma_col = f"ma{window}"
                     ma_value = stock_data[ma_col].iloc[-1]
 
-                print(f"\n股票: {code}")
-                print(f"  {window}日均线: {ma_value:.2f}")
-                print(f"  最新收盘: {stock_data['close'].iloc[-1]:.2f}")
+                logger.info(f"\n股票: {code}")
+                logger.info(f"  {window}日均线: {ma_value:.2f}")
+                logger.info(f"  最新收盘: {stock_data['close'].iloc[-1]:.2f}")
 
                 plt.figure(figsize=(14, 7))
                 plt.plot(stock_data["date"], stock_data["close"], label="收盘价", linewidth=1.5)
-                plt.plot(stock_data["date"], stock_data[ma_col], label=f"{window}日均线", linewidth=2)
+                plt.plot(
+                    stock_data["date"], stock_data[ma_col], label=f"{window}日均线", linewidth=2
+                )
 
                 if "boll_upper" in stock_data.columns:
-                    plt.plot(stock_data["date"], stock_data["boll_upper"], "--", label="布林上轨", alpha=0.7)
-                    plt.plot(stock_data["date"], stock_data["boll_lower"], "--", label="布林下轨", alpha=0.7)
+                    plt.plot(
+                        stock_data["date"],
+                        stock_data["boll_upper"],
+                        "--",
+                        label="布林上轨",
+                        alpha=0.7,
+                    )
+                    plt.plot(
+                        stock_data["date"],
+                        stock_data["boll_lower"],
+                        "--",
+                        label="布林下轨",
+                        alpha=0.7,
+                    )
 
                 plt.title(f"{code} 价格与 {window}日均线")
                 plt.xlabel("日期")
@@ -257,14 +282,14 @@ class StockAnalyzer:
                 output_path = OUTPUT_DIR / f"{code}_ma{window}.png"
                 plt.savefig(output_path, dpi=150)
                 plt.close()
-                print(f"  图表已保存: {output_path}")
+                logger.info(f"  图表已保存: {output_path}")
 
     def plot_technical_indicators(self, code: str):
         """绘制技术指标图"""
         df = self.get_stock_data(code, days=60)
 
         if df.empty:
-            print(f"股票 {code} 没有数据")
+            logger.info(f"股票 {code} 没有数据")
             return
 
         _fig, axes = plt.subplots(4, 1, figsize=(14, 12), sharex=True)
@@ -276,7 +301,9 @@ class StockAnalyzer:
         if "ma20" in df.columns:
             ax1.plot(df["date"], df["ma20"], label="MA20", linewidth=1)
         if "boll_upper" in df.columns and "boll_lower" in df.columns:
-            ax1.fill_between(df["date"], df["boll_upper"], df["boll_lower"], alpha=0.1, label="布林带")
+            ax1.fill_between(
+                df["date"], df["boll_upper"], df["boll_lower"], alpha=0.1, label="布林带"
+            )
         ax1.set_ylabel("价格")
         ax1.legend(loc="upper left")
         ax1.set_title(f"{code} 技术指标")
@@ -317,21 +344,21 @@ class StockAnalyzer:
         output_path = OUTPUT_DIR / f"{code}_indicators.png"
         plt.savefig(output_path, dpi=150)
         plt.close()
-        print(f"技术指标图已保存: {output_path}")
+        logger.info(f"技术指标图已保存: {output_path}")
 
     def close(self):
         """关闭数据库连接"""
         if self.conn:
             self.conn.close()
-            print("数据库连接已关闭")
+            logger.info("数据库连接已关闭")
 
 
 def main():
     """主函数"""
-    print("=== 股票分析器 ===")
-    print(f"项目根目录: {PROJECT_ROOT}")
-    print(f"数据目录: {DATA_DIR}")
-    print(f"输出目录: {OUTPUT_DIR}")
+    logger.info("=== 股票分析器 ===")
+    logger.info(f"项目根目录: {PROJECT_ROOT}")
+    logger.info(f"数据目录: {DATA_DIR}")
+    logger.info(f"输出目录: {OUTPUT_DIR}")
 
     analyzer = StockAnalyzer()
 
@@ -348,7 +375,7 @@ def main():
             analyzer.plot_technical_indicators(code)
 
     except Exception as e:
-        print(f"错误: {e}")
+        logger.error(f"错误: {e}")
         import traceback
 
         traceback.print_exc()

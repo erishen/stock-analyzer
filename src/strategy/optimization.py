@@ -3,6 +3,7 @@ Parameter Optimization Module.
 参数优化模块 - 网格搜索最优策略参数
 """
 
+import logging
 from collections.abc import Callable
 from dataclasses import dataclass
 from itertools import product
@@ -16,6 +17,8 @@ from .backtest import (
     MeanReversionStrategy,
     MomentumStrategy,
 )
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -44,7 +47,9 @@ class OptimizationResult:
                     "max_drawdown": round(r["max_drawdown"] * 100, 2),
                     "win_rate": round(r["win_rate"] * 100, 2),
                 }
-                for r in sorted(self.all_results, key=lambda x: x["sharpe_ratio"], reverse=True)[:10]
+                for r in sorted(self.all_results, key=lambda x: x["sharpe_ratio"], reverse=True)[
+                    :10
+                ]
             ],
         }
 
@@ -75,20 +80,26 @@ def optimize_momentum_strategy(
     """
     lookback_values = list(range(lookback_range[0], lookback_range[1] + 1, 5))
     holding_values = list(range(holding_range[0], holding_range[1] + 1, 2))
-    momentum_values = [round(x * 0.02, 2) for x in range(int(momentum_range[0] * 50), int(momentum_range[1] * 50) + 1)]
+    momentum_values = [
+        round(x * 0.02, 2)
+        for x in range(int(momentum_range[0] * 50), int(momentum_range[1] * 50) + 1)
+    ]
     volatility_values = [
-        round(x * 0.02, 2) for x in range(int(volatility_range[0] * 50), int(volatility_range[1] * 50) + 1)
+        round(x * 0.02, 2)
+        for x in range(int(volatility_range[0] * 50), int(volatility_range[1] * 50) + 1)
     ]
 
-    combinations = list(product(lookback_values, holding_values, momentum_values, volatility_values))
+    combinations = list(
+        product(lookback_values, holding_values, momentum_values, volatility_values)
+    )
     total = len(combinations)
 
-    print("\n🔧 参数优化 - 动量策略")
-    print(f"   参数组合数: {total}")
-    print(f"   回看天数: {lookback_values}")
-    print(f"   持有天数: {holding_values}")
-    print(f"   最小动量: {momentum_values}")
-    print(f"   最大波动率: {volatility_values}")
+    logger.info("\n🔧 参数优化 - 动量策略")
+    logger.info(f"   参数组合数: {total}")
+    logger.info(f"   回看天数: {lookback_values}")
+    logger.info(f"   持有天数: {holding_values}")
+    logger.info(f"   最小动量: {momentum_values}")
+    logger.info(f"   最大波动率: {volatility_values}")
 
     engine = BacktestEngine(db_path)
     engine.connect()
@@ -103,7 +114,7 @@ def optimize_momentum_strategy(
                 progress_callback(i + 1, total)
 
             if (i + 1) % 10 == 0 or i == 0:
-                print(f"   进度: {i + 1}/{total} ({(i + 1) / total * 100:.1f}%)")
+                logger.info(f"   进度: {i + 1}/{total} ({(i + 1) / total * 100:.1f}%)")
 
             try:
                 strategy = MomentumStrategy(
@@ -181,10 +192,10 @@ def optimize_mean_reversion_strategy(
     combinations = list(product(rsi_values, holding_values))
     total = len(combinations)
 
-    print("\n🔧 参数优化 - 均值回归策略")
-    print(f"   参数组合数: {total}")
-    print(f"   RSI 超卖阈值: {rsi_values}")
-    print(f"   持有天数: {holding_values}")
+    logger.info("\n🔧 参数优化 - 均值回归策略")
+    logger.info(f"   参数组合数: {total}")
+    logger.info(f"   RSI 超卖阈值: {rsi_values}")
+    logger.info(f"   持有天数: {holding_values}")
 
     engine = BacktestEngine(db_path)
     engine.connect()
@@ -199,7 +210,7 @@ def optimize_mean_reversion_strategy(
                 progress_callback(i + 1, total)
 
             if (i + 1) % 5 == 0 or i == 0:
-                print(f"   进度: {i + 1}/{total} ({(i + 1) / total * 100:.1f}%)")
+                logger.info(f"   进度: {i + 1}/{total} ({(i + 1) / total * 100:.1f}%)")
 
             try:
                 strategy = MeanReversionStrategy(

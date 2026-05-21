@@ -3,8 +3,6 @@ Tests for CLI Utilities.
 CLI 工具测试
 """
 
-
-
 from utils.cli_utils import (
     ColorScheme,
     OutputConfig,

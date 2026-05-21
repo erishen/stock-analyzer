@@ -3,8 +3,11 @@ Sync Environment Variables from external project.
 从外部项目同步环境变量
 """
 
+import logging
 import os
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 
 def sync_env_from_external(source_path: str | Path | None = None) -> dict:
@@ -62,22 +65,22 @@ def run_sync_env(source_path: str | Path | None = None) -> dict:
     Args:
         source_path: 源 .env 文件路径
     """
-    print("\n" + "=" * 60)
-    print("🔄 同步环境变量")
-    print("=" * 60)
+    logger.info("\n" + "=" * 60)
+    logger.info("🔄 同步环境变量")
+    logger.info("=" * 60)
 
     result = sync_env_from_external(source_path)
 
     if result["success"]:
-        print(f"\n✅ {result['message']}")
-        print(f"   源文件: {result['source']}")
-        print(f"   目标文件: {result['target']}")
-        print(f"   同步的 Key: {', '.join(result['keys'])}")
+        logger.info(f"\n✅ {result['message']}")
+        logger.info(f"   源文件: {result['source']}")
+        logger.info(f"   目标文件: {result['target']}")
+        logger.info(f"   同步的 Key: {', '.join(result['keys'])}")
     else:
-        print(f"\n❌ 同步失败: {result['error']}")
-        print("\n使用方法:")
-        print("  1. 设置环境变量: export SYNC_ENV_SOURCE=/path/to/.env")
-        print("  2. 或通过命令行: python -m src.main sync-env --source /path/to/.env")
+        logger.error(f"\n❌ 同步失败: {result['error']}")
+        logger.info("\n使用方法:")
+        logger.info("  1. 设置环境变量: export SYNC_ENV_SOURCE=/path/to/.env")
+        logger.info("  2. 或通过命令行: python -m src.main sync-env --source /path/to/.env")
 
     return result
 

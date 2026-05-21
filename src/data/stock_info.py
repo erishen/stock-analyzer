@@ -6,10 +6,13 @@ Stock Info Fetcher for Stock Analyzer.
 """
 
 import json
+import logging
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -148,7 +151,7 @@ class StockInfoFetcher:
             return self._cache
 
         except Exception as e:
-            print(f"获取股票列表失败: {e}")
+            logger.error(f"获取股票列表失败: {e}")
             return {}
 
     def batch_get_names(self, codes: list[str]) -> dict[str, str]:

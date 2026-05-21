@@ -3,6 +3,7 @@ Market Timing Module.
 大盘择时模块 - 基于市场状态调整策略
 """
 
+import logging
 import sqlite3
 from dataclasses import dataclass
 from enum import Enum
@@ -12,6 +13,8 @@ from typing import Any
 import pandas as pd
 
 from config import get_stock_analysis_db_path
+
+logger = logging.getLogger(__name__)
 
 
 class MarketState(Enum):
@@ -256,28 +259,30 @@ def print_market_timing(indicator: MarketIndicator):
         MarketState.UNKNOWN: "❓",
     }
 
-    print(f"\n{'=' * 50}")
-    print("📊 大盘择时分析")
-    print(f"{'=' * 50}")
+    logger.info(f"\n{'=' * 50}")
+    logger.info("📊 大盘择时分析")
+    logger.info(f"{'=' * 50}")
 
-    print(f"\n📅 日期: {indicator.date}")
-    print(f"📈 市场状态: {state_emoji.get(indicator.state, '')} {indicator.state.value.upper()}")
-    print(f"📊 综合得分: {indicator.score}")
+    logger.info(f"\n📅 日期: {indicator.date}")
+    logger.info(
+        f"📈 市场状态: {state_emoji.get(indicator.state, '')} {indicator.state.value.upper()}"
+    )
+    logger.info(f"📊 综合得分: {indicator.score}")
 
-    print("\n📋 市场指标:")
-    print(f"   均线趋势: {indicator.ma_trend}")
-    print(f"   RSI 水平: {indicator.rsi_level}")
-    print(f"   波动水平: {indicator.volatility}")
-    print(f"   市场宽度: {indicator.breadth:.1f}% 上涨")
+    logger.info("\n📋 市场指标:")
+    logger.info(f"   均线趋势: {indicator.ma_trend}")
+    logger.info(f"   RSI 水平: {indicator.rsi_level}")
+    logger.info(f"   波动水平: {indicator.volatility}")
+    logger.info(f"   市场宽度: {indicator.breadth:.1f}% 上涨")
 
-    print(f"\n💡 交易建议: {indicator.signal}")
+    logger.info(f"\n💡 交易建议: {indicator.signal}")
 
     if indicator.state == MarketState.BULL:
-        print("   建议仓位: 80-100%")
+        logger.info("   建议仓位: 80-100%")
     elif indicator.state == MarketState.SIDEWAYS:
-        print("   建议仓位: 30-50%")
+        logger.info("   建议仓位: 30-50%")
     else:
-        print("   建议仓位: 0-20% 或空仓")
+        logger.info("   建议仓位: 0-20% 或空仓")
 
 
 def run_market_timing(db_path: Path | None = None) -> MarketIndicator:

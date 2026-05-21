@@ -131,7 +131,9 @@ class ScanResponse:
 class PortfolioRequest:
     """组合请求"""
 
-    strategies: list[str] = field(default_factory=lambda: ["momentum", "mean_reversion", "trend_following"])
+    strategies: list[str] = field(
+        default_factory=lambda: ["momentum", "mean_reversion", "trend_following"]
+    )
     weight_method: str = "equal"
     holding_days: int = 5
     initial_capital: float = 100000.0

@@ -3,11 +3,14 @@ Strategy Comparison Module.
 策略对比模块 - 多策略横向对比分析
 """
 
+import logging
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 from config import get_stock_analysis_db_path
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -60,7 +63,9 @@ class ComparisonResult:
             "best_sharpe": self.best_sharpe,
             "best_drawdown": self.best_drawdown,
             "best_win_rate": self.best_win_rate,
-            "overall_ranking": [{"strategy": r[0], "score": round(r[1], 2)} for r in self.overall_ranking],
+            "overall_ranking": [
+                {"strategy": r[0], "score": round(r[1], 2)} for r in self.overall_ranking
+            ],
         }
 
 
@@ -129,29 +134,29 @@ def compare_strategies(
 
 def print_comparison(result: ComparisonResult):
     """打印对比结果"""
-    print(f"\n{'=' * 80}")
-    print("📊 策略对比报告")
-    print(f"{'=' * 80}")
+    logger.info(f"\n{'=' * 80}")
+    logger.info("📊 策略对比报告")
+    logger.info(f"{'=' * 80}")
 
-    print("\n📈 策略指标对比:")
-    print(f"{'策略':<25} {'收益率':<12} {'夏普':<8} {'回撤':<10} {'胜率':<10} {'交易数':<8}")
-    print("-" * 80)
+    logger.info("\n📈 策略指标对比:")
+    logger.info(f"{'策略':<25} {'收益率':<12} {'夏普':<8} {'回撤':<10} {'胜率':<10} {'交易数':<8}")
+    logger.info("-" * 80)
     for m in result.strategies:
-        print(
+        logger.info(
             f"{m.name:<25} {m.total_return * 100:>+8.2f}%    {m.sharpe_ratio:>6.2f}  "
             f"{m.max_drawdown * 100:>6.2f}%    {m.win_rate * 100:>6.2f}%    {m.total_trades:<8}"
         )
 
-    print("\n🏆 各项最佳:")
-    print(f"   最高收益: {result.best_return}")
-    print(f"   最高夏普: {result.best_sharpe}")
-    print(f"   最低回撤: {result.best_drawdown}")
-    print(f"   最高胜率: {result.best_win_rate}")
+    logger.info("\n🏆 各项最佳:")
+    logger.info(f"   最高收益: {result.best_return}")
+    logger.info(f"   最高夏普: {result.best_sharpe}")
+    logger.info(f"   最低回撤: {result.best_drawdown}")
+    logger.info(f"   最高胜率: {result.best_win_rate}")
 
-    print("\n📊 综合排名:")
+    logger.info("\n📊 综合排名:")
     for i, (name, score) in enumerate(result.overall_ranking, 1):
         medal = "🥇" if i == 1 else ("🥈" if i == 2 else ("🥉" if i == 3 else "  "))
-        print(f"   {medal} 第{i}名: {name} (得分: {score:.1f})")
+        logger.info(f"   {medal} 第{i}名: {name} (得分: {score:.1f})")
 
 
 def run_comparison(
@@ -183,12 +188,12 @@ def run_comparison(
 
     results = []
 
-    print("\n🔄 运行策略对比...")
-    print(f"   策略: {', '.join(strategies)}")
-    print(f"   持有天数: {holding_days}")
+    logger.info("\n🔄 运行策略对比...")
+    logger.info(f"   策略: {', '.join(strategies)}")
+    logger.info(f"   持有天数: {holding_days}")
 
     for strategy_type in strategies:
-        print(f"\n   运行 {strategy_type}...")
+        logger.info(f"\n   运行 {strategy_type}...")
         try:
             result = run_backtest(
                 db_path=db_path,
@@ -197,7 +202,7 @@ def run_comparison(
             )
             results.append(result)
         except Exception as e:
-            print(f"   ❌ {strategy_type} 运行失败: {e}")
+            logger.error(f"   ❌ {strategy_type} 运行失败: {e}")
 
     if not results:
         raise ValueError("没有有效的回测结果")

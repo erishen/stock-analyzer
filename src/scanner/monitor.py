@@ -3,12 +3,15 @@ Real-time Signal Monitor Module.
 实时信号监控模块 - 监控当前市场信号
 """
 
+import logging
 import sqlite3
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 from config import get_stock_analysis_db_path
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -68,10 +71,16 @@ class MarketSummary:
             "up_count": self.up_count,
             "down_count": self.down_count,
             "flat_count": self.flat_count,
-            "up_ratio": round(self.up_count / self.total_stocks * 100, 2) if self.total_stocks > 0 else 0,
+            "up_ratio": round(self.up_count / self.total_stocks * 100, 2)
+            if self.total_stocks > 0
+            else 0,
             "avg_change": round(self.avg_change, 2),
             "max_up": {"code": self.max_up[0], "name": self.max_up[1], "change": self.max_up[2]},
-            "max_down": {"code": self.max_down[0], "name": self.max_down[1], "change": self.max_down[2]},
+            "max_down": {
+                "code": self.max_down[0],
+                "name": self.max_down[1],
+                "change": self.max_down[2],
+            },
             "oversold_count": self.oversold_count,
             "overbought_count": self.overbought_count,
             "golden_cross_count": self.golden_cross_count,
@@ -133,7 +142,9 @@ def get_market_summary(db_path: Path) -> MarketSummary:
             (latest_date,),
         )
         max_down_row = cursor.fetchone()
-        max_down = (max_down_row[0], max_down_row[0], max_down_row[1]) if max_down_row else ("", "", 0)
+        max_down = (
+            (max_down_row[0], max_down_row[0], max_down_row[1]) if max_down_row else ("", "", 0)
+        )
 
         cursor = conn.execute(
             """
@@ -272,56 +283,64 @@ def get_live_signals(
 
 def print_market_monitor(db_path: Path):
     """打印市场监控信息"""
-    print("\n" + "=" * 60)
-    print("📊 市场实时监控")
-    print("=" * 60)
+    logger.info("\n" + "=" * 60)
+    logger.info("📊 市场实时监控")
+    logger.info("=" * 60)
 
     try:
         summary = get_market_summary(db_path)
 
-        print(f"\n📅 日期: {summary.date}")
-        print("\n📈 市场概况:")
-        print(f"   总股票数: {summary.total_stocks}")
-        print(f"   上涨: {summary.up_count} ({summary.up_count / summary.total_stocks * 100:.1f}%)")
-        print(f"   下跌: {summary.down_count} ({summary.down_count / summary.total_stocks * 100:.1f}%)")
-        print(f"   平盘: {summary.flat_count}")
-        print(f"   平均涨跌: {summary.avg_change:+.2f}%")
+        logger.info(f"\n📅 日期: {summary.date}")
+        logger.info("\n📈 市场概况:")
+        logger.info(f"   总股票数: {summary.total_stocks}")
+        logger.info(
+            f"   上涨: {summary.up_count} ({summary.up_count / summary.total_stocks * 100:.1f}%)"
+        )
+        logger.info(
+            f"   下跌: {summary.down_count} ({summary.down_count / summary.total_stocks * 100:.1f}%)"
+        )
+        logger.info(f"   平盘: {summary.flat_count}")
+        logger.info(f"   平均涨跌: {summary.avg_change:+.2f}%")
 
-        print("\n🏆 涨跌幅榜:")
-        print(f"   最大涨幅: {summary.max_up[1]} ({summary.max_up[2]:+.2f}%)")
-        print(f"   最大跌幅: {summary.max_down[1]} ({summary.max_down[2]:+.2f}%)")
+        logger.info("\n🏆 涨跌幅榜:")
+        logger.info(f"   最大涨幅: {summary.max_up[1]} ({summary.max_up[2]:+.2f}%)")
+        logger.info(f"   最大跌幅: {summary.max_down[1]} ({summary.max_down[2]:+.2f}%)")
 
-        print("\n📊 技术信号:")
-        print(f"   RSI 超卖 (<30): {summary.oversold_count}")
-        print(f"   RSI 超买 (>70): {summary.overbought_count}")
-        print(f"   MACD 金叉: {summary.golden_cross_count}")
+        logger.info("\n📊 技术信号:")
+        logger.info(f"   RSI 超卖 (<30): {summary.oversold_count}")
+        logger.info(f"   RSI 超买 (>70): {summary.overbought_count}")
+        logger.info(f"   MACD 金叉: {summary.golden_cross_count}")
 
-        print("\n🔍 RSI 超卖信号 (潜在反弹机会):")
+        logger.info("\n🔍 RSI 超卖信号 (潜在反弹机会):")
         signals = get_live_signals(db_path, "oversold", 10)
         if signals:
-            print(f"{'代码':<12} {'名称':<10} {'价格':<10} {'涨跌%':<10} {'RSI':<8} {'得分':<8}")
-            print("-" * 65)
+            logger.info(
+                f"{'代码':<12} {'名称':<10} {'价格':<10} {'涨跌%':<10} {'RSI':<8} {'得分':<8}"
+            )
+            logger.info("-" * 65)
             for s in signals:
-                print(
+                logger.info(
                     f"{s.code:<12} {s.name[:8]:<10} {s.price:<10.2f} {s.change_percent:+.2f}%     {s.rsi:<8.1f} {s.score:<8.1f}"
                 )
         else:
-            print("   暂无超卖信号")
+            logger.info("   暂无超卖信号")
 
-        print("\n🔍 MACD 金叉信号:")
+        logger.info("\n🔍 MACD 金叉信号:")
         signals = get_live_signals(db_path, "golden_cross", 10)
         if signals:
-            print(f"{'代码':<12} {'名称':<10} {'价格':<10} {'涨跌%':<10} {'MACD':<10} {'得分':<8}")
-            print("-" * 65)
+            logger.info(
+                f"{'代码':<12} {'名称':<10} {'价格':<10} {'涨跌%':<10} {'MACD':<10} {'得分':<8}"
+            )
+            logger.info("-" * 65)
             for s in signals:
-                print(
+                logger.info(
                     f"{s.code:<12} {s.name[:8]:<10} {s.price:<10.2f} {s.change_percent:+.2f}%     {s.macd:<10.4f} {s.score:<8.1f}"
                 )
         else:
-            print("   暂无金叉信号")
+            logger.info("   暂无金叉信号")
 
     except Exception as e:
-        print(f"❌ 获取市场数据失败: {e}")
+        logger.error(f"❌ 获取市场数据失败: {e}")
 
 
 def run_monitor(db_path: Path | None = None) -> dict[str, Any]:
@@ -338,5 +357,7 @@ def run_monitor(db_path: Path | None = None) -> dict[str, Any]:
     return {
         "summary": get_market_summary(db_path).to_dict(),
         "oversold_signals": [s.to_dict() for s in get_live_signals(db_path, "oversold", 20)],
-        "golden_cross_signals": [s.to_dict() for s in get_live_signals(db_path, "golden_cross", 20)],
+        "golden_cross_signals": [
+            s.to_dict() for s in get_live_signals(db_path, "golden_cross", 20)
+        ],
     }

@@ -3,6 +3,7 @@ Tests for Benchmark Comparison Module.
 基准对比模块测试
 """
 
+import logging
 import sqlite3
 import tempfile
 from dataclasses import dataclass
@@ -248,7 +249,7 @@ class TestCompareWithBenchmark:
 class TestPrintBenchmarkComparison:
     """测试打印基准对比"""
 
-    def test_print_comparison(self, capsys):
+    def test_print_comparison(self, caplog):
         """测试打印输出"""
         result = BenchmarkResult(
             strategy_name="test_strategy",
@@ -266,11 +267,12 @@ class TestPrintBenchmarkComparison:
             tracking_error=0.02,
         )
 
-        print_benchmark_comparison(result)
+        with caplog.at_level(logging.INFO, logger="src.strategy.benchmark"):
+            print_benchmark_comparison(result)
 
-        captured = capsys.readouterr()
-        assert "test_strategy" in captured.out
-        assert "15.00%" in captured.out or "+15.00%" in captured.out
+        log_output = caplog.text
+        assert "test_strategy" in log_output
+        assert "15.00%" in log_output or "+15.00%" in log_output
 
 
 class TestBenchmarkCalculations:

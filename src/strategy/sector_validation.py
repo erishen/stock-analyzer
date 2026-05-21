@@ -3,6 +3,7 @@ Sector Rotation Backtest Module.
 行业轮动回测验证模块 - 验证轮动信号有效性
 """
 
+import logging
 import sqlite3
 from dataclasses import dataclass
 from pathlib import Path
@@ -17,6 +18,8 @@ from .sector_rotation import (
     RotationSignal,
     SectorRotationAnalyzer,
 )
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -51,7 +54,9 @@ class SectorBacktestResult:
             "win_rate_exit": round(self.win_rate_exit * 100, 2),
             "best_sector": self.best_sector,
             "worst_sector": self.worst_sector,
-            "sector_performance": {k: round(v * 100, 2) for k, v in self.sector_performance.items()},
+            "sector_performance": {
+                k: round(v * 100, 2) for k, v in self.sector_performance.items()
+            },
         }
 
 
@@ -89,13 +94,13 @@ def backtest_sector_rotation(
 
     test_dates = dates[lookback_days::holding_days]
 
-    print("\n🔄 行业轮动回测验证")
-    print(f"   回测区间: {test_dates[0]} ~ {test_dates[-1]}")
-    print(f"   测试周期数: {len(test_dates)}")
+    logger.info("\n🔄 行业轮动回测验证")
+    logger.info(f"   回测区间: {test_dates[0]} ~ {test_dates[-1]}")
+    logger.info(f"   测试周期数: {len(test_dates)}")
 
     for i, date in enumerate(test_dates[:-1]):
         if (i + 1) % 10 == 0:
-            print(f"   进度: {i + 1}/{len(test_dates)}")
+            logger.info(f"   进度: {i + 1}/{len(test_dates)}")
 
         try:
             result = analyzer.analyze_sectors(db_path, date)
@@ -242,61 +247,63 @@ def validate_sector_data(db_path: Path) -> dict[str, Any]:
 
 def print_sector_validation(validation: dict[str, Any]):
     """打印验证结果"""
-    print(f"\n{'=' * 60}")
-    print("📊 行业数据验证")
-    print(f"{'=' * 60}")
+    logger.info(f"\n{'=' * 60}")
+    logger.info("📊 行业数据验证")
+    logger.info(f"{'=' * 60}")
 
-    print("\n📈 数据库统计:")
-    print(f"   总股票数: {validation['total_stocks_in_db']}")
-    print(f"   行业覆盖率: {validation['coverage']}%")
+    logger.info("\n📈 数据库统计:")
+    logger.info(f"   总股票数: {validation['total_stocks_in_db']}")
+    logger.info(f"   行业覆盖率: {validation['coverage']}%")
 
-    print("\n📋 各行业覆盖情况:")
-    print(f"{'行业':<12} {'总数':<8} {'找到':<8} {'缺失':<8} {'覆盖率':<10}")
-    print("-" * 50)
+    logger.info("\n📋 各行业覆盖情况:")
+    logger.info(f"{'行业':<12} {'总数':<8} {'找到':<8} {'缺失':<8} {'覆盖率':<10}")
+    logger.info("-" * 50)
 
     for sector, data in validation["sectors"].items():
-        print(f"{sector:<12} {data['total']:<8} {data['found']:<8} {data['missing']:<8} {data['coverage']}%")
+        logger.info(
+            f"{sector:<12} {data['total']:<8} {data['found']:<8} {data['missing']:<8} {data['coverage']}%"
+        )
 
 
 def print_sector_backtest(result: SectorBacktestResult):
     """打印回测结果"""
-    print(f"\n{'=' * 60}")
-    print("📊 行业轮动回测验证")
-    print(f"{'=' * 60}")
+    logger.info(f"\n{'=' * 60}")
+    logger.info("📊 行业轮动回测验证")
+    logger.info(f"{'=' * 60}")
 
-    print(f"\n📅 回测区间: {result.start_date} ~ {result.end_date}")
-    print(f"📊 测试周期: {result.total_periods}")
+    logger.info(f"\n📅 回测区间: {result.start_date} ~ {result.end_date}")
+    logger.info(f"📊 测试周期: {result.total_periods}")
 
-    print("\n📈 信号统计:")
-    print(f"   总信号数: {result.total_signals}")
-    print(f"   进入信号: {result.enter_signals}")
-    print(f"   退出信号: {result.exit_signals}")
+    logger.info("\n📈 信号统计:")
+    logger.info(f"   总信号数: {result.total_signals}")
+    logger.info(f"   进入信号: {result.enter_signals}")
+    logger.info(f"   退出信号: {result.exit_signals}")
 
-    print("\n📊 信号效果:")
-    print(f"   进入后平均收益: {result.avg_return_after_enter:+.2f}%")
-    print(f"   退出后平均收益: {result.avg_return_after_exit:+.2f}%")
-    print(f"   进入信号胜率: {result.win_rate_enter:.2f}%")
-    print(f"   退出信号胜率: {result.win_rate_exit:.2f}%")
+    logger.info("\n📊 信号效果:")
+    logger.info(f"   进入后平均收益: {result.avg_return_after_enter:+.2f}%")
+    logger.info(f"   退出后平均收益: {result.avg_return_after_exit:+.2f}%")
+    logger.info(f"   进入信号胜率: {result.win_rate_enter:.2f}%")
+    logger.info(f"   退出信号胜率: {result.win_rate_exit:.2f}%")
 
-    print("\n🏆 行业表现:")
-    print(f"   最佳行业: {result.best_sector}")
-    print(f"   最差行业: {result.worst_sector}")
+    logger.info("\n🏆 行业表现:")
+    logger.info(f"   最佳行业: {result.best_sector}")
+    logger.info(f"   最差行业: {result.worst_sector}")
 
-    print("\n📋 各行业平均收益:")
+    logger.info("\n📋 各行业平均收益:")
     sorted_sectors = sorted(result.sector_performance.items(), key=lambda x: x[1], reverse=True)
     for sector, ret in sorted_sectors[:10]:
-        print(f"   {sector}: {ret:+.2f}%")
+        logger.info(f"   {sector}: {ret:+.2f}%")
 
-    print("\n💡 验证结论:")
+    logger.info("\n💡 验证结论:")
     if result.avg_return_after_enter > 0 and result.win_rate_enter > 50:
-        print("   ✅ 进入信号有效 - 平均收益为正，胜率超过50%")
+        logger.info("   ✅ 进入信号有效 - 平均收益为正，胜率超过50%")
     else:
-        print("   ⚠️ 进入信号需优化 - 建议调整参数")
+        logger.error("   ⚠️ 进入信号需优化 - 建议调整参数")
 
     if result.avg_return_after_exit > 0:
-        print("   ✅ 退出信号有效 - 退出后避免下跌")
+        logger.info("   ✅ 退出信号有效 - 退出后避免下跌")
     else:
-        print("   ⚠️ 退出信号需优化")
+        logger.error("   ⚠️ 退出信号需优化")
 
 
 def run_sector_validation(db_path: Path | None = None) -> dict[str, Any]:
@@ -308,11 +315,11 @@ def run_sector_validation(db_path: Path | None = None) -> dict[str, Any]:
     if not db_path.exists():
         raise FileNotFoundError(f"数据库不存在: {db_path}")
 
-    print("\n🔍 验证行业数据...")
+    logger.info("\n🔍 验证行业数据...")
     validation = validate_sector_data(db_path)
     print_sector_validation(validation)
 
-    print("\n🔄 回测轮动信号...")
+    logger.info("\n🔄 回测轮动信号...")
     backtest = backtest_sector_rotation(db_path)
     print_sector_backtest(backtest)
 

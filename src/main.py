@@ -4,6 +4,7 @@ Stock Analyzer - Main Entry Point
 """
 
 import argparse
+import logging
 import sys
 from pathlib import Path
 
@@ -11,6 +12,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from config import DATA_DIR, OUTPUT_DIR, get_asset_lens_db_path, get_stock_analysis_db_path
 
+logger = logging.getLogger(__name__)
 PROJECT_ROOT = Path(__file__).parent.parent
 CHARTS_DIR = OUTPUT_DIR / "charts"
 REPORTS_DIR = OUTPUT_DIR / "reports"
@@ -24,9 +26,9 @@ def run_etl(args):
 
     from etl import run_etl as etl_pipeline
 
-    print("\n" + "=" * 60)
-    print("📦 ETL 数据管道")
-    print("=" * 60)
+    logger.info("\n" + "=" * 60)
+    logger.info("📦 ETL 数据管道")
+    logger.info("=" * 60)
 
     source_db = args.source_db if args.source_db else get_asset_lens_db_path()
     target_db = args.target_db if args.target_db else get_stock_analysis_db_path()
@@ -36,9 +38,9 @@ def run_etl(args):
     result = etl_pipeline(source_db=source_db, target_db=target_db, stock_codes=stock_codes)
 
     if result.errors:
-        print(f"\n⚠️ 有 {len(result.errors)} 个错误:")
+        logger.error(f"\n⚠️ 有 {len(result.errors)} 个错误:")
         for err in result.errors[:5]:
-            print(f"   - {err}")
+            logger.info(f"   - {err}")
 
 
 def run_analyze(args):
@@ -52,23 +54,23 @@ def run_analyze(args):
     if db_path:
         analyzer.db_path = db_path
 
-    print("\n" + "=" * 60)
-    print("📊 股票数据分析")
-    print("=" * 60)
+    logger.info("\n" + "=" * 60)
+    logger.info("📊 股票数据分析")
+    logger.info("=" * 60)
 
-    print("\n加载数据中...")
+    logger.info("\n加载数据中...")
     analyzer.load_data(limit=args.limit)
 
-    print("\n生成价格趋势图...")
+    logger.info("\n生成价格趋势图...")
     analyzer.plot_price_trend(top_n=args.top_n)
 
-    print("\n生成成交量趋势图...")
+    logger.info("\n生成成交量趋势图...")
     analyzer.plot_volume_trend(top_n=args.top_n)
 
-    print("\n计算移动平均线...")
+    logger.info("\n计算移动平均线...")
     analyzer.calculate_moving_average(window=20, top_n=args.top_n)
 
-    print(f"\n✅ 分析完成！图表已保存到 {OUTPUT_DIR}")
+    logger.info(f"\n✅ 分析完成！图表已保存到 {OUTPUT_DIR}")
 
 
 def run_stats(args):
@@ -78,14 +80,14 @@ def run_stats(args):
     db_path = args.db if args.db else get_stock_analysis_db_path()
 
     if not Path(db_path).exists():
-        print(f"❌ 数据库不存在: {db_path}")
-        print("   请先运行: python -m src.main etl")
+        logger.error(f"❌ 数据库不存在: {db_path}")
+        logger.info("   请先运行: python -m src.main etl")
         return
 
     with sqlite3.connect(str(db_path)) as conn:
-        print("\n" + "=" * 60)
-        print("📈 数据统计")
-        print("=" * 60)
+        logger.info("\n" + "=" * 60)
+        logger.info("📈 数据统计")
+        logger.info("=" * 60)
 
         cursor = conn.execute("""
             SELECT
@@ -96,10 +98,10 @@ def run_stats(args):
             FROM stock_analysis
         """)
         row = cursor.fetchone()
-        print("\n📊 基本统计:")
-        print(f"   股票数量: {row[0]:,}")
-        print(f"   总记录数: {row[1]:,}")
-        print(f"   日期范围: {row[2]} ~ {row[3]}")
+        logger.info("\n📊 基本统计:")
+        logger.info(f"   股票数量: {row[0]:,}")
+        logger.info(f"   总记录数: {row[1]:,}")
+        logger.info(f"   日期范围: {row[2]} ~ {row[3]}")
 
         cursor = conn.execute("""
             SELECT code, COUNT(*) as cnt
@@ -108,9 +110,9 @@ def run_stats(args):
             ORDER BY cnt DESC
             LIMIT 10
         """)
-        print("\n📈 数据量 Top 10:")
+        logger.info("\n📈 数据量 Top 10:")
         for i, row in enumerate(cursor.fetchall(), 1):
-            print(f"   {i}. {row[0]}: {row[1]:,} 条")
+            logger.info(f"   {i}. {row[0]}: {row[1]:,} 条")
 
         cursor = conn.execute("""
             SELECT
@@ -119,8 +121,8 @@ def run_stats(args):
             WHERE rsi IS NOT NULL AND rsi != 0
         """)
         indicator_count = cursor.fetchone()[0]
-        print("\n📐 技术指标:")
-        print(f"   已计算记录: {indicator_count:,}")
+        logger.info("\n📐 技术指标:")
+        logger.info(f"   已计算记录: {indicator_count:,}")
 
         cursor = conn.execute("PRAGMA table_info(stock_analysis)")
         columns = cursor.fetchall()
@@ -145,8 +147,8 @@ def run_stats(args):
                 "created_at",
             ]
         ]
-        print(f"   指标数量: {len(indicator_cols)}")
-        print(f"   指标列表: {', '.join(indicator_cols[:10])}...")
+        logger.info(f"   指标数量: {len(indicator_cols)}")
+        logger.info(f"   指标列表: {', '.join(indicator_cols[:10])}...")
 
 
 def run_scan(args):
@@ -154,15 +156,15 @@ def run_scan(args):
 
     from scanner import run_scan
 
-    print("\n" + "=" * 60)
-    print("🔍 全市场信号扫描")
-    print("=" * 60)
+    logger.info("\n" + "=" * 60)
+    logger.info("🔍 全市场信号扫描")
+    logger.info("=" * 60)
 
     db_path = Path(args.db) if args.db else get_stock_analysis_db_path()
 
     if not db_path.exists():
-        print(f"❌ 数据库不存在: {db_path}")
-        print("   请先运行: python -m src.main etl")
+        logger.error(f"❌ 数据库不存在: {db_path}")
+        logger.info("   请先运行: python -m src.main etl")
         return
 
     signal_type = args.type if args.type else None
@@ -178,22 +180,24 @@ def run_scan(args):
         max_workers=max_workers,
     )
 
-    print("\n📊 扫描结果:")
-    print(f"   扫描股票: {result.total_stocks:,}")
-    print(f"   发现信号: {result.signals_found:,}")
+    logger.info("\n📊 扫描结果:")
+    logger.info(f"   扫描股票: {result.total_stocks:,}")
+    logger.info(f"   发现信号: {result.signals_found:,}")
 
     if result.summary:
-        print("\n📈 信号分布:")
+        logger.info("\n📈 信号分布:")
         for signal_name, count in sorted(result.summary.items(), key=lambda x: -x[1]):
-            print(f"   {signal_name}: {count}")
+            logger.info(f"   {signal_name}: {count}")
 
     if result.top_signals:
-        print("\n🏆 Top 20 高分信号:")
-        print(f"{'代码':<12} {'名称':<10} {'信号类型':<15} {'强度':<6} {'得分':<8} {'价格':<10} {'涨跌幅':<8}")
-        print("-" * 85)
+        logger.info("\n🏆 Top 20 高分信号:")
+        logger.info(
+            f"{'代码':<12} {'名称':<10} {'信号类型':<15} {'强度':<6} {'得分':<8} {'价格':<10} {'涨跌幅':<8}"
+        )
+        logger.info("-" * 85)
         for s in result.top_signals:
             name = s.name[:8] if s.name else s.code
-            print(
+            logger.info(
                 f"{s.code:<12} {name:<10} {s.signal_type.value:<15} {s.strength.value:<6} "
                 f"{s.score:<8.1f} {s.price:<10.2f} {s.change_percent:+.2f}%"
             )
@@ -205,7 +209,7 @@ def run_scan(args):
         output_path.parent.mkdir(parents=True, exist_ok=True)
         with open(output_path, "w", encoding="utf-8") as f:
             json.dump(result.to_dict(), f, ensure_ascii=False, indent=2)
-        print(f"\n💾 结果已保存到: {output_path}")
+        logger.info(f"\n💾 结果已保存到: {output_path}")
 
 
 def run_visualize(args):
@@ -213,15 +217,15 @@ def run_visualize(args):
 
     from scanner import visualize_scan_result
 
-    print("\n" + "=" * 60)
-    print("📊 信号可视化")
-    print("=" * 60)
+    logger.info("\n" + "=" * 60)
+    logger.info("📊 信号可视化")
+    logger.info("=" * 60)
 
     scan_result_path = Path(args.input) if args.input else REPORTS_DIR / "scan_result.json"
 
     if not scan_result_path.exists():
-        print(f"❌ 扫描结果文件不存在: {scan_result_path}")
-        print("   请先运行: python -m src.main scan")
+        logger.error(f"❌ 扫描结果文件不存在: {scan_result_path}")
+        logger.info("   请先运行: python -m src.main scan")
         return
 
     output_dir = Path(args.output_dir) if args.output_dir else CHARTS_DIR
@@ -229,9 +233,9 @@ def run_visualize(args):
     paths = visualize_scan_result(scan_result_path, output_dir)
 
     if paths:
-        print(f"\n✅ 已生成 {len(paths)} 个图表:")
+        logger.info(f"\n✅ 已生成 {len(paths)} 个图表:")
         for p in paths:
-            print(f"   - {p}")
+            logger.info(f"   - {p}")
 
 
 def run_sync(args):
@@ -242,9 +246,9 @@ def run_sync(args):
     result = run_sync(backup=not args.no_backup, source_path=args.source)
 
     if result["success"] and args.run_etl:
-        print("\n" + "=" * 60)
-        print("📦 自动运行 ETL...")
-        print("=" * 60)
+        logger.info("\n" + "=" * 60)
+        logger.info("📦 自动运行 ETL...")
+        logger.info("=" * 60)
         from etl import run_etl as etl_pipeline
 
         etl_pipeline()
@@ -255,14 +259,14 @@ def run_refresh_names(args):
 
     from data import get_stock_info_fetcher
 
-    print("\n" + "=" * 60)
-    print("🔄 刷新股票名称缓存")
-    print("=" * 60)
+    logger.info("\n" + "=" * 60)
+    logger.info("🔄 刷新股票名称缓存")
+    logger.info("=" * 60)
 
     fetcher = get_stock_info_fetcher()
     count = fetcher.refresh_cache()
 
-    print(f"\n✅ 已更新 {count} 只股票名称")
+    logger.info(f"\n✅ 已更新 {count} 只股票名称")
 
 
 def run_fetch(args):
@@ -295,31 +299,33 @@ def run_accuracy(args):
 
     from scanner import run_accuracy_analysis
 
-    print("\n" + "=" * 60)
-    print("📊 信号准确率分析")
-    print("=" * 60)
+    logger.info("\n" + "=" * 60)
+    logger.info("📊 信号准确率分析")
+    logger.info("=" * 60)
 
     db_path = Path(args.db) if args.db else get_stock_analysis_db_path()
 
     if not db_path.exists():
-        print(f"❌ 数据库不存在: {db_path}")
-        print("   请先运行: python -m src.main etl")
+        logger.error(f"❌ 数据库不存在: {db_path}")
+        logger.info("   请先运行: python -m src.main etl")
         return
 
     report = run_accuracy_analysis(db_path=db_path, holding_days=args.holding_days)
 
-    print("\n📈 分析结果:")
-    print(f"   分析日期: {report.analysis_date}")
-    print(f"   数据范围: {report.date_range}")
-    print(f"   总信号数: {report.total_signals_analyzed:,}")
-    print(f"   总体胜率: {report.overall_win_rate * 100:.2f}%")
+    logger.info("\n📈 分析结果:")
+    logger.info(f"   分析日期: {report.analysis_date}")
+    logger.info(f"   数据范围: {report.date_range}")
+    logger.info(f"   总信号数: {report.total_signals_analyzed:,}")
+    logger.info(f"   总体胜率: {report.overall_win_rate * 100:.2f}%")
 
     if report.signal_performances:
-        print("\n📊 各信号表现:")
-        print(f"{'信号类型':<15} {'数量':<8} {'胜率':<10} {'平均收益':<12} {'最大收益':<12} {'最大亏损':<12}")
-        print("-" * 80)
+        logger.info("\n📊 各信号表现:")
+        logger.info(
+            f"{'信号类型':<15} {'数量':<8} {'胜率':<10} {'平均收益':<12} {'最大收益':<12} {'最大亏损':<12}"
+        )
+        logger.info("-" * 80)
         for p in report.signal_performances:
-            print(
+            logger.info(
                 f"{p.signal_type.value:<15} {p.total_signals:<8} "
                 f"{p.win_rate * 100:>6.2f}%   "
                 f"{p.avg_return * 100:>+8.2f}%    "
@@ -328,16 +334,16 @@ def run_accuracy(args):
             )
 
     if report.recommendations:
-        print("\n💡 投资建议:")
+        logger.info("\n💡 投资建议:")
         for rec in report.recommendations:
-            print(f"   • {rec}")
+            logger.info(f"   • {rec}")
 
     if args.output:
         output_path = Path(args.output)
         output_path.parent.mkdir(parents=True, exist_ok=True)
         with open(output_path, "w", encoding="utf-8") as f:
             json.dump(report.to_dict(), f, ensure_ascii=False, indent=2)
-        print(f"\n💾 报告已保存到: {output_path}")
+        logger.info(f"\n💾 报告已保存到: {output_path}")
 
 
 def run_score(args):
@@ -346,48 +352,52 @@ def run_score(args):
 
     from scorer import run_scoring
 
-    print("\n" + "=" * 60)
-    print("📊 选股评分系统")
-    print("=" * 60)
+    logger.info("\n" + "=" * 60)
+    logger.info("📊 选股评分系统")
+    logger.info("=" * 60)
 
     db_path = Path(args.db) if args.db else get_stock_analysis_db_path()
 
     if not db_path.exists():
-        print(f"❌ 数据库不存在: {db_path}")
-        print("   请先运行: python -m src.main etl")
+        logger.error(f"❌ 数据库不存在: {db_path}")
+        logger.info("   请先运行: python -m src.main etl")
         return
 
     report = run_scoring(db_path=db_path, top_n=args.top_n)
 
-    print("\n📈 评分结果:")
-    print(f"   评分日期: {report.scoring_date}")
-    print(f"   评分股票: {report.total_stocks:,}")
+    logger.info("\n📈 评分结果:")
+    logger.info(f"   评分日期: {report.scoring_date}")
+    logger.info(f"   评分股票: {report.total_stocks:,}")
 
     if report.market_overview:
-        print("\n📊 市场概览:")
-        print(f"   平均得分: {report.market_overview.get('avg_score', 0):.2f}")
-        print(f"   中位数: {report.market_overview.get('median_score', 0):.2f}")
-        print(
+        logger.info("\n📊 市场概览:")
+        logger.info(f"   平均得分: {report.market_overview.get('avg_score', 0):.2f}")
+        logger.info(f"   中位数: {report.market_overview.get('median_score', 0):.2f}")
+        logger.info(
             f"   强势股: {report.market_overview.get('strong_count', 0)} ({report.market_overview.get('strong_ratio', 0):.1f}%)"
         )
-        print(f"   弱势股: {report.market_overview.get('weak_count', 0)}")
+        logger.info(f"   弱势股: {report.market_overview.get('weak_count', 0)}")
 
     if report.top_stocks:
-        print(f"\n🏆 Top {len(report.top_stocks)} 推荐股票:")
-        print(f"{'排名':<6} {'代码':<12} {'名称':<10} {'得分':<8} {'价格':<10} {'涨跌幅':<10} {'建议':<12}")
-        print("-" * 75)
+        logger.info(f"\n🏆 Top {len(report.top_stocks)} 推荐股票:")
+        logger.info(
+            f"{'排名':<6} {'代码':<12} {'名称':<10} {'得分':<8} {'价格':<10} {'涨跌幅':<10} {'建议':<12}"
+        )
+        logger.info("-" * 75)
         for s in report.top_stocks[:20]:
-            print(
+            logger.info(
                 f"{s.rank:<6} {s.code:<12} {s.name[:8]:<10} "
                 f"{s.total_score:<8.1f} {s.price:<10.2f} {s.change_percent:+.2f}%    {s.recommendation}"
             )
 
     if report.bottom_stocks:
-        print("\n⚠️ 得分最低的股票:")
-        print(f"{'排名':<6} {'代码':<12} {'名称':<10} {'得分':<8} {'价格':<10} {'涨跌幅':<10}")
-        print("-" * 60)
+        logger.error("\n⚠️ 得分最低的股票:")
+        logger.info(
+            f"{'排名':<6} {'代码':<12} {'名称':<10} {'得分':<8} {'价格':<10} {'涨跌幅':<10}"
+        )
+        logger.info("-" * 60)
         for s in report.bottom_stocks:
-            print(
+            logger.info(
                 f"{s.rank:<6} {s.code:<12} {s.name[:8]:<10} "
                 f"{s.total_score:<8.1f} {s.price:<10.2f} {s.change_percent:+.2f}%"
             )
@@ -397,7 +407,7 @@ def run_score(args):
         output_path.parent.mkdir(parents=True, exist_ok=True)
         with open(output_path, "w", encoding="utf-8") as f:
             json.dump(report.to_dict(), f, ensure_ascii=False, indent=2)
-        print(f"\n💾 报告已保存到: {output_path}")
+        logger.info(f"\n💾 报告已保存到: {output_path}")
 
 
 def run_monitor(args):
@@ -409,8 +419,8 @@ def run_monitor(args):
     db_path = Path(args.db) if args.db else get_stock_analysis_db_path()
 
     if not db_path.exists():
-        print(f"❌ 数据库不存在: {db_path}")
-        print("   请先运行: python -m src.main etl")
+        logger.error(f"❌ 数据库不存在: {db_path}")
+        logger.info("   请先运行: python -m src.main etl")
         return
 
     result = run_market_monitor(db_path)
@@ -420,7 +430,7 @@ def run_monitor(args):
         output_path.parent.mkdir(parents=True, exist_ok=True)
         with open(output_path, "w", encoding="utf-8") as f:
             json.dump(result, f, ensure_ascii=False, indent=2)
-        print(f"\n💾 报告已保存到: {output_path}")
+        logger.info(f"\n💾 报告已保存到: {output_path}")
 
 
 def run_backtest(args):
@@ -429,15 +439,15 @@ def run_backtest(args):
 
     from strategy import run_backtest as run_strategy_backtest
 
-    print("\n" + "=" * 60)
-    print("📈 策略回测")
-    print("=" * 60)
+    logger.info("\n" + "=" * 60)
+    logger.info("📈 策略回测")
+    logger.info("=" * 60)
 
     db_path = Path(args.db) if args.db else get_stock_analysis_db_path()
 
     if not db_path.exists():
-        print(f"❌ 数据库不存在: {db_path}")
-        print("   请先运行: python -m src.main etl")
+        logger.error(f"❌ 数据库不存在: {db_path}")
+        logger.info("   请先运行: python -m src.main etl")
         return
 
     exclude_st = not args.include_st if args.include_st else args.exclude_st
@@ -459,44 +469,46 @@ def run_backtest(args):
         use_ma_cross=args.use_ma_cross,
     )
 
-    print("\n📊 回测结果:")
-    print(f"   策略: {result.strategy_name}")
-    print(f"   回测区间: {result.start_date} ~ {result.end_date}")
-    print(f"   初始资金: {result.initial_capital:,.0f}")
-    print(f"   最终资金: {result.final_capital:,.0f}")
+    logger.info("\n📊 回测结果:")
+    logger.info(f"   策略: {result.strategy_name}")
+    logger.info(f"   回测区间: {result.start_date} ~ {result.end_date}")
+    logger.info(f"   初始资金: {result.initial_capital:,.0f}")
+    logger.info(f"   最终资金: {result.final_capital:,.0f}")
 
-    print("\n📈 收益指标:")
-    print(f"   总收益率: {result.total_return * 100:.2f}%")
-    print(f"   年化收益: {result.annualized_return * 100:.2f}%")
-    print(f"   最大回撤: {result.max_drawdown * 100:.2f}%")
-    print(f"   夏普比率: {result.sharpe_ratio:.2f}")
+    logger.info("\n📈 收益指标:")
+    logger.info(f"   总收益率: {result.total_return * 100:.2f}%")
+    logger.info(f"   年化收益: {result.annualized_return * 100:.2f}%")
+    logger.info(f"   最大回撤: {result.max_drawdown * 100:.2f}%")
+    logger.info(f"   夏普比率: {result.sharpe_ratio:.2f}")
 
-    print("\n📊 交易统计:")
-    print(f"   总交易数: {result.total_trades}")
-    print(f"   盈利交易: {result.winning_trades}")
-    print(f"   亏损交易: {result.losing_trades}")
-    print(f"   胜率: {result.win_rate * 100:.2f}%")
-    print(f"   平均盈利: {result.avg_profit * 100:.2f}%")
-    print(f"   平均亏损: {result.avg_loss * 100:.2f}%")
-    print(f"   盈亏比: {result.profit_factor:.2f}")
+    logger.info("\n📊 交易统计:")
+    logger.info(f"   总交易数: {result.total_trades}")
+    logger.info(f"   盈利交易: {result.winning_trades}")
+    logger.info(f"   亏损交易: {result.losing_trades}")
+    logger.info(f"   胜率: {result.win_rate * 100:.2f}%")
+    logger.info(f"   平均盈利: {result.avg_profit * 100:.2f}%")
+    logger.info(f"   平均亏损: {result.avg_loss * 100:.2f}%")
+    logger.info(f"   盈亏比: {result.profit_factor:.2f}")
 
-    print("\n📉 风险指标:")
-    print(f"   夏普比率: {result.sharpe_ratio:.2f}")
-    print(f"   索提诺比率: {result.sortino_ratio:.2f}")
-    print(f"   卡玛比率: {result.calmar_ratio:.2f}")
-    print(f"   年化波动率: {result.volatility * 100:.2f}%")
+    logger.info("\n📉 风险指标:")
+    logger.info(f"   夏普比率: {result.sharpe_ratio:.2f}")
+    logger.info(f"   索提诺比率: {result.sortino_ratio:.2f}")
+    logger.info(f"   卡玛比率: {result.calmar_ratio:.2f}")
+    logger.info(f"   年化波动率: {result.volatility * 100:.2f}%")
 
-    print("\n💰 交易费用:")
-    print(f"   总佣金: {result.total_commission:,.2f} 元")
-    print(f"   总印花税: {result.total_stamp_tax:,.2f} 元")
-    print(f"   总交易成本: {result.total_trading_cost:,.2f} 元")
+    logger.info("\n💰 交易费用:")
+    logger.info(f"   总佣金: {result.total_commission:,.2f} 元")
+    logger.info(f"   总印花税: {result.total_stamp_tax:,.2f} 元")
+    logger.info(f"   总交易成本: {result.total_trading_cost:,.2f} 元")
 
     if result.trades:
-        print("\n📋 最近交易记录:")
-        print(f"{'代码':<12} {'名称':<10} {'买入日期':<12} {'买入价':<10} {'卖出价':<10} {'收益%':<10}")
-        print("-" * 70)
+        logger.info("\n📋 最近交易记录:")
+        logger.info(
+            f"{'代码':<12} {'名称':<10} {'买入日期':<12} {'买入价':<10} {'卖出价':<10} {'收益%':<10}"
+        )
+        logger.info("-" * 70)
         for t in result.trades[:10]:
-            print(
+            logger.info(
                 f"{t.code:<12} {t.name[:8]:<10} {t.entry_date:<12} "
                 f"{t.entry_price:<10.2f} {t.exit_price:<10.2f} {t.profit_percent:+.2f}%"
             )
@@ -506,21 +518,20 @@ def run_backtest(args):
         output_path.parent.mkdir(parents=True, exist_ok=True)
         with open(output_path, "w", encoding="utf-8") as f:
             json.dump(result.to_dict(), f, ensure_ascii=False, indent=2)
-        print(f"\n💾 报告已保存到: {output_path}")
+        logger.info(f"\n💾 报告已保存到: {output_path}")
 
     if args.benchmark:
-
         from strategy import compare_with_benchmark, print_benchmark_comparison
 
-        print("\n" + "=" * 60)
-        print("📊 基准对比分析")
-        print("=" * 60)
+        logger.info("\n" + "=" * 60)
+        logger.info("📊 基准对比分析")
+        logger.info("=" * 60)
 
         try:
             benchmark_result = compare_with_benchmark(result, db_path)
             print_benchmark_comparison(benchmark_result)
         except Exception as e:
-            print(f"❌ 基准对比失败: {e}")
+            logger.error(f"❌ 基准对比失败: {e}")
 
 
 def run_trade_report(args):
@@ -535,15 +546,15 @@ def run_trade_report(args):
         run_backtest as run_strategy_backtest,
     )
 
-    print("\n" + "=" * 60)
-    print("📋 交易报告生成")
-    print("=" * 60)
+    logger.info("\n" + "=" * 60)
+    logger.info("📋 交易报告生成")
+    logger.info("=" * 60)
 
     db_path = Path(args.db) if args.db else get_stock_analysis_db_path()
 
     if not db_path.exists():
-        print(f"❌ 数据库不存在: {db_path}")
-        print("   请先运行: python -m src.main etl")
+        logger.error(f"❌ 数据库不存在: {db_path}")
+        logger.info("   请先运行: python -m src.main etl")
         return
 
     result = run_strategy_backtest(
@@ -558,7 +569,7 @@ def run_trade_report(args):
     if args.output:
         output_path = Path(args.output)
         save_trade_report(report, output_path)
-        print(f"\n💾 报告已保存到: {output_path}")
+        logger.info(f"\n💾 报告已保存到: {output_path}")
 
 
 def run_backtest_viz(args):
@@ -566,15 +577,15 @@ def run_backtest_viz(args):
 
     from strategy import visualize_backtest
 
-    print("\n" + "=" * 60)
-    print("📊 回测可视化")
-    print("=" * 60)
+    logger.info("\n" + "=" * 60)
+    logger.info("📊 回测可视化")
+    logger.info("=" * 60)
 
     backtest_path = Path(args.input) if args.input else REPORTS_DIR / "backtest_report.json"
 
     if not backtest_path.exists():
-        print(f"❌ 回测报告不存在: {backtest_path}")
-        print("   请先运行: python -m src.main backtest")
+        logger.error(f"❌ 回测报告不存在: {backtest_path}")
+        logger.info("   请先运行: python -m src.main backtest")
         return
 
     output_dir = Path(args.output_dir) if args.output_dir else CHARTS_DIR
@@ -582,7 +593,7 @@ def run_backtest_viz(args):
     paths = visualize_backtest(backtest_path, output_dir)
 
     if paths:
-        print(f"\n✅ 已生成 {len(paths)} 个图表")
+        logger.info(f"\n✅ 已生成 {len(paths)} 个图表")
 
 
 def run_export(args):
@@ -591,15 +602,15 @@ def run_export(args):
     from strategy import run_backtest as run_strategy_backtest
     from utils import export_backtest_trades
 
-    print("\n" + "=" * 60)
-    print("📤 数据导出")
-    print("=" * 60)
+    logger.info("\n" + "=" * 60)
+    logger.info("📤 数据导出")
+    logger.info("=" * 60)
 
     db_path = Path(args.db) if args.db else get_stock_analysis_db_path()
 
     if not db_path.exists():
-        print(f"❌ 数据库不存在: {db_path}")
-        print("   请先运行: python -m src.main etl")
+        logger.error(f"❌ 数据库不存在: {db_path}")
+        logger.info("   请先运行: python -m src.main etl")
         return
 
     output_dir = Path(args.output_dir) if args.output_dir else Path("output/exports")
@@ -612,11 +623,11 @@ def run_export(args):
             holding_days=args.holding,
         )
         paths = export_backtest_trades(result, output_dir, format=format_type)
-        print("\n✅ 已导出交易数据:")
+        logger.info("\n✅ 已导出交易数据:")
         for path in paths.values():
-            print(f"   - {path}")
+            logger.info(f"   - {path}")
     else:
-        print(f"❌ 未知导出类型: {args.type}")
+        logger.error(f"❌ 未知导出类型: {args.type}")
 
 
 def run_market_timing(args):
@@ -627,8 +638,8 @@ def run_market_timing(args):
     db_path = Path(args.db) if args.db else get_stock_analysis_db_path()
 
     if not db_path.exists():
-        print(f"❌ 数据库不存在: {db_path}")
-        print("   请先运行: python -m src.main etl")
+        logger.error(f"❌ 数据库不存在: {db_path}")
+        logger.info("   请先运行: python -m src.main etl")
         return
 
     run_market_timing(db_path)
@@ -643,8 +654,8 @@ def run_compare(args):
     db_path = Path(args.db) if args.db else get_stock_analysis_db_path()
 
     if not db_path.exists():
-        print(f"❌ 数据库不存在: {db_path}")
-        print("   请先运行: python -m src.main etl")
+        logger.error(f"❌ 数据库不存在: {db_path}")
+        logger.info("   请先运行: python -m src.main etl")
         return
 
     strategies = args.strategies.split(",") if args.strategies else None
@@ -660,7 +671,7 @@ def run_compare(args):
         output_path.parent.mkdir(parents=True, exist_ok=True)
         with open(output_path, "w", encoding="utf-8") as f:
             json.dump(result.to_dict(), f, ensure_ascii=False, indent=2)
-        print(f"\n💾 报告已保存到: {output_path}")
+        logger.info(f"\n💾 报告已保存到: {output_path}")
 
 
 def run_sector(args):
@@ -672,18 +683,20 @@ def run_sector(args):
     db_path = Path(args.db) if args.db else get_stock_analysis_db_path()
 
     if not db_path.exists():
-        print(f"❌ 数据库不存在: {db_path}")
-        print("   请先运行: python -m src.main etl")
+        logger.error(f"❌ 数据库不存在: {db_path}")
+        logger.info("   请先运行: python -m src.main etl")
         return
 
-    result = run_sector_validation(db_path) if args.validate else run_sector_analysis(db_path, args.date)
+    result = (
+        run_sector_validation(db_path) if args.validate else run_sector_analysis(db_path, args.date)
+    )
 
     if args.output and not args.validate:
         output_path = Path(args.output)
         output_path.parent.mkdir(parents=True, exist_ok=True)
         with open(output_path, "w", encoding="utf-8") as f:
             json.dump(result.to_dict(), f, ensure_ascii=False, indent=2)
-        print(f"\n💾 报告已保存到: {output_path}")
+        logger.info(f"\n💾 报告已保存到: {output_path}")
 
 
 def run_portfolio(args):
@@ -692,15 +705,15 @@ def run_portfolio(args):
 
     from strategy import run_portfolio_backtest
 
-    print("\n" + "=" * 60)
-    print("📊 多策略组合回测")
-    print("=" * 60)
+    logger.info("\n" + "=" * 60)
+    logger.info("📊 多策略组合回测")
+    logger.info("=" * 60)
 
     db_path = Path(args.db) if args.db else get_stock_analysis_db_path()
 
     if not db_path.exists():
-        print(f"❌ 数据库不存在: {db_path}")
-        print("   请先运行: python -m src.main etl")
+        logger.error(f"❌ 数据库不存在: {db_path}")
+        logger.info("   请先运行: python -m src.main etl")
         return
 
     strategies = None
@@ -721,8 +734,18 @@ def run_portfolio(args):
             )
     else:
         strategies = [
-            {"name": "momentum", "type": "momentum", "weight": 0, "params": {"holding_days": args.holding}},
-            {"name": "mean_reversion", "type": "mean_reversion", "weight": 0, "params": {"holding_days": args.holding}},
+            {
+                "name": "momentum",
+                "type": "momentum",
+                "weight": 0,
+                "params": {"holding_days": args.holding},
+            },
+            {
+                "name": "mean_reversion",
+                "type": "mean_reversion",
+                "weight": 0,
+                "params": {"holding_days": args.holding},
+            },
             {
                 "name": "trend_following",
                 "type": "trend_following",
@@ -745,7 +768,7 @@ def run_portfolio(args):
         output_path.parent.mkdir(parents=True, exist_ok=True)
         with open(output_path, "w", encoding="utf-8") as f:
             json.dump(result.to_dict(), f, ensure_ascii=False, indent=2)
-        print(f"\n💾 报告已保存到: {output_path}")
+        logger.info(f"\n💾 报告已保存到: {output_path}")
 
 
 def run_web(args):
@@ -753,9 +776,9 @@ def run_web(args):
 
     from web import run_server
 
-    print("\n" + "=" * 60)
-    print("🌐 启动 Web 服务器")
-    print("=" * 60)
+    logger.info("\n" + "=" * 60)
+    logger.info("🌐 启动 Web 服务器")
+    logger.info("=" * 60)
 
     run_server(host=args.host, port=args.port)
 
@@ -766,33 +789,35 @@ def run_optimize(args):
 
     from strategy import run_optimization
 
-    print("\n" + "=" * 60)
-    print("🔧 策略参数优化")
-    print("=" * 60)
+    logger.info("\n" + "=" * 60)
+    logger.info("🔧 策略参数优化")
+    logger.info("=" * 60)
 
     db_path = Path(args.db) if args.db else get_stock_analysis_db_path()
 
     if not db_path.exists():
-        print(f"❌ 数据库不存在: {db_path}")
-        print("   请先运行: python -m src.main etl")
+        logger.error(f"❌ 数据库不存在: {db_path}")
+        logger.info("   请先运行: python -m src.main etl")
         return
 
     result = run_optimization(db_path=db_path, strategy_type=args.strategy)
 
-    print("\n🏆 最优参数:")
+    logger.info("\n🏆 最优参数:")
     for key, value in result.best_params.items():
-        print(f"   {key}: {value}")
+        logger.info(f"   {key}: {value}")
 
-    print("\n📊 最优结果:")
-    print(f"   总收益率: {result.best_return * 100:.2f}%")
-    print(f"   夏普比率: {result.best_sharpe:.2f}")
-    print(f"   最大回撤: {result.best_drawdown * 100:.2f}%")
+    logger.info("\n📊 最优结果:")
+    logger.info(f"   总收益率: {result.best_return * 100:.2f}%")
+    logger.info(f"   夏普比率: {result.best_sharpe:.2f}")
+    logger.info(f"   最大回撤: {result.best_drawdown * 100:.2f}%")
 
-    print("\n📈 Top 10 参数组合:")
-    print(f"{'排名':<6} {'收益率':<12} {'夏普比率':<10} {'最大回撤':<12} {'胜率':<10}")
-    print("-" * 55)
-    for i, r in enumerate(sorted(result.all_results, key=lambda x: x["sharpe_ratio"], reverse=True)[:10], 1):
-        print(
+    logger.info("\n📈 Top 10 参数组合:")
+    logger.info(f"{'排名':<6} {'收益率':<12} {'夏普比率':<10} {'最大回撤':<12} {'胜率':<10}")
+    logger.info("-" * 55)
+    for i, r in enumerate(
+        sorted(result.all_results, key=lambda x: x["sharpe_ratio"], reverse=True)[:10], 1
+    ):
+        logger.info(
             f"{i:<6} {r['total_return'] * 100:>+8.2f}%    {r['sharpe_ratio']:>6.2f}     {r['max_drawdown'] * 100:>6.2f}%      {r['win_rate'] * 100:>6.2f}%"
         )
 
@@ -801,7 +826,7 @@ def run_optimize(args):
         output_path.parent.mkdir(parents=True, exist_ok=True)
         with open(output_path, "w", encoding="utf-8") as f:
             json.dump(result.to_dict(), f, ensure_ascii=False, indent=2)
-        print(f"\n💾 报告已保存到: {output_path}")
+        logger.info(f"\n💾 报告已保存到: {output_path}")
 
 
 def run_interactive_mode(args):
@@ -817,37 +842,37 @@ def run_db_optimize(args):
 
     from utils import optimize_database
 
-    print("\n" + "=" * 60)
-    print("🔧 数据库性能优化")
-    print("=" * 60)
+    logger.info("\n" + "=" * 60)
+    logger.info("🔧 数据库性能优化")
+    logger.info("=" * 60)
 
     db_path = Path(args.db) if args.db else get_stock_analysis_db_path()
 
     if not db_path.exists():
-        print(f"❌ 数据库不存在: {db_path}")
-        print("   请先运行: python -m src.main etl")
+        logger.error(f"❌ 数据库不存在: {db_path}")
+        logger.info("   请先运行: python -m src.main etl")
         return
 
-    print(f"\n📂 数据库: {db_path}")
+    logger.info(f"\n📂 数据库: {db_path}")
 
     result = optimize_database(db_path)
 
-    print("\n📊 表信息:")
+    logger.info("\n📊 表信息:")
     table_info = result["table_info"]
-    print(f"   列数: {table_info['column_count']}")
-    print(f"   行数: {table_info['row_count']:,}")
-    print(f"   股票数: {table_info['code_count']:,}")
-    print(f"   交易日数: {table_info['date_count']:,}")
+    logger.info(f"   列数: {table_info['column_count']}")
+    logger.info(f"   行数: {table_info['row_count']:,}")
+    logger.info(f"   股票数: {table_info['code_count']:,}")
+    logger.info(f"   交易日数: {table_info['date_count']:,}")
 
-    print("\n📇 索引优化:")
-    print(f"   优化前索引: {', '.join(result['indexes_before']) or '无'}")
+    logger.info("\n📇 索引优化:")
+    logger.info(f"   优化前索引: {', '.join(result['indexes_before']) or '无'}")
     if result["indexes_created"]:
-        print(f"   新建索引: {', '.join(result['indexes_created'])}")
+        logger.info(f"   新建索引: {', '.join(result['indexes_created'])}")
     if result["indexes_existing"]:
-        print(f"   已有索引: {', '.join(result['indexes_existing'])}")
-    print(f"   优化后索引: {', '.join(result['indexes_after'])}")
+        logger.info(f"   已有索引: {', '.join(result['indexes_existing'])}")
+    logger.info(f"   优化后索引: {', '.join(result['indexes_after'])}")
 
-    print("\n✅ 数据库优化完成！")
+    logger.info("\n✅ 数据库优化完成！")
 
 
 def run_signal_backtest(args):
@@ -855,29 +880,29 @@ def run_signal_backtest(args):
 
     from strategy import run_signal_backtest as run_backtest
 
-    print("\n" + "=" * 60)
-    print("📊 信号有效性回测")
-    print("=" * 60)
+    logger.info("\n" + "=" * 60)
+    logger.info("📊 信号有效性回测")
+    logger.info("=" * 60)
 
     db_path = Path(args.db) if args.db else get_stock_analysis_db_path()
 
     if not db_path.exists():
-        print(f"❌ 数据库不存在: {db_path}")
+        logger.error(f"❌ 数据库不存在: {db_path}")
         return
 
     signal_type = args.type if hasattr(args, "type") else None
     holding_days = args.holding_days if hasattr(args, "holding_days") else 5
 
-    print(f"\n持有天数: {holding_days}")
+    logger.info(f"\n持有天数: {holding_days}")
 
     result = run_backtest(db_path=db_path, signal_type=signal_type, holding_days=holding_days)
 
     if isinstance(result, list):
-        print(f"\n回测信号类型: {len(result)} 种\n")
-        print(f"{'信号类型':<20} {'总数':>8} {'胜率':>8} {'平均收益':>10} {'夏普':>8}")
-        print("-" * 60)
+        logger.info(f"\n回测信号类型: {len(result)} 种\n")
+        logger.info(f"{'信号类型':<20} {'总数':>8} {'胜率':>8} {'平均收益':>10} {'夏普':>8}")
+        logger.info("-" * 60)
         for r in sorted(result, key=lambda x: x.sharpe_ratio, reverse=True):
-            print(
+            logger.info(
                 f"{r.signal_type:<20} {r.total_signals:>8} "
                 f"{r.win_rate * 100:>7.2f}% {r.avg_return * 100:>+9.2f}% {r.sharpe_ratio:>8.2f}"
             )
@@ -889,13 +914,13 @@ def run_signal_backtest(args):
             output_path.parent.mkdir(parents=True, exist_ok=True)
             with open(output_path, "w", encoding="utf-8") as f:
                 json.dump([r.to_dict() for r in result], f, ensure_ascii=False, indent=2)
-            print(f"\n💾 结果已保存到: {output_path}")
+            logger.info(f"\n💾 结果已保存到: {output_path}")
     else:
-        print(f"\n信号类型: {result.signal_type}")
-        print(f"总信号数: {result.total_signals}")
-        print(f"胜率: {result.win_rate * 100:.2f}%")
-        print(f"平均收益: {result.avg_return * 100:+.2f}%")
-        print(f"夏普比率: {result.sharpe_ratio:.2f}")
+        logger.info(f"\n信号类型: {result.signal_type}")
+        logger.info(f"总信号数: {result.total_signals}")
+        logger.info(f"胜率: {result.win_rate * 100:.2f}%")
+        logger.info(f"平均收益: {result.avg_return * 100:+.2f}%")
+        logger.info(f"夏普比率: {result.sharpe_ratio:.2f}")
 
 
 def run_portfolio_opt(args):
@@ -905,9 +930,9 @@ def run_portfolio_opt(args):
 
     from strategy import PortfolioOptimizer, create_position_limit
 
-    print("\n" + "=" * 60)
-    print("📐 组合优化")
-    print("=" * 60)
+    logger.info("\n" + "=" * 60)
+    logger.info("📐 组合优化")
+    logger.info("=" * 60)
 
     max_positions = args.max_positions if hasattr(args, "max_positions") else 10
     max_single_pct = args.max_single_pct if hasattr(args, "max_single_pct") else 0.15
@@ -919,10 +944,10 @@ def run_portfolio_opt(args):
         max_sector_position_pct=max_sector_pct,
     )
 
-    print("\n持仓限制:")
-    print(f"  最大持仓数量: {position_limit.max_positions}")
-    print(f"  单只股票最大仓位: {position_limit.max_single_position_pct * 100:.1f}%")
-    print(f"  行业最大仓位: {position_limit.max_sector_position_pct * 100:.1f}%")
+    logger.info("\n持仓限制:")
+    logger.info(f"  最大持仓数量: {position_limit.max_positions}")
+    logger.info(f"  单只股票最大仓位: {position_limit.max_single_position_pct * 100:.1f}%")
+    logger.info(f"  行业最大仓位: {position_limit.max_sector_position_pct * 100:.1f}%")
 
     optimizer = PortfolioOptimizer()
 
@@ -943,16 +968,16 @@ def run_portfolio_opt(args):
         position_limit=position_limit,
     )
 
-    print("\n优化结果:")
-    print(f"  期望收益: {result.expected_return * 100:.2f}%")
-    print(f"  期望波动: {result.expected_volatility * 100:.2f}%")
-    print(f"  夏普比率: {result.sharpe_ratio:.2f}")
-    print(f"  分散度: {result.diversification_ratio:.2f}")
-    print(f"  集中度 HHI: {result.concentration_hhi:.4f}")
+    logger.info("\n优化结果:")
+    logger.info(f"  期望收益: {result.expected_return * 100:.2f}%")
+    logger.info(f"  期望波动: {result.expected_volatility * 100:.2f}%")
+    logger.info(f"  夏普比率: {result.sharpe_ratio:.2f}")
+    logger.info(f"  分散度: {result.diversification_ratio:.2f}")
+    logger.info(f"  集中度 HHI: {result.concentration_hhi:.4f}")
 
-    print("\n权重分配:")
+    logger.info("\n权重分配:")
     for asset, weight in sorted(result.weights.items(), key=lambda x: -x[1]):
-        print(f"  {asset}: {weight * 100:.2f}%")
+        logger.info(f"  {asset}: {weight * 100:.2f}%")
 
     if args.output:
         import json
@@ -961,7 +986,7 @@ def run_portfolio_opt(args):
         output_path.parent.mkdir(parents=True, exist_ok=True)
         with open(output_path, "w", encoding="utf-8") as f:
             json.dump(result.to_dict(), f, ensure_ascii=False, indent=2)
-        print(f"\n💾 结果已保存到: {output_path}")
+        logger.info(f"\n💾 结果已保存到: {output_path}")
 
 
 def run_risk_attribution(args):
@@ -972,9 +997,9 @@ def run_risk_attribution(args):
 
     from strategy import RiskAttributor
 
-    print("\n" + "=" * 60)
-    print("📈 风险归因分析")
-    print("=" * 60)
+    logger.info("\n" + "=" * 60)
+    logger.info("📈 风险归因分析")
+    logger.info("=" * 60)
 
     np.random.seed(42)
     dates = pd.date_range("2024-01-01", periods=100)
@@ -985,14 +1010,14 @@ def run_risk_attribution(args):
     attributor = RiskAttributor(returns_data, weights)
     result = attributor.calculate_risk_attribution()
 
-    print("\n风险分解:")
-    print(f"  总风险: {result.total_risk * 100:.2f}%")
-    print(f"  系统性风险: {result.systematic_risk * 100:.2f}%")
-    print(f"  特质风险: {result.idiosyncratic_risk * 100:.2f}%")
+    logger.info("\n风险分解:")
+    logger.info(f"  总风险: {result.total_risk * 100:.2f}%")
+    logger.info(f"  系统性风险: {result.systematic_risk * 100:.2f}%")
+    logger.info(f"  特质风险: {result.idiosyncratic_risk * 100:.2f}%")
 
-    print("\n因子贡献:")
+    logger.info("\n因子贡献:")
     for factor, contrib in result.factor_contributions.items():
-        print(f"  {factor}: {contrib * 100:.2f}%")
+        logger.info(f"  {factor}: {contrib * 100:.2f}%")
 
     if args.output:
         import json
@@ -1001,7 +1026,7 @@ def run_risk_attribution(args):
         output_path.parent.mkdir(parents=True, exist_ok=True)
         with open(output_path, "w", encoding="utf-8") as f:
             json.dump(result.to_dict(), f, ensure_ascii=False, indent=2)
-        print(f"\n💾 结果已保存到: {output_path}")
+        logger.info(f"\n💾 结果已保存到: {output_path}")
 
 
 def main():
@@ -1094,12 +1119,20 @@ def main():
     backtest_parser.add_argument("--capital", type=float, default=100000.0, help="初始资金")
     backtest_parser.add_argument("--min-momentum", type=float, default=0.0, help="最小动量阈值")
     backtest_parser.add_argument("--max-momentum", type=float, default=1.0, help="最大动量阈值")
-    backtest_parser.add_argument("--max-volatility", type=float, default=0.15, help="最大波动率阈值")
+    backtest_parser.add_argument(
+        "--max-volatility", type=float, default=0.15, help="最大波动率阈值"
+    )
     backtest_parser.add_argument("--min-price", type=float, default=2.0, help="最低价格过滤")
-    backtest_parser.add_argument("--exclude-st", action="store_true", default=True, help="排除ST股票")
+    backtest_parser.add_argument(
+        "--exclude-st", action="store_true", default=True, help="排除ST股票"
+    )
     backtest_parser.add_argument("--include-st", action="store_true", help="包含ST股票")
-    backtest_parser.add_argument("--stop-loss", type=float, default=0.0, help="止损比例 (如 0.05 表示 5%%)")
-    backtest_parser.add_argument("--take-profit", type=float, default=0.0, help="止盈比例 (如 0.1 表示 10%%)")
+    backtest_parser.add_argument(
+        "--stop-loss", type=float, default=0.0, help="止损比例 (如 0.05 表示 5%%)"
+    )
+    backtest_parser.add_argument(
+        "--take-profit", type=float, default=0.0, help="止盈比例 (如 0.1 表示 10%%)"
+    )
     backtest_parser.add_argument("--use-ma-cross", action="store_true", help="趋势策略使用均线交叉")
     backtest_parser.add_argument("--benchmark", action="store_true", help="与基准对比")
     backtest_parser.add_argument("--output", type=str, help="输出文件路径(JSON)")
@@ -1111,7 +1144,11 @@ def main():
     optimize_parser = subparsers.add_parser("optimize", help="策略参数优化")
     optimize_parser.add_argument("--db", type=str, help="数据库路径")
     optimize_parser.add_argument(
-        "--strategy", type=str, default="momentum", choices=["momentum", "mean_reversion"], help="策略类型"
+        "--strategy",
+        type=str,
+        default="momentum",
+        choices=["momentum", "mean_reversion"],
+        help="策略类型",
     )
     optimize_parser.add_argument("--output", type=str, help="输出文件路径(JSON)")
 
@@ -1122,7 +1159,11 @@ def main():
     trade_report_parser = subparsers.add_parser("trade-report", help="交易报告生成")
     trade_report_parser.add_argument("--db", type=str, help="数据库路径")
     trade_report_parser.add_argument(
-        "--strategy", type=str, default="mean_reversion", choices=["momentum", "mean_reversion"], help="策略类型"
+        "--strategy",
+        type=str,
+        default="mean_reversion",
+        choices=["momentum", "mean_reversion"],
+        help="策略类型",
     )
     trade_report_parser.add_argument("--holding", type=int, default=5, help="持有天数")
     trade_report_parser.add_argument("--output", type=str, help="输出文件路径(JSON)")
@@ -1130,13 +1171,23 @@ def main():
     export_parser = subparsers.add_parser("export", help="数据导出")
     export_parser.add_argument("--db", type=str, help="数据库路径")
     export_parser.add_argument(
-        "--type", type=str, default="trades", choices=["trades", "signals", "scores"], help="导出类型"
+        "--type",
+        type=str,
+        default="trades",
+        choices=["trades", "signals", "scores"],
+        help="导出类型",
     )
     export_parser.add_argument(
-        "--strategy", type=str, default="mean_reversion", choices=["momentum", "mean_reversion"], help="策略类型"
+        "--strategy",
+        type=str,
+        default="mean_reversion",
+        choices=["momentum", "mean_reversion"],
+        help="策略类型",
     )
     export_parser.add_argument("--holding", type=int, default=9, help="持有天数")
-    export_parser.add_argument("--format", type=str, default="csv", choices=["csv", "json"], help="导出格式")
+    export_parser.add_argument(
+        "--format", type=str, default="csv", choices=["csv", "json"], help="导出格式"
+    )
     export_parser.add_argument("--output-dir", type=str, help="输出目录")
 
     market_timing_parser = subparsers.add_parser("market-timing", help="大盘择时分析")
@@ -1156,7 +1207,9 @@ def main():
 
     portfolio_parser = subparsers.add_parser("portfolio", help="多策略组合回测")
     portfolio_parser.add_argument("--db", type=str, help="数据库路径")
-    portfolio_parser.add_argument("--strategies", type=str, help="策略列表(格式: momentum:0.3,mean_reversion:0.4)")
+    portfolio_parser.add_argument(
+        "--strategies", type=str, help="策略列表(格式: momentum:0.3,mean_reversion:0.4)"
+    )
     portfolio_parser.add_argument(
         "--weight-method",
         type=str,
@@ -1186,8 +1239,12 @@ def main():
     portfolio_opt_parser = subparsers.add_parser("portfolio-opt", help="组合优化")
     portfolio_opt_parser.add_argument("--db", type=str, help="数据库路径")
     portfolio_opt_parser.add_argument("--max-positions", type=int, default=10, help="最大持仓数量")
-    portfolio_opt_parser.add_argument("--max-single-pct", type=float, default=0.15, help="单只股票最大仓位")
-    portfolio_opt_parser.add_argument("--max-sector-pct", type=float, default=0.30, help="行业最大仓位")
+    portfolio_opt_parser.add_argument(
+        "--max-single-pct", type=float, default=0.15, help="单只股票最大仓位"
+    )
+    portfolio_opt_parser.add_argument(
+        "--max-sector-pct", type=float, default=0.30, help="行业最大仓位"
+    )
     portfolio_opt_parser.add_argument("--output", type=str, help="输出文件路径")
 
     risk_attr_parser = subparsers.add_parser("risk-attribution", help="风险归因分析")

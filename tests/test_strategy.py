@@ -3,7 +3,6 @@ Tests for Strategy Module.
 策略模块测试
 """
 
-
 import numpy as np
 import pandas as pd
 

@@ -10,6 +10,7 @@ Stock Scoring System for Stock Analyzer.
 - 技术形态: KDJ、突破信号
 """
 
+import logging
 import sqlite3
 import sys
 from dataclasses import dataclass, field
@@ -23,6 +24,8 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from config import get_stock_analysis_db_path
 from data import get_stock_name
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -341,11 +344,15 @@ class StockScorer:
 
         if len(df) >= 2:
             prev = df.iloc[-2]
-            if (prev.get("macd", 0) or 0) <= (prev.get("macd_signal", 0) or 0) and (latest.get("macd", 0) or 0) > (latest.get("macd_signal", 0) or 0):
+            if (prev.get("macd", 0) or 0) <= (prev.get("macd_signal", 0) or 0) and (
+                latest.get("macd", 0) or 0
+            ) > (latest.get("macd_signal", 0) or 0):
                 score += 20
                 details.append("MACD金叉信号")
 
-            if (prev.get("kdj_k", 0) or 0) <= (prev.get("kdj_d", 0) or 0) and (latest.get("kdj_k", 0) or 0) > (latest.get("kdj_d", 0) or 0):
+            if (prev.get("kdj_k", 0) or 0) <= (prev.get("kdj_d", 0) or 0) and (
+                latest.get("kdj_k", 0) or 0
+            ) > (latest.get("kdj_d", 0) or 0):
                 score += 15
                 details.append("KDJ金叉信号")
 
@@ -475,7 +482,7 @@ class StockRankingSystem:
         codes = self.get_stock_codes()
         scores: list[StockScore] = []
 
-        print(f"\n📊 对 {len(codes)} 只股票进行评分...")
+        logger.info(f"\n📊 对 {len(codes)} 只股票进行评分...")
 
         for i, code in enumerate(codes, 1):
             try:
@@ -486,7 +493,7 @@ class StockRankingSystem:
                 continue
 
             if i % 500 == 0:
-                print(f"   进度: {i}/{len(codes)} ({i / len(codes) * 100:.1f}%)")
+                logger.info(f"   进度: {i}/{len(codes)} ({i / len(codes) * 100:.1f}%)")
 
         scores.sort(key=lambda x: x.total_score, reverse=True)
 
@@ -500,7 +507,9 @@ class StockRankingSystem:
         all_scores = self.rank_all_stocks(top_n * 2)
 
         top_stocks = all_scores[:top_n]
-        bottom_stocks = all_scores[-10:] if len(all_scores) >= 10 else all_scores[-len(all_scores) :]
+        bottom_stocks = (
+            all_scores[-10:] if len(all_scores) >= 10 else all_scores[-len(all_scores) :]
+        )
 
         factor_summary = self._calculate_factor_summary(all_scores)
 

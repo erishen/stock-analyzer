@@ -3,8 +3,6 @@ Tests for Scorer Module.
 评分模块测试
 """
 
-
-
 from scorer.ranking import (
     ScoringFactor,
     ScoringReport,

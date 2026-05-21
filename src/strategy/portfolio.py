@@ -3,6 +3,7 @@ Multi-Strategy Portfolio Module.
 多策略组合模块 - 组合多个策略进行回测
 """
 
+import logging
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
@@ -20,6 +21,8 @@ from .backtest import (
     MultiFactorStrategy,
     TrendFollowingStrategy,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class WeightMethod(Enum):
@@ -259,10 +262,10 @@ class MultiStrategyPortfolio:
         if not self.strategies:
             raise ValueError("请先添加策略")
 
-        print("\n📊 运行多策略组合回测")
-        print(f"   组合名称: {self.name}")
-        print(f"   策略数量: {len(self.strategies)}")
-        print(f"   权重方法: {self.weight_method.value}")
+        logger.info("\n📊 运行多策略组合回测")
+        logger.info(f"   组合名称: {self.name}")
+        logger.info(f"   策略数量: {len(self.strategies)}")
+        logger.info(f"   权重方法: {self.weight_method.value}")
 
         engine = BacktestEngine(db_path)
         engine.connect()
@@ -272,7 +275,7 @@ class MultiStrategyPortfolio:
 
         try:
             for config in self.strategies:
-                print(f"\n   运行策略: {config.name} ({config.strategy_type})")
+                logger.info(f"\n   运行策略: {config.name} ({config.strategy_type})")
 
                 strategy_class = self.STRATEGY_MAP[config.strategy_type]
                 strategy = strategy_class(**config.params)
@@ -292,7 +295,7 @@ class MultiStrategyPortfolio:
             engine.close()
 
         weights = self._calculate_weights(strategy_returns)
-        print(f"\n   策略权重: {weights}")
+        logger.info(f"\n   策略权重: {weights}")
 
         correlation_matrix = self._calculate_correlation(strategy_returns)
 
@@ -318,7 +321,9 @@ class MultiStrategyPortfolio:
                 }
             )
 
-        total_return = (combined_equity[-1]["equity"] - combined_equity[0]["equity"]) / combined_equity[0]["equity"]
+        total_return = (
+            combined_equity[-1]["equity"] - combined_equity[0]["equity"]
+        ) / combined_equity[0]["equity"]
 
         returns = []
         for i in range(1, len(combined_equity)):
@@ -378,51 +383,53 @@ class MultiStrategyPortfolio:
 
 def print_portfolio_result(result: PortfolioResult):
     """打印组合结果"""
-    print(f"\n{'=' * 70}")
-    print("📊 多策略组合回测结果")
-    print(f"{'=' * 70}")
+    logger.info(f"\n{'=' * 70}")
+    logger.info("📊 多策略组合回测结果")
+    logger.info(f"{'=' * 70}")
 
-    print(f"\n📅 组合名称: {result.name}")
-    print(f"📅 回测区间: {result.start_date} ~ {result.end_date}")
+    logger.info(f"\n📅 组合名称: {result.name}")
+    logger.info(f"📅 回测区间: {result.start_date} ~ {result.end_date}")
 
-    print("\n💰 收益指标:")
-    print(f"   初始资金: {result.initial_capital:,.0f}")
-    print(f"   最终资金: {result.final_capital:,.0f}")
-    print(f"   总收益率: {result.total_return * 100:+.2f}%")
-    print(f"   年化收益: {result.annualized_return * 100:+.2f}%")
+    logger.info("\n💰 收益指标:")
+    logger.info(f"   初始资金: {result.initial_capital:,.0f}")
+    logger.info(f"   最终资金: {result.final_capital:,.0f}")
+    logger.info(f"   总收益率: {result.total_return * 100:+.2f}%")
+    logger.info(f"   年化收益: {result.annualized_return * 100:+.2f}%")
 
-    print("\n📉 风险指标:")
-    print(f"   最大回撤: {result.max_drawdown * 100:.2f}%")
-    print(f"   年化波动: {result.volatility * 100:.2f}%")
-    print(f"   夏普比率: {result.sharpe_ratio:.2f}")
-    print(f"   索提诺比率: {result.sortino_ratio:.2f}")
-    print(f"   卡玛比率: {result.calmar_ratio:.2f}")
+    logger.info("\n📉 风险指标:")
+    logger.info(f"   最大回撤: {result.max_drawdown * 100:.2f}%")
+    logger.info(f"   年化波动: {result.volatility * 100:.2f}%")
+    logger.info(f"   夏普比率: {result.sharpe_ratio:.2f}")
+    logger.info(f"   索提诺比率: {result.sortino_ratio:.2f}")
+    logger.info(f"   卡玛比率: {result.calmar_ratio:.2f}")
 
-    print("\n📊 组合分析:")
-    print(f"   分散度比率: {result.diversification_ratio:.2f}")
-    print("   (越高表示分散效果越好，>1 表示有分散效果)")
+    logger.info("\n📊 组合分析:")
+    logger.info(f"   分散度比率: {result.diversification_ratio:.2f}")
+    logger.info("   (越高表示分散效果越好，>1 表示有分散效果)")
 
-    print("\n⚖️ 策略权重:")
+    logger.info("\n⚖️ 策略权重:")
     for name, weight in result.strategy_weights.items():
-        print(f"   {name}: {weight * 100:.1f}%")
+        logger.info(f"   {name}: {weight * 100:.1f}%")
 
-    print("\n📈 策略相关性矩阵:")
+    logger.info("\n📈 策略相关性矩阵:")
     names = list(result.correlation_matrix.keys())
     header = "         " + "  ".join([f"{n[:8]:>8}" for n in names])
-    print(header)
+    logger.info(header)
     for n1 in names:
         row = f"{n1[:8]:>8} "
         for n2 in names:
             corr = result.correlation_matrix[n1][n2]
             row += f"{corr:>8.2f} "
-        print(row)
+        logger.info(row)
 
-    print("\n📋 各策略表现:")
-    print(f"{'策略':<20} {'收益率':<12} {'夏普':<10} {'回撤':<10}")
-    print("-" * 55)
+    logger.info("\n📋 各策略表现:")
+    logger.info(f"{'策略':<20} {'收益率':<12} {'夏普':<10} {'回撤':<10}")
+    logger.info("-" * 55)
     for r in result.strategy_results:
         name = r.strategy_name
-        print(f"{name:<20} {r.total_return * 100:>+8.2f}%    {r.sharpe_ratio:>6.2f}     {r.max_drawdown * 100:>6.2f}%")
+        logger.info(
+            f"{name:<20} {r.total_return * 100:>+8.2f}%    {r.sharpe_ratio:>6.2f}     {r.max_drawdown * 100:>6.2f}%"
+        )
 
 
 def run_portfolio_backtest(

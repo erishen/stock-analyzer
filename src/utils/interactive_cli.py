@@ -313,7 +313,9 @@ class InteractiveCLI:
                 json.dump(result.to_dict(), f, ensure_ascii=False, indent=2)
             console.print(f"[green]💾 结果已保存到: {output_file}[/green]")
 
-    def _run_backtest(self, strategy: str, holding_days: int, capital: float, compare_benchmark: bool):
+    def _run_backtest(
+        self, strategy: str, holding_days: int, capital: float, compare_benchmark: bool
+    ):
         console.print("\n[cyan]正在运行回测...[/cyan]")
 
         from strategy import run_backtest as run_strategy_backtest
