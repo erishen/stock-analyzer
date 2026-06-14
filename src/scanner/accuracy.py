@@ -276,6 +276,9 @@ class SignalAccuracyAnalyzer:
                             else:
                                 signal_stats[signal_type]["loss_count"] += 1
 
+            except KeyError:
+                continue
+
             except Exception:
                 continue
 
@@ -385,21 +388,15 @@ class SignalAccuracyAnalyzer:
 
         high_win_signals = [p for p in performances if p.win_rate > 0.55]
         if high_win_signals:
-            recommendations.append(
-                f"高胜率信号: {', '.join([p.signal_type.value for p in high_win_signals[:3]])}"
-            )
+            recommendations.append(f"高胜率信号: {', '.join([p.signal_type.value for p in high_win_signals[:3]])}")
 
         high_return_signals = [p for p in performances if p.avg_return > 0.02]
         if high_return_signals:
-            recommendations.append(
-                f"高收益信号: {', '.join([p.signal_type.value for p in high_return_signals[:3]])}"
-            )
+            recommendations.append(f"高收益信号: {', '.join([p.signal_type.value for p in high_return_signals[:3]])}")
 
         low_win_signals = [p for p in performances if p.win_rate < 0.45]
         if low_win_signals:
-            recommendations.append(
-                f"谨慎使用: {', '.join([p.signal_type.value for p in low_win_signals[:3]])}"
-            )
+            recommendations.append(f"谨慎使用: {', '.join([p.signal_type.value for p in low_win_signals[:3]])}")
 
         return recommendations
 

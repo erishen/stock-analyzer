@@ -71,9 +71,7 @@ class MarketSummary:
             "up_count": self.up_count,
             "down_count": self.down_count,
             "flat_count": self.flat_count,
-            "up_ratio": round(self.up_count / self.total_stocks * 100, 2)
-            if self.total_stocks > 0
-            else 0,
+            "up_ratio": round(self.up_count / self.total_stocks * 100, 2) if self.total_stocks > 0 else 0,
             "avg_change": round(self.avg_change, 2),
             "max_up": {"code": self.max_up[0], "name": self.max_up[1], "change": self.max_up[2]},
             "max_down": {
@@ -142,9 +140,7 @@ def get_market_summary(db_path: Path) -> MarketSummary:
             (latest_date,),
         )
         max_down_row = cursor.fetchone()
-        max_down = (
-            (max_down_row[0], max_down_row[0], max_down_row[1]) if max_down_row else ("", "", 0)
-        )
+        max_down = (max_down_row[0], max_down_row[0], max_down_row[1]) if max_down_row else ("", "", 0)
 
         cursor = conn.execute(
             """
@@ -293,12 +289,8 @@ def print_market_monitor(db_path: Path):
         logger.info(f"\n📅 日期: {summary.date}")
         logger.info("\n📈 市场概况:")
         logger.info(f"   总股票数: {summary.total_stocks}")
-        logger.info(
-            f"   上涨: {summary.up_count} ({summary.up_count / summary.total_stocks * 100:.1f}%)"
-        )
-        logger.info(
-            f"   下跌: {summary.down_count} ({summary.down_count / summary.total_stocks * 100:.1f}%)"
-        )
+        logger.info(f"   上涨: {summary.up_count} ({summary.up_count / summary.total_stocks * 100:.1f}%)")
+        logger.info(f"   下跌: {summary.down_count} ({summary.down_count / summary.total_stocks * 100:.1f}%)")
         logger.info(f"   平盘: {summary.flat_count}")
         logger.info(f"   平均涨跌: {summary.avg_change:+.2f}%")
 
@@ -314,9 +306,7 @@ def print_market_monitor(db_path: Path):
         logger.info("\n🔍 RSI 超卖信号 (潜在反弹机会):")
         signals = get_live_signals(db_path, "oversold", 10)
         if signals:
-            logger.info(
-                f"{'代码':<12} {'名称':<10} {'价格':<10} {'涨跌%':<10} {'RSI':<8} {'得分':<8}"
-            )
+            logger.info(f"{'代码':<12} {'名称':<10} {'价格':<10} {'涨跌%':<10} {'RSI':<8} {'得分':<8}")
             logger.info("-" * 65)
             for s in signals:
                 logger.info(
@@ -328,9 +318,7 @@ def print_market_monitor(db_path: Path):
         logger.info("\n🔍 MACD 金叉信号:")
         signals = get_live_signals(db_path, "golden_cross", 10)
         if signals:
-            logger.info(
-                f"{'代码':<12} {'名称':<10} {'价格':<10} {'涨跌%':<10} {'MACD':<10} {'得分':<8}"
-            )
+            logger.info(f"{'代码':<12} {'名称':<10} {'价格':<10} {'涨跌%':<10} {'MACD':<10} {'得分':<8}")
             logger.info("-" * 65)
             for s in signals:
                 logger.info(
@@ -357,7 +345,5 @@ def run_monitor(db_path: Path | None = None) -> dict[str, Any]:
     return {
         "summary": get_market_summary(db_path).to_dict(),
         "oversold_signals": [s.to_dict() for s in get_live_signals(db_path, "oversold", 20)],
-        "golden_cross_signals": [
-            s.to_dict() for s in get_live_signals(db_path, "golden_cross", 20)
-        ],
+        "golden_cross_signals": [s.to_dict() for s in get_live_signals(db_path, "golden_cross", 20)],
     }

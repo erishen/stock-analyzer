@@ -733,9 +733,7 @@ class BacktestEngine:
                     total_commission += sell_commission
                     total_stamp_tax += sell_stamp_tax
 
-                    trade.profit = (
-                        exit_price - trade.entry_price
-                    ) * trade.shares - trade.total_cost
+                    trade.profit = (exit_price - trade.entry_price) * trade.shares - trade.total_cost
                     trade.profit_percent = trade.profit / (trade.entry_price * trade.shares)
 
                     capital += sell_amount - sell_cost
@@ -830,9 +828,7 @@ class BacktestEngine:
                     total_commission += sell_commission
                     total_stamp_tax += sell_stamp_tax
 
-                    trade.profit = (
-                        last_price - trade.entry_price
-                    ) * trade.shares - trade.total_cost
+                    trade.profit = (last_price - trade.entry_price) * trade.shares - trade.total_cost
                     trade.profit_percent = trade.profit / (trade.entry_price * trade.shares)
                     capital += sell_amount - sell_cost
             trades.append(trade)
@@ -862,9 +858,7 @@ class BacktestEngine:
         """计算回测结果"""
         total_return = (final_capital - initial_capital) / initial_capital
 
-        days = (
-            datetime.strptime(dates[-1], "%Y-%m-%d") - datetime.strptime(dates[0], "%Y-%m-%d")
-        ).days
+        days = (datetime.strptime(dates[-1], "%Y-%m-%d") - datetime.strptime(dates[0], "%Y-%m-%d")).days
         annualized_return = (1 + total_return) ** (365 / max(days, 1)) - 1
 
         equities = [e["equity"] for e in equity_curve]

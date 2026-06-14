@@ -122,6 +122,9 @@ async def get_stats():
                     indicator_count=len(indicator_cols),
                 ).to_dict()
             )
+        except KeyError as e:
+            return JSONResponse(content=StatsResponse(success=False, error=str(e)).to_dict())
+
         except Exception as e:
             return JSONResponse(content=StatsResponse(success=False, error=str(e)).to_dict())
 
@@ -236,9 +239,7 @@ async def run_backtest(request: BacktestRequest):
 async def run_portfolio(request: PortfolioRequest):
     """运行组合回测"""
     if not db_path.exists():
-        return JSONResponse(
-            content=PortfolioResponse(success=False, error="数据库不存在").to_dict()
-        )
+        return JSONResponse(content=PortfolioResponse(success=False, error="数据库不存在").to_dict())
 
     try:
         from strategy import run_portfolio_backtest
@@ -339,9 +340,7 @@ async def get_sector():
 async def get_market_timing():
     """获取大盘择时"""
     if not db_path.exists():
-        return JSONResponse(
-            content=MarketTimingResponse(success=False, error="数据库不存在").to_dict()
-        )
+        return JSONResponse(content=MarketTimingResponse(success=False, error="数据库不存在").to_dict())
 
     try:
         from strategy import run_market_timing

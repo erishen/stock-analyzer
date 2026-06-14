@@ -102,6 +102,9 @@ def get_db_info(source_path: Path | str | None = None) -> dict:
 
                 cursor = conn.execute("SELECT MAX(date) FROM stock_klines")
                 info["last_update"] = cursor.fetchone()[0]
+    except KeyError:
+        pass
+
     except Exception:
         pass
 

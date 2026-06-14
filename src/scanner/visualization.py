@@ -132,15 +132,9 @@ class SignalVisualizer:
 
         sizes = [s for s in sizes if s > 0]
         labels = [
-            label
-            for label, s in zip(labels, [bullish_count, bearish_count, neutral_count], strict=False)
-            if s > 0
+            label for label, s in zip(labels, [bullish_count, bearish_count, neutral_count], strict=False) if s > 0
         ]
-        colors = [
-            c
-            for c, s in zip(colors, [bullish_count, bearish_count, neutral_count], strict=False)
-            if s > 0
-        ]
+        colors = [c for c, s in zip(colors, [bullish_count, bearish_count, neutral_count], strict=False) if s > 0]
 
         if not sizes:
             logger.info("没有信号数据")

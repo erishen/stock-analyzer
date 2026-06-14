@@ -54,9 +54,7 @@ class SectorBacktestResult:
             "win_rate_exit": round(self.win_rate_exit * 100, 2),
             "best_sector": self.best_sector,
             "worst_sector": self.worst_sector,
-            "sector_performance": {
-                k: round(v * 100, 2) for k, v in self.sector_performance.items()
-            },
+            "sector_performance": {k: round(v * 100, 2) for k, v in self.sector_performance.items()},
         }
 
 
@@ -123,6 +121,9 @@ def backtest_sector_rotation(
                         enter_returns.append(sector_return)
                     elif rotation.signal == RotationSignal.EXIT:
                         exit_returns.append(-sector_return)
+
+        except KeyError:
+            continue
 
         except Exception:
             continue
@@ -260,9 +261,7 @@ def print_sector_validation(validation: dict[str, Any]):
     logger.info("-" * 50)
 
     for sector, data in validation["sectors"].items():
-        logger.info(
-            f"{sector:<12} {data['total']:<8} {data['found']:<8} {data['missing']:<8} {data['coverage']}%"
-        )
+        logger.info(f"{sector:<12} {data['total']:<8} {data['found']:<8} {data['missing']:<8} {data['coverage']}%")
 
 
 def print_sector_backtest(result: SectorBacktestResult):

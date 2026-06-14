@@ -95,11 +95,7 @@ class RiskAlertSystem:
         drawdown = (peak_equity - current_equity) / peak_equity
 
         if drawdown >= self.config.max_drawdown_threshold:
-            level = (
-                AlertLevel.CRITICAL
-                if drawdown >= self.config.max_drawdown_threshold * 1.5
-                else AlertLevel.DANGER
-            )
+            level = AlertLevel.CRITICAL if drawdown >= self.config.max_drawdown_threshold * 1.5 else AlertLevel.DANGER
             return RiskAlert(
                 alert_type=AlertType.MAX_DRAWDOWN,
                 level=level,
@@ -129,11 +125,7 @@ class RiskAlertSystem:
         volatility = float(np.std(returns) * np.sqrt(252))
 
         if volatility >= self.config.volatility_threshold:
-            level = (
-                AlertLevel.DANGER
-                if volatility >= self.config.volatility_threshold * 1.5
-                else AlertLevel.WARNING
-            )
+            level = AlertLevel.DANGER if volatility >= self.config.volatility_threshold * 1.5 else AlertLevel.WARNING
             return RiskAlert(
                 alert_type=AlertType.VOLATILITY,
                 level=level,
@@ -143,9 +135,7 @@ class RiskAlertSystem:
             )
         return None
 
-    def check_concentration(
-        self, positions: dict[str, float], total_value: float
-    ) -> RiskAlert | None:
+    def check_concentration(self, positions: dict[str, float], total_value: float) -> RiskAlert | None:
         """检查持仓集中度"""
         if total_value <= 0 or not positions:
             return None

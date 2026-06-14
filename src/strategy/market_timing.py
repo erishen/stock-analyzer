@@ -264,9 +264,7 @@ def print_market_timing(indicator: MarketIndicator):
     logger.info(f"{'=' * 50}")
 
     logger.info(f"\n📅 日期: {indicator.date}")
-    logger.info(
-        f"📈 市场状态: {state_emoji.get(indicator.state, '')} {indicator.state.value.upper()}"
-    )
+    logger.info(f"📈 市场状态: {state_emoji.get(indicator.state, '')} {indicator.state.value.upper()}")
     logger.info(f"📊 综合得分: {indicator.score}")
 
     logger.info("\n📋 市场指标:")

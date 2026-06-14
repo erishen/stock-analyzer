@@ -171,14 +171,10 @@ class SignalDetector:
         pattern_signals = self._detect_pattern_signals(df, code, date, price, change_percent)
         signals.extend(pattern_signals)
 
-        multi_period_signals = self._detect_multi_period_signals(
-            df, code, date, price, change_percent
-        )
+        multi_period_signals = self._detect_multi_period_signals(df, code, date, price, change_percent)
         signals.extend(multi_period_signals)
 
-        price_volume_signals = self._detect_price_volume_signals(
-            df, code, date, price, change_percent
-        )
+        price_volume_signals = self._detect_price_volume_signals(df, code, date, price, change_percent)
         signals.extend(price_volume_signals)
 
         for signal in signals:
@@ -641,12 +637,7 @@ class SignalDetector:
         lower_shadow = min(open_price, close_price) - low_price
         total_range = high_price - low_price if high_price != low_price else 1
 
-        if (
-            lower_shadow > body * 2
-            and upper_shadow < body * 0.5
-            and close_price > open_price
-            and change_percent < 0
-        ):
+        if lower_shadow > body * 2 and upper_shadow < body * 0.5 and close_price > open_price and change_percent < 0:
             signals.append(
                 Signal(
                     code=code,
@@ -659,12 +650,7 @@ class SignalDetector:
                 )
             )
 
-        if (
-            upper_shadow > body * 2
-            and lower_shadow < body * 0.5
-            and close_price < open_price
-            and change_percent > 0
-        ):
+        if upper_shadow > body * 2 and lower_shadow < body * 0.5 and close_price < open_price and change_percent > 0:
             signals.append(
                 Signal(
                     code=code,
@@ -677,12 +663,7 @@ class SignalDetector:
                 )
             )
 
-        if (
-            prev_close < prev_open
-            and close_price > open_price
-            and close_price > prev_open
-            and open_price < prev_close
-        ):
+        if prev_close < prev_open and close_price > open_price and close_price > prev_open and open_price < prev_close:
             signals.append(
                 Signal(
                     code=code,
@@ -695,12 +676,7 @@ class SignalDetector:
                 )
             )
 
-        if (
-            prev_close > prev_open
-            and close_price < open_price
-            and close_price < prev_open
-            and open_price > prev_close
-        ):
+        if prev_close > prev_open and close_price < open_price and close_price < prev_open and open_price > prev_close:
             signals.append(
                 Signal(
                     code=code,
@@ -1056,6 +1032,9 @@ class MarketScanner:
                 if i % 500 == 0:
                     logger.info(f"   进度: {i}/{total_stocks} ({i / total_stocks * 100:.1f}%)")
 
+            except KeyError:
+                continue
+
             except Exception:
                 continue
 
@@ -1193,14 +1172,15 @@ class MarketScanner:
                         s.name = name_cache[code]
 
                     all_signals.extend(signals)
+                except KeyError:
+                    pass
+
                 except Exception:
                     pass
 
                 completed += 1
                 if completed % 500 == 0:
-                    logger.info(
-                        f"   进度: {completed}/{total_stocks} ({completed / total_stocks * 100:.1f}%)"
-                    )
+                    logger.info(f"   进度: {completed}/{total_stocks} ({completed / total_stocks * 100:.1f}%)")
 
         all_signals.sort(key=lambda x: x.score, reverse=True)
 

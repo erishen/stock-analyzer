@@ -64,9 +64,7 @@ def plot_equity_curve(
     equities = [e["equity"] for e in chart_data.equity_curve]
 
     ax.plot(dates, equities, "b-", linewidth=1.5, label="账户权益")
-    ax.axhline(
-        y=chart_data.initial_capital, color="gray", linestyle="--", alpha=0.5, label="初始资金"
-    )
+    ax.axhline(y=chart_data.initial_capital, color="gray", linestyle="--", alpha=0.5, label="初始资金")
 
     peak = chart_data.initial_capital
     for i, equity in enumerate(equities):
@@ -340,9 +338,7 @@ def generate_backtest_report(
 
     paths = {}
 
-    paths["equity_curve"] = plot_equity_curve(
-        chart_data, output_dir / f"{chart_data.strategy_name.lower()}_equity.png"
-    )
+    paths["equity_curve"] = plot_equity_curve(chart_data, output_dir / f"{chart_data.strategy_name.lower()}_equity.png")
 
     paths["trade_distribution"] = plot_trade_distribution(
         chart_data, output_dir / f"{chart_data.strategy_name.lower()}_distribution.png"
@@ -352,9 +348,7 @@ def generate_backtest_report(
         chart_data, output_dir / f"{chart_data.strategy_name.lower()}_monthly.png"
     )
 
-    paths["drawdown"] = plot_drawdown(
-        chart_data, output_dir / f"{chart_data.strategy_name.lower()}_drawdown.png"
-    )
+    paths["drawdown"] = plot_drawdown(chart_data, output_dir / f"{chart_data.strategy_name.lower()}_drawdown.png")
 
     return paths
 

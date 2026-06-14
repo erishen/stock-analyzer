@@ -344,15 +344,15 @@ class StockScorer:
 
         if len(df) >= 2:
             prev = df.iloc[-2]
-            if (prev.get("macd", 0) or 0) <= (prev.get("macd_signal", 0) or 0) and (
-                latest.get("macd", 0) or 0
-            ) > (latest.get("macd_signal", 0) or 0):
+            if (prev.get("macd", 0) or 0) <= (prev.get("macd_signal", 0) or 0) and (latest.get("macd", 0) or 0) > (
+                latest.get("macd_signal", 0) or 0
+            ):
                 score += 20
                 details.append("MACD金叉信号")
 
-            if (prev.get("kdj_k", 0) or 0) <= (prev.get("kdj_d", 0) or 0) and (
-                latest.get("kdj_k", 0) or 0
-            ) > (latest.get("kdj_d", 0) or 0):
+            if (prev.get("kdj_k", 0) or 0) <= (prev.get("kdj_d", 0) or 0) and (latest.get("kdj_k", 0) or 0) > (
+                latest.get("kdj_d", 0) or 0
+            ):
                 score += 15
                 details.append("KDJ金叉信号")
 
@@ -507,9 +507,7 @@ class StockRankingSystem:
         all_scores = self.rank_all_stocks(top_n * 2)
 
         top_stocks = all_scores[:top_n]
-        bottom_stocks = (
-            all_scores[-10:] if len(all_scores) >= 10 else all_scores[-len(all_scores) :]
-        )
+        bottom_stocks = all_scores[-10:] if len(all_scores) >= 10 else all_scores[-len(all_scores) :]
 
         factor_summary = self._calculate_factor_summary(all_scores)
 

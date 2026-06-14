@@ -64,9 +64,7 @@ class DatabaseOptimizer:
         if not self.conn:
             self.connect()
 
-        cursor = self.conn.execute(
-            "SELECT name FROM sqlite_master WHERE type='index' AND name NOT LIKE 'sqlite_%'"
-        )
+        cursor = self.conn.execute("SELECT name FROM sqlite_master WHERE type='index' AND name NOT LIKE 'sqlite_%'")
         return [row[0] for row in cursor.fetchall()]
 
     def get_table_info(self, table: str = "stock_analysis") -> dict:
@@ -275,6 +273,12 @@ class CacheManager:
                     self._memory_cache[key] = (data["value"], data["timestamp"])
                     return data["value"]
                 cache_path.unlink()
+            except KeyError:
+                pass
+
+            except OSError:
+                pass
+
             except Exception:
                 pass
 
@@ -289,6 +293,9 @@ class CacheManager:
         try:
             with open(cache_path, "w", encoding="utf-8") as f:
                 json.dump({"value": value, "timestamp": timestamp}, f)
+        except OSError:
+            pass
+
         except Exception:
             pass
 
@@ -348,9 +355,7 @@ class IncrementalUpdater:
             self.connect()
 
         if code:
-            cursor = self.conn.execute(
-                "SELECT MAX(date) FROM stock_analysis WHERE code = ?", (code,)
-            )
+            cursor = self.conn.execute("SELECT MAX(date) FROM stock_analysis WHERE code = ?", (code,))
         else:
             cursor = self.conn.execute("SELECT MAX(date) FROM stock_analysis")
 

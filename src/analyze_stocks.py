@@ -37,11 +37,7 @@ class StockAnalyzer:
             use_analysis_db: 是否使用分析数据库 (含技术指标)
         """
         if db_path is None:
-            db_path = (
-                str(get_stock_analysis_db_path())
-                if use_analysis_db
-                else str(get_asset_lens_db_path())
-            )
+            db_path = str(get_stock_analysis_db_path()) if use_analysis_db else str(get_asset_lens_db_path())
         self.db_path = db_path
         self.conn = None
         self.df = None
@@ -252,9 +248,7 @@ class StockAnalyzer:
 
                 plt.figure(figsize=(14, 7))
                 plt.plot(stock_data["date"], stock_data["close"], label="收盘价", linewidth=1.5)
-                plt.plot(
-                    stock_data["date"], stock_data[ma_col], label=f"{window}日均线", linewidth=2
-                )
+                plt.plot(stock_data["date"], stock_data[ma_col], label=f"{window}日均线", linewidth=2)
 
                 if "boll_upper" in stock_data.columns:
                     plt.plot(
@@ -301,9 +295,7 @@ class StockAnalyzer:
         if "ma20" in df.columns:
             ax1.plot(df["date"], df["ma20"], label="MA20", linewidth=1)
         if "boll_upper" in df.columns and "boll_lower" in df.columns:
-            ax1.fill_between(
-                df["date"], df["boll_upper"], df["boll_lower"], alpha=0.1, label="布林带"
-            )
+            ax1.fill_between(df["date"], df["boll_upper"], df["boll_lower"], alpha=0.1, label="布林带")
         ax1.set_ylabel("价格")
         ax1.legend(loc="upper left")
         ax1.set_title(f"{code} 技术指标")

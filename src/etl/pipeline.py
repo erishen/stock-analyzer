@@ -219,18 +219,14 @@ class DataTransformer:
         df["rsi_overbought"] = (df["rsi"] > 70).astype(int)
         return df
 
-    def _calculate_boll(
-        self, df: pd.DataFrame, period: int = 20, std_dev: float = 2.0
-    ) -> pd.DataFrame:
+    def _calculate_boll(self, df: pd.DataFrame, period: int = 20, std_dev: float = 2.0) -> pd.DataFrame:
         """计算布林带"""
         df["boll_mid"] = df["close"].rolling(window=period).mean()
         df["boll_std"] = df["close"].rolling(window=period).std()
         df["boll_upper"] = df["boll_mid"] + std_dev * df["boll_std"]
         df["boll_lower"] = df["boll_mid"] - std_dev * df["boll_std"]
         df["boll_width"] = (df["boll_upper"] - df["boll_lower"]) / df["boll_mid"]
-        df["boll_position"] = (df["close"] - df["boll_lower"]) / (
-            df["boll_upper"] - df["boll_lower"]
-        )
+        df["boll_position"] = (df["close"] - df["boll_lower"]) / (df["boll_upper"] - df["boll_lower"])
         return df
 
     def _calculate_kdj(self, df: pd.DataFrame, n: int = 9) -> pd.DataFrame:
@@ -241,9 +237,7 @@ class DataTransformer:
         df["kdj_k"] = df["kdj_rsv"].ewm(alpha=1 / 3, adjust=False).mean()
         df["kdj_d"] = df["kdj_k"].ewm(alpha=1 / 3, adjust=False).mean()
         df["kdj_j"] = 3 * df["kdj_k"] - 2 * df["kdj_d"]
-        df["kdj_cross"] = (
-            (df["kdj_k"] > df["kdj_d"]) & (df["kdj_k"].shift(1) <= df["kdj_d"].shift(1))
-        ).astype(int)
+        df["kdj_cross"] = ((df["kdj_k"] > df["kdj_d"]) & (df["kdj_k"].shift(1) <= df["kdj_d"].shift(1))).astype(int)
         return df
 
     def _calculate_atr(self, df: pd.DataFrame, period: int = 14) -> pd.DataFrame:

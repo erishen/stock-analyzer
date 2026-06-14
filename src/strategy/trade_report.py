@@ -308,6 +308,9 @@ def generate_trade_report(backtest_result: Any) -> TradeReport:
             if t.profit > 0:
                 weekday_data[weekday]["wins"] += 1
             weekday_data[weekday]["total_return"] += t.profit_percent
+        except KeyError:
+            pass
+
         except Exception:
             pass
 
@@ -315,9 +318,7 @@ def generate_trade_report(backtest_result: Any) -> TradeReport:
         day: {
             "trades": data["trades"],
             "win_rate": round(data["wins"] / data["trades"] * 100, 2) if data["trades"] > 0 else 0,
-            "avg_return": round(data["total_return"] / data["trades"] * 100, 2)
-            if data["trades"] > 0
-            else 0,
+            "avg_return": round(data["total_return"] / data["trades"] * 100, 2) if data["trades"] > 0 else 0,
         }
         for day, data in weekday_data.items()
     }
@@ -369,9 +370,7 @@ def print_trade_report(report: TradeReport):
         logger.info(f"{'月份':<10} {'交易':<8} {'胜率':<10} {'收益率':<12}")
         logger.info("-" * 45)
         for m in report.monthly_performance[-6:]:
-            logger.info(
-                f"{m.month:<10} {m.trades:<8} {m.win_rate * 100:.1f}%      {m.return_pct * 100:+.2f}%"
-            )
+            logger.info(f"{m.month:<10} {m.trades:<8} {m.win_rate * 100:.1f}%      {m.return_pct * 100:+.2f}%")
 
     if report.top_winners:
         logger.info("\n🏆 盈利 Top 10:")
@@ -415,9 +414,7 @@ def print_trade_report(report: TradeReport):
         for day in weekday_order:
             if day in report.weekday_performance:
                 data = report.weekday_performance[day]
-                logger.info(
-                    f"{day:<12} {data['trades']:<10} {data['win_rate']:.1f}%      {data['avg_return']:+.2f}%"
-                )
+                logger.info(f"{day:<12} {data['trades']:<10} {data['win_rate']:.1f}%      {data['avg_return']:+.2f}%")
 
 
 def save_trade_report(report: TradeReport, output_path: Path):

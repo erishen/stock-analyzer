@@ -321,9 +321,7 @@ class MultiStrategyPortfolio:
                 }
             )
 
-        total_return = (
-            combined_equity[-1]["equity"] - combined_equity[0]["equity"]
-        ) / combined_equity[0]["equity"]
+        total_return = (combined_equity[-1]["equity"] - combined_equity[0]["equity"]) / combined_equity[0]["equity"]
 
         returns = []
         for i in range(1, len(combined_equity)):

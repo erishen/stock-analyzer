@@ -15,6 +15,8 @@ from pathlib import Path
 from typing import Any
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
+import requests
+
 from config import get_stock_klines_db_path
 
 logger = logging.getLogger(__name__)
@@ -101,9 +103,7 @@ class StockDataFetcher:
 
         self._conn.execute("CREATE INDEX IF NOT EXISTS idx_klines_code ON stock_klines(code)")
         self._conn.execute("CREATE INDEX IF NOT EXISTS idx_klines_date ON stock_klines(date)")
-        self._conn.execute(
-            "CREATE INDEX IF NOT EXISTS idx_klines_code_date ON stock_klines(code, date)"
-        )
+        self._conn.execute("CREATE INDEX IF NOT EXISTS idx_klines_code_date ON stock_klines(code, date)")
 
         self._conn.commit()
 
@@ -126,6 +126,10 @@ class StockDataFetcher:
                         }
                     )
             return stocks
+        except requests.RequestException as e:
+            logger.error(f"获取股票列表失败: {e}")
+            return []
+
         except Exception as e:
             logger.error(f"获取股票列表失败: {e}")
             return []
@@ -179,6 +183,14 @@ class StockDataFetcher:
                     }
                 )
             return records
+        except requests.RequestException as e:
+            logger.error(f"获取 {code} K线数据失败: {e}")
+            return []
+
+        except ValueError as e:
+            logger.error(f"获取 {code} K线数据失败: {e}")
+            return []
+
         except Exception as e:
             logger.error(f"获取 {code} K线数据失败: {e}")
             return []
@@ -262,12 +274,13 @@ class StockDataFetcher:
 
                 time.sleep(delay)
 
+            except KeyError as e:
+                result.errors.append(f"{stock['code']}: {e!s}")
+
             except Exception as e:
                 result.errors.append(f"{stock['code']}: {e!s}")
 
-        result.message = (
-            f"成功获取 {result.stocks_fetched} 只股票，共 {result.total_records:,} 条记录"
-        )
+        result.message = f"成功获取 {result.stocks_fetched} 只股票，共 {result.total_records:,} 条记录"
         return result
 
     def fetch_stocks(
@@ -310,9 +323,7 @@ class StockDataFetcher:
                 result.errors.append(f"{code}: {e!s}")
                 logger.info(f"  ✗ {code}: {e}")
 
-        result.message = (
-            f"成功获取 {result.stocks_fetched} 只股票，共 {result.total_records:,} 条记录"
-        )
+        result.message = f"成功获取 {result.stocks_fetched} 只股票，共 {result.total_records:,} 条记录"
         return result
 
     def get_stats(self) -> dict:

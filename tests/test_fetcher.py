@@ -85,9 +85,7 @@ class TestStockDataFetcher:
         fetcher.create_tables()
 
         conn = sqlite3.connect(str(temp_db))
-        cursor = conn.execute(
-            "SELECT name FROM sqlite_master WHERE type='table' AND name='stock_klines'"
-        )
+        cursor = conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='stock_klines'")
         assert cursor.fetchone() is not None
         conn.close()
 

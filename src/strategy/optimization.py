@@ -47,9 +47,7 @@ class OptimizationResult:
                     "max_drawdown": round(r["max_drawdown"] * 100, 2),
                     "win_rate": round(r["win_rate"] * 100, 2),
                 }
-                for r in sorted(self.all_results, key=lambda x: x["sharpe_ratio"], reverse=True)[
-                    :10
-                ]
+                for r in sorted(self.all_results, key=lambda x: x["sharpe_ratio"], reverse=True)[:10]
             ],
         }
 
@@ -80,18 +78,12 @@ def optimize_momentum_strategy(
     """
     lookback_values = list(range(lookback_range[0], lookback_range[1] + 1, 5))
     holding_values = list(range(holding_range[0], holding_range[1] + 1, 2))
-    momentum_values = [
-        round(x * 0.02, 2)
-        for x in range(int(momentum_range[0] * 50), int(momentum_range[1] * 50) + 1)
-    ]
+    momentum_values = [round(x * 0.02, 2) for x in range(int(momentum_range[0] * 50), int(momentum_range[1] * 50) + 1)]
     volatility_values = [
-        round(x * 0.02, 2)
-        for x in range(int(volatility_range[0] * 50), int(volatility_range[1] * 50) + 1)
+        round(x * 0.02, 2) for x in range(int(volatility_range[0] * 50), int(volatility_range[1] * 50) + 1)
     ]
 
-    combinations = list(
-        product(lookback_values, holding_values, momentum_values, volatility_values)
-    )
+    combinations = list(product(lookback_values, holding_values, momentum_values, volatility_values))
     total = len(combinations)
 
     logger.info("\n🔧 参数优化 - 动量策略")

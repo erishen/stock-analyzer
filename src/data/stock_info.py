@@ -12,6 +12,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+import requests
+
 logger = logging.getLogger(__name__)
 
 
@@ -81,6 +83,9 @@ class StockInfoFetcher:
                                     name=item.get("name", ""),
                                     market=item.get("market", ""),
                                 )
+            except requests.RequestException:
+                pass
+
             except Exception:
                 pass
 
@@ -149,6 +154,10 @@ class StockInfoFetcher:
 
             self._save_cache()
             return self._cache
+
+        except requests.RequestException as e:
+            logger.error(f"获取股票列表失败: {e}")
+            return {}
 
         except Exception as e:
             logger.error(f"获取股票列表失败: {e}")

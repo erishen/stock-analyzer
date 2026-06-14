@@ -113,9 +113,7 @@ def calculate_equal_weight_benchmark(
 
     for i, ret in enumerate(daily_returns):
         equity *= 1 + ret
-        equity_curve.append(
-            {"date": dates[i + 1].strftime("%Y-%m-%d"), "equity": round(equity * 100000, 2)}
-        )
+        equity_curve.append({"date": dates[i + 1].strftime("%Y-%m-%d"), "equity": round(equity * 100000, 2)})
 
     return equity_curve
 
@@ -192,13 +190,9 @@ def compare_with_benchmark(
 
     for i in range(1, min_len):
         if strategy_equities[i - 1] > 0:
-            strategy_returns.append(
-                (strategy_equities[i] - strategy_equities[i - 1]) / strategy_equities[i - 1]
-            )
+            strategy_returns.append((strategy_equities[i] - strategy_equities[i - 1]) / strategy_equities[i - 1])
         if benchmark_equities[i - 1] > 0:
-            benchmark_returns.append(
-                (benchmark_equities[i] - benchmark_equities[i - 1]) / benchmark_equities[i - 1]
-            )
+            benchmark_returns.append((benchmark_equities[i] - benchmark_equities[i - 1]) / benchmark_equities[i - 1])
 
     min_returns = min(len(strategy_returns), len(benchmark_returns))
     strategy_returns = strategy_returns[:min_returns]
@@ -218,9 +212,7 @@ def compare_with_benchmark(
         excess_returns = [s - b for s, b in zip(strategy_returns, benchmark_returns, strict=False)]
         tracking_error = np.std(excess_returns) * np.sqrt(252)
 
-        information_ratio = (
-            np.mean(excess_returns) * np.sqrt(252) / tracking_error if tracking_error > 0 else 0.0
-        )
+        information_ratio = np.mean(excess_returns) * np.sqrt(252) / tracking_error if tracking_error > 0 else 0.0
     else:
         alpha = 0.0
         beta = 0.0

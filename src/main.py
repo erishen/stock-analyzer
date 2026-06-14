@@ -191,9 +191,7 @@ def run_scan(args):
 
     if result.top_signals:
         logger.info("\n🏆 Top 20 高分信号:")
-        logger.info(
-            f"{'代码':<12} {'名称':<10} {'信号类型':<15} {'强度':<6} {'得分':<8} {'价格':<10} {'涨跌幅':<8}"
-        )
+        logger.info(f"{'代码':<12} {'名称':<10} {'信号类型':<15} {'强度':<6} {'得分':<8} {'价格':<10} {'涨跌幅':<8}")
         logger.info("-" * 85)
         for s in result.top_signals:
             name = s.name[:8] if s.name else s.code
@@ -320,9 +318,7 @@ def run_accuracy(args):
 
     if report.signal_performances:
         logger.info("\n📊 各信号表现:")
-        logger.info(
-            f"{'信号类型':<15} {'数量':<8} {'胜率':<10} {'平均收益':<12} {'最大收益':<12} {'最大亏损':<12}"
-        )
+        logger.info(f"{'信号类型':<15} {'数量':<8} {'胜率':<10} {'平均收益':<12} {'最大收益':<12} {'最大亏损':<12}")
         logger.info("-" * 80)
         for p in report.signal_performances:
             logger.info(
@@ -380,9 +376,7 @@ def run_score(args):
 
     if report.top_stocks:
         logger.info(f"\n🏆 Top {len(report.top_stocks)} 推荐股票:")
-        logger.info(
-            f"{'排名':<6} {'代码':<12} {'名称':<10} {'得分':<8} {'价格':<10} {'涨跌幅':<10} {'建议':<12}"
-        )
+        logger.info(f"{'排名':<6} {'代码':<12} {'名称':<10} {'得分':<8} {'价格':<10} {'涨跌幅':<10} {'建议':<12}")
         logger.info("-" * 75)
         for s in report.top_stocks[:20]:
             logger.info(
@@ -392,9 +386,7 @@ def run_score(args):
 
     if report.bottom_stocks:
         logger.error("\n⚠️ 得分最低的股票:")
-        logger.info(
-            f"{'排名':<6} {'代码':<12} {'名称':<10} {'得分':<8} {'价格':<10} {'涨跌幅':<10}"
-        )
+        logger.info(f"{'排名':<6} {'代码':<12} {'名称':<10} {'得分':<8} {'价格':<10} {'涨跌幅':<10}")
         logger.info("-" * 60)
         for s in report.bottom_stocks:
             logger.info(
@@ -503,9 +495,7 @@ def run_backtest(args):
 
     if result.trades:
         logger.info("\n📋 最近交易记录:")
-        logger.info(
-            f"{'代码':<12} {'名称':<10} {'买入日期':<12} {'买入价':<10} {'卖出价':<10} {'收益%':<10}"
-        )
+        logger.info(f"{'代码':<12} {'名称':<10} {'买入日期':<12} {'买入价':<10} {'卖出价':<10} {'收益%':<10}")
         logger.info("-" * 70)
         for t in result.trades[:10]:
             logger.info(
@@ -687,9 +677,7 @@ def run_sector(args):
         logger.info("   请先运行: python -m src.main etl")
         return
 
-    result = (
-        run_sector_validation(db_path) if args.validate else run_sector_analysis(db_path, args.date)
-    )
+    result = run_sector_validation(db_path) if args.validate else run_sector_analysis(db_path, args.date)
 
     if args.output and not args.validate:
         output_path = Path(args.output)
@@ -814,9 +802,7 @@ def run_optimize(args):
     logger.info("\n📈 Top 10 参数组合:")
     logger.info(f"{'排名':<6} {'收益率':<12} {'夏普比率':<10} {'最大回撤':<12} {'胜率':<10}")
     logger.info("-" * 55)
-    for i, r in enumerate(
-        sorted(result.all_results, key=lambda x: x["sharpe_ratio"], reverse=True)[:10], 1
-    ):
+    for i, r in enumerate(sorted(result.all_results, key=lambda x: x["sharpe_ratio"], reverse=True)[:10], 1):
         logger.info(
             f"{i:<6} {r['total_return'] * 100:>+8.2f}%    {r['sharpe_ratio']:>6.2f}     {r['max_drawdown'] * 100:>6.2f}%      {r['win_rate'] * 100:>6.2f}%"
         )
@@ -1119,20 +1105,12 @@ def main():
     backtest_parser.add_argument("--capital", type=float, default=100000.0, help="初始资金")
     backtest_parser.add_argument("--min-momentum", type=float, default=0.0, help="最小动量阈值")
     backtest_parser.add_argument("--max-momentum", type=float, default=1.0, help="最大动量阈值")
-    backtest_parser.add_argument(
-        "--max-volatility", type=float, default=0.15, help="最大波动率阈值"
-    )
+    backtest_parser.add_argument("--max-volatility", type=float, default=0.15, help="最大波动率阈值")
     backtest_parser.add_argument("--min-price", type=float, default=2.0, help="最低价格过滤")
-    backtest_parser.add_argument(
-        "--exclude-st", action="store_true", default=True, help="排除ST股票"
-    )
+    backtest_parser.add_argument("--exclude-st", action="store_true", default=True, help="排除ST股票")
     backtest_parser.add_argument("--include-st", action="store_true", help="包含ST股票")
-    backtest_parser.add_argument(
-        "--stop-loss", type=float, default=0.0, help="止损比例 (如 0.05 表示 5%%)"
-    )
-    backtest_parser.add_argument(
-        "--take-profit", type=float, default=0.0, help="止盈比例 (如 0.1 表示 10%%)"
-    )
+    backtest_parser.add_argument("--stop-loss", type=float, default=0.0, help="止损比例 (如 0.05 表示 5%%)")
+    backtest_parser.add_argument("--take-profit", type=float, default=0.0, help="止盈比例 (如 0.1 表示 10%%)")
     backtest_parser.add_argument("--use-ma-cross", action="store_true", help="趋势策略使用均线交叉")
     backtest_parser.add_argument("--benchmark", action="store_true", help="与基准对比")
     backtest_parser.add_argument("--output", type=str, help="输出文件路径(JSON)")
@@ -1185,9 +1163,7 @@ def main():
         help="策略类型",
     )
     export_parser.add_argument("--holding", type=int, default=9, help="持有天数")
-    export_parser.add_argument(
-        "--format", type=str, default="csv", choices=["csv", "json"], help="导出格式"
-    )
+    export_parser.add_argument("--format", type=str, default="csv", choices=["csv", "json"], help="导出格式")
     export_parser.add_argument("--output-dir", type=str, help="输出目录")
 
     market_timing_parser = subparsers.add_parser("market-timing", help="大盘择时分析")
@@ -1207,9 +1183,7 @@ def main():
 
     portfolio_parser = subparsers.add_parser("portfolio", help="多策略组合回测")
     portfolio_parser.add_argument("--db", type=str, help="数据库路径")
-    portfolio_parser.add_argument(
-        "--strategies", type=str, help="策略列表(格式: momentum:0.3,mean_reversion:0.4)"
-    )
+    portfolio_parser.add_argument("--strategies", type=str, help="策略列表(格式: momentum:0.3,mean_reversion:0.4)")
     portfolio_parser.add_argument(
         "--weight-method",
         type=str,
@@ -1239,12 +1213,8 @@ def main():
     portfolio_opt_parser = subparsers.add_parser("portfolio-opt", help="组合优化")
     portfolio_opt_parser.add_argument("--db", type=str, help="数据库路径")
     portfolio_opt_parser.add_argument("--max-positions", type=int, default=10, help="最大持仓数量")
-    portfolio_opt_parser.add_argument(
-        "--max-single-pct", type=float, default=0.15, help="单只股票最大仓位"
-    )
-    portfolio_opt_parser.add_argument(
-        "--max-sector-pct", type=float, default=0.30, help="行业最大仓位"
-    )
+    portfolio_opt_parser.add_argument("--max-single-pct", type=float, default=0.15, help="单只股票最大仓位")
+    portfolio_opt_parser.add_argument("--max-sector-pct", type=float, default=0.30, help="行业最大仓位")
     portfolio_opt_parser.add_argument("--output", type=str, help="输出文件路径")
 
     risk_attr_parser = subparsers.add_parser("risk-attribution", help="风险归因分析")

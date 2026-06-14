@@ -3,6 +3,7 @@ CLI Utilities for Stock Analyzer.
 命令行工具 - 提供彩色输出、进度条、交互式选择等功能
 """
 
+import logging
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any, ClassVar
@@ -19,6 +20,8 @@ from rich.progress import (
 )
 from rich.table import Table
 from rich.text import Text
+
+logger = logging.getLogger(__name__)
 
 console = Console()
 
@@ -57,25 +60,25 @@ def print_header(title: str, subtitle: str = ""):
 
 
 def print_section(title: str):
-    console.print(f"\n[bold cyan]{'=' * 20}[/bold cyan]")
-    console.print(f"[bold cyan]{title}[/bold cyan]")
-    console.print(f"[bold cyan]{'=' * 20}[/bold cyan]\n")
+    console.print(f"\n[bold cyan]{'=' * 20}")
+    console.print(f"[bold cyan]{title}")
+    console.print(f"[bold cyan]{'=' * 20}[/]\n")
 
 
 def print_success(message: str):
-    console.print(f"[green]✅ {message}[/green]")
+    console.print(f"[green]✅ {message}[/]")
 
 
 def print_error(message: str):
-    console.print(f"[red]❌ {message}[/red]")
+    console.print(f"[red]❌ {message}[/]")
 
 
 def print_warning(message: str):
-    console.print(f"[yellow]⚠️ {message}[/yellow]")
+    console.print(f"[yellow]⚠️ {message}[/]")
 
 
 def print_info(message: str):
-    console.print(f"[blue]ℹ️ {message}[/blue]")
+    console.print(f"ℹ️ {message}")
 
 
 def print_signal_table(signals: list[dict[str, Any]], title: str = "信号列表"):

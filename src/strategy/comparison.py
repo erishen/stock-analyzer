@@ -63,9 +63,7 @@ class ComparisonResult:
             "best_sharpe": self.best_sharpe,
             "best_drawdown": self.best_drawdown,
             "best_win_rate": self.best_win_rate,
-            "overall_ranking": [
-                {"strategy": r[0], "score": round(r[1], 2)} for r in self.overall_ranking
-            ],
+            "overall_ranking": [{"strategy": r[0], "score": round(r[1], 2)} for r in self.overall_ranking],
         }
 
 

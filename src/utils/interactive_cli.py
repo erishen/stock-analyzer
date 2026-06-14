@@ -3,8 +3,11 @@ Interactive CLI for Stock Analyzer.
 交互式命令行界面 - 提供菜单驱动的交互体验
 """
 
+import logging
 import sys
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
@@ -46,7 +49,7 @@ class InteractiveCLI:
         try:
             import questionary
         except ImportError:
-            console.print("[red]请安装 questionary: pip install questionary[/red]")
+            logger.error("请安装 questionary: pip install questionary")
             return
 
         action = questionary.select(
@@ -240,32 +243,32 @@ class InteractiveCLI:
             ).ask()
             if new_path:
                 self.db_path = Path(new_path)
-                console.print(f"[green]数据库路径已更新: {self.db_path}[/green]")
+                logger.info(f"数据库路径已更新: {self.db_path}")
 
     def _run_sync(self):
-        console.print("\n[cyan]正在同步数据...[/cyan]")
+        logger.info("\n正在同步数据...")
 
         from data import run_sync
 
         result = run_sync()
         if result.get("success"):
-            console.print("[green]✅ 数据同步成功[/green]")
+            logger.info(" 数据同步成功")
         else:
-            console.print(f"[red]❌ 同步失败: {result.get('error')}[/red]")
+            logger.error(f" 同步失败: {result.get('error')}")
 
     def _run_etl(self):
-        console.print("\n[cyan]正在运行 ETL...[/cyan]")
+        logger.info("\n正在运行 ETL...")
 
         from etl import run_etl
 
         result = run_etl()
-        console.print(f"[green]✅ ETL 完成: {result.records_processed} 条记录[/green]")
+        logger.info(f" ETL 完成: {result.records_processed} 条记录")
 
     def _show_stats(self):
         import sqlite3
 
         if not self.db_path.exists():
-            console.print(f"[red]❌ 数据库不存在: {self.db_path}[/red]")
+            logger.error(f" 数据库不存在: {self.db_path}")
             return
 
         with sqlite3.connect(str(self.db_path)) as conn:
@@ -288,18 +291,18 @@ class InteractiveCLI:
         console.print(table)
 
     def _export_data(self):
-        console.print("[yellow]导出功能开发中...[/yellow]")
+        logger.info("导出功能开发中...")
 
     def _run_scan(self, signal_types: list[str], min_score: float, output_file: str):
-        console.print("\n[cyan]正在扫描市场...[/cyan]")
+        logger.info("\n正在扫描市场...")
 
         from scanner import run_scan
 
         result = run_scan(db_path=self.db_path, min_score=min_score)
 
-        console.print("\n[green]✅ 扫描完成[/green]")
-        console.print(f"   扫描股票: {result.total_stocks:,}")
-        console.print(f"   发现信号: {result.signals_found:,}")
+        logger.info("\n 扫描完成")
+        logger.info(f" 扫描股票: {result.total_stocks:,}")
+        logger.info(f" 发现信号: {result.signals_found:,}")
 
         if result.top_signals:
             from .cli_utils import print_signal_table
@@ -311,12 +314,10 @@ class InteractiveCLI:
 
             with open(output_file, "w", encoding="utf-8") as f:
                 json.dump(result.to_dict(), f, ensure_ascii=False, indent=2)
-            console.print(f"[green]💾 结果已保存到: {output_file}[/green]")
+            logger.info(f" 结果已保存到: {output_file}")
 
-    def _run_backtest(
-        self, strategy: str, holding_days: int, capital: float, compare_benchmark: bool
-    ):
-        console.print("\n[cyan]正在运行回测...[/cyan]")
+    def _run_backtest(self, strategy: str, holding_days: int, capital: float, compare_benchmark: bool):
+        logger.info("\n正在运行回测...")
 
         from strategy import run_backtest as run_strategy_backtest
 
@@ -332,14 +333,14 @@ class InteractiveCLI:
         print_backtest_result(result.to_dict())
 
     def _run_score(self, top_n: int, output_file: str):
-        console.print("\n[cyan]正在计算评分...[/cyan]")
+        logger.info("\n正在计算评分...")
 
         from scorer import run_scoring
 
         report = run_scoring(db_path=self.db_path, top_n=top_n)
 
-        console.print("\n[green]✅ 评分完成[/green]")
-        console.print(f"   评分股票: {report.total_stocks:,}")
+        logger.info("\n 评分完成")
+        logger.info(f" 评分股票: {report.total_stocks:,}")
 
         if report.top_stocks:
             table = Table(title=f"Top {len(report.top_stocks)} 推荐股票")
@@ -365,18 +366,18 @@ class InteractiveCLI:
 
             with open(output_file, "w", encoding="utf-8") as f:
                 json.dump(report.to_dict(), f, ensure_ascii=False, indent=2)
-            console.print(f"[green]💾 结果已保存到: {output_file}[/green]")
+            logger.info(f" 结果已保存到: {output_file}")
 
     def _run_accuracy(self, holding_days: int):
-        console.print("\n[cyan]正在分析准确率...[/cyan]")
+        logger.info("\n正在分析准确率...")
 
         from scanner import run_accuracy_analysis
 
         report = run_accuracy_analysis(db_path=self.db_path, holding_days=holding_days)
 
-        console.print("\n[green]✅ 分析完成[/green]")
-        console.print(f"   总信号数: {report.total_signals_analyzed:,}")
-        console.print(f"   总体胜率: {report.overall_win_rate * 100:.2f}%")
+        logger.info("\n 分析完成")
+        logger.info(f" 总信号数: {report.total_signals_analyzed:,}")
+        logger.info(f" 总体胜率: {report.overall_win_rate * 100:.2f}%")
 
         if report.signal_performances:
             table = Table(title="各信号表现")
@@ -396,15 +397,15 @@ class InteractiveCLI:
             console.print(table)
 
     def _start_web(self):
-        console.print("\n[cyan]正在启动 Web 服务...[/cyan]")
+        logger.info("\n正在启动 Web 服务...")
 
         from web import run_server
 
-        console.print("[green]🌐 Web 服务已启动: http://127.0.0.1:8000[/green]")
+        logger.info(" Web 服务已启动: http://127.0.0.1:8000")
         run_server(host="127.0.0.1", port=8000)
 
     def _exit(self):
-        console.print("\n[dim]感谢使用 Stock Analyzer! 👋[/dim]")
+        logger.debug("\n感谢使用 Stock Analyzer! ")
         self.running = False
 
 

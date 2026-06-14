@@ -101,15 +101,9 @@ class RiskAttributionResult:
             "total_risk": round(self.total_risk * 100, 2),
             "systematic_risk": round(self.systematic_risk * 100, 2),
             "idiosyncratic_risk": round(self.idiosyncratic_risk * 100, 2),
-            "sector_contributions": {
-                k: round(v * 100, 2) for k, v in self.sector_contributions.items()
-            },
-            "stock_contributions": {
-                k: round(v * 100, 4) for k, v in list(self.stock_contributions.items())[:10]
-            },
-            "factor_contributions": {
-                k: round(v * 100, 2) for k, v in self.factor_contributions.items()
-            },
+            "sector_contributions": {k: round(v * 100, 2) for k, v in self.sector_contributions.items()},
+            "stock_contributions": {k: round(v * 100, 4) for k, v in list(self.stock_contributions.items())[:10]},
+            "factor_contributions": {k: round(v * 100, 2) for k, v in self.factor_contributions.items()},
         }
 
 
@@ -236,11 +230,7 @@ class SignalBacktester:
         total_loss = abs(np.sum(losing)) if len(losing) > 0 else 0
         profit_factor = total_profit / total_loss if total_loss > 0 else float("inf")
 
-        sharpe_ratio = (
-            np.mean(returns) / np.std(returns) * np.sqrt(252 / holding_days)
-            if np.std(returns) > 0
-            else 0
-        )
+        sharpe_ratio = np.mean(returns) / np.std(returns) * np.sqrt(252 / holding_days) if np.std(returns) > 0 else 0
 
         return SignalBacktestResult(
             signal_type=signal_type,
