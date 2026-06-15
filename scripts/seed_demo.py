@@ -65,7 +65,7 @@ def generate_demo_db(output_path: Path | None = None) -> Path:
         for day_offset in range(200):
             import datetime
             d = datetime.date(2025, 9, 1) + datetime.timedelta(days=day_offset)
-            date = d.strftime("%Y.%m.%d")
+            date = d.strftime("%Y-%m-%d")
 
             change = random.gauss(0, 0.02) + 0.0005
             if day_offset > 180:
