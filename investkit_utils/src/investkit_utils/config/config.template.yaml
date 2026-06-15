@@ -1,0 +1,160 @@
+# InvestKit 共享配置模板
+# 各项目可继承此配置并覆盖特定值
+
+# ============================================================
+# 应用基础配置
+# ============================================================
+app:
+  name: "investkit-app"
+  version: "1.0.0"
+  debug: false
+  environment: "development"  # development, staging, production
+
+# ============================================================
+# 日志配置 (统一格式)
+# ============================================================
+logging:
+  level: "INFO"               # DEBUG, INFO, WARNING, ERROR, CRITICAL
+  format: "json"              # json, text
+  output:
+    console: true
+    file: false
+    path: "logs/app.log"
+  rotation:
+    enabled: true
+    max_bytes: 10485760       # 10MB
+    backup_count: 5
+  fields:
+    include_timestamp: true
+    include_level: true
+    include_module: true
+    include_correlation_id: true
+
+# ============================================================
+# 数据库配置
+# ============================================================
+database:
+  type: "sqlite"              # sqlite, postgresql, mysql
+  sqlite:
+    path: "data/app.db"
+  postgresql:
+    host: "localhost"
+    port: 5432
+    name: "investkit"
+    user: "${POSTGRES_USER}"
+    password: "${POSTGRES_PASSWORD}"
+  pool:
+    size: 5
+    max_overflow: 10
+    pool_timeout: 30
+
+# ============================================================
+# 缓存配置
+# ============================================================
+cache:
+  enabled: true
+  type: "memory"              # memory, redis
+  ttl: 3600                   # 默认缓存时间 (秒)
+  redis:
+    host: "localhost"
+    port: 6379
+    db: 0
+    password: "${REDIS_PASSWORD}"
+
+# ============================================================
+# API 配置
+# ============================================================
+api:
+  host: "0.0.0.0"
+  port: 8000
+  workers: 1
+  cors:
+    enabled: true
+    origins: ["*"]
+    methods: ["GET", "POST", "PUT", "DELETE"]
+    headers: ["*"]
+  rate_limit:
+    enabled: true
+    requests_per_minute: 60
+  docs:
+    enabled: true
+    path: "/docs"
+    redoc_path: "/redoc"
+
+# ============================================================
+# LLM 配置
+# ============================================================
+llm:
+  default_provider: "ollama"  # openai, anthropic, ollama
+  providers:
+    openai:
+      api_key: "${OPENAI_API_KEY}"
+      model: "gpt-4"
+      temperature: 0.7
+      max_tokens: 2000
+    anthropic:
+      api_key: "${ANTHROPIC_API_KEY}"
+      model: "claude-3-opus-20240229"
+      temperature: 0.7
+      max_tokens: 2000
+    ollama:
+      base_url: "http://localhost:11434"
+      model: "llama3"
+      temperature: 0.7
+
+# ============================================================
+# 数据源配置
+# ============================================================
+data_sources:
+  akshare:
+    enabled: true
+    retry_count: 3
+    retry_delay: 1
+    timeout: 30
+  alpha_vantage:
+    enabled: false
+    api_key: "${ALPHA_VANTAGE_API_KEY}"
+    rate_limit: 5              # requests per minute
+
+# ============================================================
+# ML 配置
+# ============================================================
+ml:
+  model_path: "models/"
+  features:
+    count: 51
+    cache_enabled: true
+  training:
+    test_size: 0.2
+    cross_validation: 5
+    random_state: 42
+  prediction:
+    batch_size: 100
+    confidence_threshold: 0.6
+
+# ============================================================
+# 监控配置
+# ============================================================
+monitoring:
+  metrics:
+    enabled: true
+    port: 9090
+  health_check:
+    enabled: true
+    path: "/health"
+  tracing:
+    enabled: false
+    sample_rate: 0.1
+
+# ============================================================
+# 安全配置
+# ============================================================
+security:
+  api_key:
+    header_name: "X-API-Key"
+    enabled: false
+  jwt:
+    enabled: false
+    secret: "${JWT_SECRET}"
+    algorithm: "HS256"
+    expire_minutes: 60
