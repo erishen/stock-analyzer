@@ -38,7 +38,7 @@ sys.path.insert(0, str(PROJECT_ROOT / "src"))
 STATIC_DIR = Path(__file__).parent / "static"
 ASSETS_DIR = STATIC_DIR / "assets"
 
-db_path = get_stock_analysis_db_path()
+db_path = Path(get_stock_analysis_db_path())
 
 
 @asynccontextmanager
