@@ -69,4 +69,4 @@ exclude_lines = [
 show_missing = true
 
 [tool.uv.sources]
-investkit-utils = { workspace = true }
+investkit-utils = { git = "https://github.com/erishen/investkit-utils.git", subdirectory = "libs/investkit_utils" }
