@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: stock-analyzer-demo
+    runtime: python
+    repo: https://github.com/erishen/stock-analyzer
+    plan: free
+    buildCommand: pip install -U uv && uv sync --extra web --reinstall-package stock-analyzer --no-dev --no-cache && uv run python scripts/seed_demo.py
+    startCommand: uv run stock-analyzer web --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/stats
+    envVars:
+      - key: STOCK_ANALYSIS_DB_PATH
+        value: data/stock_analysis.db

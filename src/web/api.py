@@ -320,6 +320,7 @@ async def get_sector():
                     "sector": r.sector,
                     "signal": r.signal.value,
                     "score": round(r.score, 2),
+                    "confidence": round(r.score, 2),
                     "reason": r.reason,
                 }
             )
