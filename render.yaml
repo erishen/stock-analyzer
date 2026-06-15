@@ -9,4 +9,4 @@ services:
     healthCheckPath: /api/stats
     envVars:
       - key: STOCK_ANALYSIS_DB_PATH
-        value: data/stock_analysis.db
+        value: /opt/render/project/src/data/stock_analysis.db
