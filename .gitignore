@@ -60,9 +60,9 @@ frontend/vite.config.d.ts
 !frontend/postcss.config.js
 !frontend/tailwind.config.js
 
-# Web static (built from frontend)
-src/web/static/assets/
-src/web/static/index.html
+# Web static (built from frontend) — committed for Render deploy
+# src/web/static/assets/
+# src/web/static/index.html
 
 # OS files
 .DS_Store
