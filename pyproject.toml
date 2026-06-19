@@ -69,4 +69,4 @@ exclude_lines = [
 show_missing = true
 
 [tool.uv.sources]
-investkit-utils = { path = "investkit_utils" }
+investkit-utils = { workspace = true }
