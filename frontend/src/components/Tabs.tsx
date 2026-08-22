@@ -6,11 +6,16 @@ interface TabsProps {
 }
 
 const tabs = [
+  { id: 'agent', label: '🤖 AI 选股' },
+  { id: 'stocks', label: '📋 股票数据' },
   { id: 'scan', label: '🔍 信号扫描' },
+  { id: 'paper', label: '📒 模拟仓' },
+  { id: 'market', label: '📈 市场分析' },
   { id: 'backtest', label: '📊 策略回测' },
   { id: 'portfolio', label: '📦 组合分析' },
   { id: 'sector', label: '🏭 行业轮动' },
-  { id: 'timing', label: '⏰ 大盘择时' },
+  { id: 'dict', label: '📖 术语字典' },
+  { id: 'settings', label: '⚙️ 设置' },
 ]
 
 export const Tabs: FC<TabsProps> = ({ activeTab, onTabChange }) => {

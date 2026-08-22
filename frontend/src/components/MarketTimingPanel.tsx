@@ -1,18 +1,19 @@
-import { FC, useState } from 'react'
+import { FC, useState, useEffect } from 'react'
 import ReactECharts from 'echarts-for-react'
 import type { MarketTimingResult } from '@/types'
 import { api } from '@/services/api'
+import { IndicatorGuide } from './IndicatorGuide'
 
 export const MarketTimingPanel: FC = () => {
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<MarketTimingResult | null>(null)
   const [error, setError] = useState('')
 
-  const handleAnalyze = async () => {
+  const handleAnalyze = async (refresh = false) => {
     setLoading(true)
     setError('')
     try {
-      const data = await api.getMarketTiming()
+      const data = await api.getMarketTiming(refresh)
       setResult(data)
     } catch (e) {
       setError((e as Error).message)
@@ -21,10 +22,15 @@ export const MarketTimingPanel: FC = () => {
     }
   }
 
+  // 挂载时自动加载 (走后端缓存瞬显)
+  useEffect(() => {
+    handleAnalyze(false)
+  }, [])
+
   const getStateInfo = (state: string) => {
     switch (state) {
-      case 'bull': return { label: '牛市', color: 'text-green-600', bgColor: 'bg-green-100' }
-      case 'bear': return { label: '熊市', color: 'text-red-600', bgColor: 'bg-red-100' }
+      case 'bull': return { label: '牛市', color: 'text-red-600', bgColor: 'bg-red-100' }
+      case 'bear': return { label: '熊市', color: 'text-green-600', bgColor: 'bg-green-100' }
       default: return { label: '震荡', color: 'text-yellow-600', bgColor: 'bg-yellow-100' }
     }
   }
@@ -62,8 +68,8 @@ export const MarketTimingPanel: FC = () => {
 
   const getSignalColor = (signal: string): string => {
     switch (signal) {
-      case 'bullish': return 'bg-green-100 text-green-800'
-      case 'bearish': return 'bg-red-100 text-red-800'
+      case 'bullish': return 'bg-red-100 text-red-800'
+      case 'bearish': return 'bg-green-100 text-green-800'
       default: return 'bg-yellow-100 text-yellow-800'
     }
   }
@@ -73,13 +79,36 @@ export const MarketTimingPanel: FC = () => {
       <h2 className="text-xl font-semibold mb-1">大盘择时</h2>
       <p className="text-gray-500 text-sm mb-4">判断市场状态，指导仓位配置</p>
 
-      <button
-        onClick={handleAnalyze}
-        disabled={loading}
-        className="px-5 py-2 bg-violet-600 text-white rounded-md hover:bg-violet-700 disabled:opacity-50"
-      >
-        {loading ? '分析中...' : '分析大盘'}
-      </button>
+      <IndicatorGuide
+        items={[
+          { term: '综合评分', desc: '0-100 的市场强弱总分，越高代表当前市场越强势、越适合进攻' },
+          { term: '牛市/熊市/震荡', desc: '市场整体状态的判定：红=上涨趋势(可加仓)，绿=下跌趋势(宜防守)，黄=方向不明(控仓观望)' },
+          { term: '均线趋势', desc: '看多/看空均线排列，判断中线趋势方向' },
+          { term: 'RSI强弱', desc: '0-100 的动能指标，值越高短期越超买(过热)，越低越超卖(超跌)' },
+          { term: '市场广度', desc: '上涨股票占全市场的比例，反映行情是否普涨还是少数个股撑盘' },
+          { term: '波动率', desc: '市场的整体涨跌剧烈程度，越高代表风险越大' },
+          { term: '仓位建议', desc: '结合上述指标给出的进攻或防守的仓位操作参考' },
+        ]}
+      />
+
+      <div className="flex items-center gap-3">
+        <button
+          onClick={() => handleAnalyze(false)}
+          disabled={loading}
+          className="px-5 py-2 bg-violet-600 text-white rounded-md hover:bg-violet-700 disabled:opacity-50"
+        >
+          {loading ? '分析中...' : '分析大盘'}
+        </button>
+        {result && result.success && (
+          <button
+            onClick={() => handleAnalyze(true)}
+            disabled={loading}
+            className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 disabled:opacity-50"
+          >
+            重新计算
+          </button>
+        )}
+      </div>
 
       {error && (
         <div className="mt-4 p-4 bg-red-50 text-red-700 rounded-md">{error}</div>

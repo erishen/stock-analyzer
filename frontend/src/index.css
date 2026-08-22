@@ -19,3 +19,41 @@ body {
   min-width: 320px;
   min-height: 100vh;
 }
+
+/* AI 回答体: markdown 渲染样式 */
+.md-body {
+  line-height: 1.7;
+  word-break: break-word;
+}
+.md-body > *:first-child { margin-top: 0; }
+.md-body > *:last-child { margin-bottom: 0; }
+.md-body p { margin: 0.4em 0; }
+.md-body h1, .md-body h2, .md-body h3, .md-body h4 {
+  font-weight: 600;
+  margin: 0.9em 0 0.4em;
+  line-height: 1.3;
+}
+.md-body h1 { font-size: 1.25rem; }
+.md-body h2 { font-size: 1.1rem; }
+.md-body h3 { font-size: 1rem; }
+.md-body strong { font-weight: 600; }
+.md-body ul, .md-body ol { margin: 0.4em 0; padding-left: 1.4em; }
+.md-body li { margin: 0.15em 0; }
+.md-body code {
+  background: #f0f1f3;
+  padding: 0 0.3em;
+  border-radius: 4px;
+  font-size: 0.86em;
+}
+.md-body pre {
+  background: #1f2937;
+  color: #e5e7eb;
+  padding: 0.6em 0.8em;
+  border-radius: 8px;
+  overflow-x: auto;
+  margin: 0.5em 0;
+}
+.md-body pre code { background: transparent; padding: 0; }
+.md-body table { border-collapse: collapse; width: 100%; margin: 0.5em 0; font-size: 0.86em; }
+.md-body th, .md-body td { border: 1px solid #e5e7eb; padding: 0.35em 0.6em; text-align: left; }
+.md-body th { background: #f9fafb; font-weight: 500; }
