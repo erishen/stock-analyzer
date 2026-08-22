@@ -24,6 +24,10 @@ output/reports/*.json
 output/exports/*.csv
 output/exports/*.json
 
+# Runtime state from local-only data tooling (gitignored data_tools/) — never committed
+output/backfill_5y_state.json
+output/bj_codes.txt
+
 # Keep output directories
 !output/.gitkeep
 !output/charts/.gitkeep
@@ -32,10 +36,21 @@ output/exports/*.json
 
 # Database (runtime data)
 *.db.backup_*
-data/asset_lens.db
+*.db-shm
+*.db-wal
 data/stock_analysis.db
 data/stock_klines.db
 data/stock_info_cache.json
+
+# Runtime user data (privacy: LLM keys, paper-trading holdings, caches)
+# These are generated locally and MUST NOT be committed - git add . would otherwise leak them
+data/llm_settings.json
+data/paper_portfolio.json
+data/cache/
+data/asset_snapshot.db
+
+# Local-only data tooling (fetch/backfill/cron helpers) — NEVER pushed to GitHub
+data_tools/
 
 # Coverage
 .coverage

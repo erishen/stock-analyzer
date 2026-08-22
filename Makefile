@@ -1,4 +1,4 @@
-.PHONY: help install deps sync-data fetch fetch-sample etl scan visualize analyze accuracy score monitor trade-report export market-timing compare sector sector-validate portfolio portfolio-sharpe web web-dev web-build web-public backtest backtest-momentum backtest-reversion backtest-trend backtest-multifactor backtest-optimized backtest-viz backtest-full backtest-benchmark optimize optimize-momentum optimize-reversion db-optimize stats test test-cov lint format clean
+.PHONY: help install deps sync-env fetch fetch-sample etl scan visualize analyze accuracy score monitor trade-report export market-timing compare sector sector-validate portfolio portfolio-sharpe web dev web-dev web-build web-public backtest backtest-momentum backtest-reversion backtest-trend backtest-multifactor backtest-optimized backtest-viz backtest-full backtest-benchmark optimize optimize-momentum optimize-reversion db-optimize stats test test-cov lint format clean
 
 help:
 	@echo "Stock Analyzer - 股票数据分析工具"
@@ -8,10 +8,10 @@ help:
 	@echo "命令:"
 	@echo "  install     安装依赖"
 	@echo "  deps        同步依赖"
-	@echo "  fetch       获取股票 K 线数据 (全市场)"
+	@echo "  fetch       获取股票 K 线数据 (全市场, 同时自动刷新资产快照)"
 	@echo "  fetch-sample 获取样本数据 (10只股票)"
 	@echo "  fetch-codes 获取指定股票数据"
-	@echo "  sync-data   从外部数据库同步"
+	@echo "  asset-snapshot 拉取并更新全市场资产快照 (市值/股本/估值)"
 	@echo "  sync-env    从外部项目同步环境变量"
 	@echo "  refresh-names 刷新股票名称缓存"
 	@echo "  etl         运行 ETL 数据管道"
@@ -30,6 +30,7 @@ help:
 	@echo "  portfolio   多策略组合回测"
 	@echo "  portfolio-sharpe  夏普加权组合回测"
 	@echo "  web         启动 Web 界面 (生产模式)"
+	@echo "  dev         开发模式: 后端 + 前端 Vite 热更新 (Ctrl+C 一键停止)"
 	@echo "  web-dev     启动 Web 界面 (开发模式，热更新)"
 	@echo "  web-build   构建 React 前端"
 	@echo "  web-public  启动 Web 界面 (公开访问)"
@@ -54,7 +55,7 @@ help:
 	@echo "  clean       清理缓存文件"
 
 install:
-	uv sync --extra dev
+	uv sync --extra dev --extra web
 
 deps:
 	uv sync
@@ -72,14 +73,15 @@ fetch-codes:
 	@read -p "输入股票代码(逗号分隔): " codes; \
 	uv run python -m src.main fetch --codes $$codes
 
-sync-data:
-	@echo "使用方法:"
-	@echo "  make sync-data SOURCE=/path/to/stock_data.db"
-	@echo "  或设置环境变量: export SYNC_DB_SOURCE=/path/to/stock_data.db"
+asset-snapshot:
+	@echo "拉取全市场资产快照 (市值/股本/估值)..."
+	@echo "用法: make asset-snapshot   (东财优先, 限流自动回退腾讯)"
+	@echo "      make asset-snapshot SOURCE=tencent   (强制腾讯源)"
+	@echo "      make asset-snapshot SOURCE=eastmoney (强制东财源)"
 	@if [ -n "$(SOURCE)" ]; then \
-		uv run python -m src.main sync --source $(SOURCE); \
+		uv run python -m src.main asset-snapshot --source $(SOURCE); \
 	else \
-		uv run python -m src.main sync; \
+		uv run python -m src.main asset-snapshot; \
 	fi
 
 sync-env:
@@ -92,18 +94,15 @@ sync-env:
 		uv run python -m src.main sync-env; \
 	fi
 
-sync-and-etl:
-	@if [ -n "$(SOURCE)" ]; then \
-		uv run python -m src.main sync --source $(SOURCE) --run-etl; \
-	else \
-		uv run python -m src.main sync --run-etl; \
-	fi
-
 refresh-names:
 	uv run python -m src.main refresh-names
 
 etl:
 	uv run python -m src.main etl
+
+daily-update:
+	@echo "每日增量更新: 活跃股票增量拉取 -> 增量 ETL -> 信号扫描"
+	uv run python data_tools/daily_update.py
 
 etl-codes:
 	@read -p "输入股票代码(逗号分隔): " codes; \
@@ -207,6 +206,46 @@ web:
 	uv sync --extra web
 	cd frontend && npm install && npm run build
 	uv run python -m src.main web
+
+dev:
+	@backend_port=$$(grep -E '^WEB_PORT=' .env 2>/dev/null | cut -d= -f2 | tr -d ' '); \
+	backend_port=$${backend_port:-8001}; \
+	frontend_port=$$(grep -E '^VITE_PORT=' .env 2>/dev/null | cut -d= -f2 | tr -d ' '); \
+	frontend_port=$${frontend_port:-3000}; \
+	echo "开发模式: 后端 http://127.0.0.1:$$backend_port + 前端 http://localhost:$$frontend_port (热更新)"; \
+	echo "Ctrl+C 一次性停止前后端"; \
+	for port in $$backend_port $$frontend_port; do \
+		pids=$$(lsof -ti :$$port 2>/dev/null); \
+		if [ -n "$$pids" ]; then \
+			echo "清理端口 $$port 上的残留进程 (PID: $$pids)"; \
+			echo "$$pids" | xargs kill 2>/dev/null || true; \
+		fi; \
+	done; \
+	sleep 1
+	@uv sync --extra web >/dev/null 2>&1 || uv sync --extra web
+	@cd frontend && npm install --silent 2>/dev/null || npm install
+	@backend_port=$$(grep -E '^WEB_PORT=' .env 2>/dev/null | cut -d= -f2 | tr -d ' '); \
+	backend_port=$${backend_port:-8001}; \
+	trap 'echo ""; echo "🛑 正在停止服务..."; bp=$$(grep -E "^WEB_PORT=" .env 2>/dev/null | cut -d= -f2 | tr -d " "); bp=$${bp:-8001}; fp=$$(grep -E "^VITE_PORT=" .env 2>/dev/null | cut -d= -f2 | tr -d " "); fp=$${fp:-3000}; for p in $$bp $$fp; do pids=$$(lsof -ti :$$p 2>/dev/null); if [ -n "$$pids" ]; then echo "清理端口 $$p (PID: $$pids)"; echo "$$pids" | xargs kill 2>/dev/null || true; fi; done; sleep 1; for p in $$bp $$fp; do pids=$$(lsof -ti :$$p 2>/dev/null); if [ -n "$$pids" ]; then echo "强制清理端口 $$p"; echo "$$pids" | xargs kill -9 2>/dev/null || true; fi; done' INT TERM EXIT; \
+	echo "🚀 启动后端..."; \
+	uv run python -m src.main web & \
+	BACKEND_PID=$$!; \
+	echo "⏳ 等待后端就绪 (http://127.0.0.1:$$backend_port)"; \
+	ready=0; \
+	for i in $$(seq 1 60); do \
+		if curl -sf -m 3 -o /dev/null "http://127.0.0.1:$$backend_port/docs"; then ready=1; break; fi; \
+		if ! kill -0 $$BACKEND_PID 2>/dev/null; then echo "❌ 后端启动失败"; break; fi; \
+		sleep 1; \
+	done; \
+	if [ $$ready -eq 1 ]; then \
+		echo "✅ 后端就绪, 启动前端..."; \
+		cd frontend && npm run dev & \
+		FRONTEND_PID=$$!; \
+	else \
+		echo "❌ 后端未就绪, 不启动前端"; \
+		exit 1; \
+	fi; \
+	wait
 
 web-dev:
 	uv sync --extra web

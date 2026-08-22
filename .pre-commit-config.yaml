@@ -25,3 +25,13 @@ repos:
         additional_dependencies: [types-requests, types-pyyaml]
         args: [--ignore-missing-imports]
         pass_filenames: false
+
+  # 密钥/敏感信息提交前扫描（防御纵深：拦 LLM_API_KEY/WEB_CHAT_TOKEN 等通用令牌，
+  # 弥补 detect-private-key 仅能拦 SSH 私钥的不足）。基线 .secrets.baseline 已排除
+  # .env / data/ 等含真实凭据的路径，且仓库本身扫描结果为 0 命中。
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.5.0
+    hooks:
+      - id: detect-secrets
+        args: ['--baseline', '.secrets.baseline']
+        pass_filenames: false
