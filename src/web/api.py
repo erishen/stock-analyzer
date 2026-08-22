@@ -111,6 +111,24 @@ def _chat_auth_required(request: Request, authorization: str | None = Header(def
         raise HTTPException(status_code=401, detail="认证失败: 无效或缺失令牌")
 
 
+def _require_settings_local(request: Request):
+    """模型设置接口仅允许本地(localhost)访问。
+
+    Render 等公网/共享部署下, 设置接口返回 403 使其不可用, 避免全局 LLM 配置
+    (含明文 api_key) 被任意访问者读取或篡改。
+    如需在远程临时开启(例如一次性配置后关闭), 设置环境变量 SETTINGS_REMOTE_ALLOW=1。
+    """
+    host = (request.client.host if request.client else "") or ""
+    if _is_loopback(host):
+        return
+    if os.environ.get("SETTINGS_REMOTE_ALLOW", "").strip() == "1":
+        return
+    raise HTTPException(
+        status_code=403,
+        detail={"disabled": True, "message": "模型设置仅在本地(localhost)部署可用"},
+    )
+
+
 @app.get("/", response_class=HTMLResponse)
 async def index():
     """主页"""
@@ -258,7 +276,7 @@ async def agent_chat(req: AgentChatRequest, _: None = Depends(_chat_auth_require
     return JSONResponse(content=result, status_code=status)
 
 
-@app.get("/api/agent/settings")
+@app.get("/api/agent/settings", dependencies=[Depends(_require_settings_local)])
 async def agent_settings():
     """读取当前 LLM 配置(供设置 Tab 展示)。api_key 脱敏返回。"""
     try:
@@ -277,7 +295,7 @@ async def agent_settings():
     })
 
 
-@app.post("/api/agent/settings")
+@app.post("/api/agent/settings", dependencies=[Depends(_require_settings_local)])
 async def agent_settings_save(req: LLMSettingsRequest):
     """保存运行时 LLM 配置覆盖。空字段表示该项沿用 .env 默认。"""
     try:
@@ -296,7 +314,7 @@ async def agent_settings_save(req: LLMSettingsRequest):
     return JSONResponse(content={"success": True, "message": "已保存, 下次问答生效"})
 
 
-@app.post("/api/agent/settings/reset")
+@app.post("/api/agent/settings/reset", dependencies=[Depends(_require_settings_local)])
 async def agent_settings_reset():
     """清除运行时覆盖, 恢复使用 .env 配置。"""
     try:

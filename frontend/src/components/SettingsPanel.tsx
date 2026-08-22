@@ -9,10 +9,16 @@ export const SettingsPanel: FC = () => {
   const [masked, setMasked] = useState('')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [disabled, setDisabled] = useState(false)
   const [msg, setMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null)
 
   useEffect(() => {
     api.getLLMSettings().then((s) => {
+      if (s && (s.disabled || (s.detail && s.detail.disabled))) {
+        setDisabled(true)
+        setLoading(false)
+        return
+      }
       setBaseUrl(s.base_url || '')
       setModel(s.model || '')
       setConfigured(s.configured_api_key)
@@ -67,6 +73,18 @@ export const SettingsPanel: FC = () => {
 
   if (loading) {
     return <div className="bg-white rounded-lg p-6 shadow-sm text-gray-500">加载配置中...</div>
+  }
+
+  if (disabled) {
+    return (
+      <div className="bg-white rounded-lg p-6 shadow-sm max-w-2xl">
+        <h2 className="text-lg font-semibold mb-2">⚙️ 模型配置</h2>
+        <p className="text-sm text-gray-500">
+          模型设置仅在本地（localhost）部署可用。当前为公网/共享部署，为保证 LLM 配置（含 API Key）安全，设置功能已禁用。
+          如需修改，请在本地运行后于设置中调整，或直接在服务器 <code>.env</code> 中配置 <code>LLM_API_KEY</code> / <code>LLM_BASE_URL</code> / <code>LLM_MODEL</code>。
+        </p>
+      </div>
+    )
   }
 
   return (

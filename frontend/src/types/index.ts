@@ -418,4 +418,6 @@ export interface LLMSettings {
   model: string
   configured_api_key: boolean
   api_key_masked: string
+  disabled?: boolean
+  detail?: { disabled?: boolean; message?: string }
 }
