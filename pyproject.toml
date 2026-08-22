@@ -26,6 +26,7 @@ include = ["src*", "investkit_utils*"]
 
 [tool.setuptools.package-data]
 investkit_utils = ["**/*.yaml", "**/*.yml", "**/*.json"]
+"src.utils" = ["fonts/*.otf", "fonts/*.ttf"]
 
 [project.optional-dependencies]
 dev = [
