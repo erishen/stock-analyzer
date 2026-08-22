@@ -12,6 +12,7 @@ from typing import Any
 
 from . import llm, sqlsafety
 from . import schema as sa_schema
+from . import fallback as agent_fallback
 
 logger = logging.getLogger(__name__)
 
@@ -143,6 +144,25 @@ def run_question(
     context: 可选的附加上下文(如模拟仓持仓快照), 会注入到生成提示词。
     """
     history = history or []
+
+    # 未配置 LLM 凭证时(如公开 Demo 部署), 优先走确定性兜底, 让常见结构化问题
+    # (涨幅/跌幅 TOP N、RSI 超买/超卖) 也能返回真实数据, 而不是报"查询失败"。
+    # 兜底未命中时给出可操作的错误提示, 引导用户去配置凭证。
+    if not llm.get_llm_config().get("api_key"):
+        fb = agent_fallback.run_fallback(db_path, project_root, question)
+        if fb is not None:
+            return fb
+        return {
+            "success": False,
+            "error_code": "no_llm_key",
+            "message": (
+                "未配置 LLM 凭证，AI 选股无法调用大模型。"
+                "本地：在「设置」中填写 API Key；"
+                "云端部署：在环境变量设置 LLM_API_KEY / LLM_BASE_URL / LLM_MODEL 后重新部署。"
+            ),
+            "events": [],
+        }
+
     schema_text = sa_schema.describe_schema(project_root, db_path)
     if context:
         schema_text += "\n\n【额外背景 - 用户当前模拟仓持仓, 供你分析时参考】\n" + context

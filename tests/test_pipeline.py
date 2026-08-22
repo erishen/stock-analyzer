@@ -11,6 +11,16 @@ import pytest
 from agent import pipeline
 
 
+@pytest.fixture(autouse=True)
+def _fake_llm_key(monkeypatch):
+    """现有用例通过 monkeypatch agent.llm.chat_json 模拟已配置的 LLM。
+
+    run_question 在无凭证时会走兜底/报错分支、不再调用 chat_json, 会让这些用例失效;
+    这里注入一个 dummy key, 使「已配置 LLM」这一前置条件成立。
+    """
+    monkeypatch.setenv("LLM_API_KEY", "test-key-for-pipeline-tests")
+
+
 @pytest.fixture()
 def project(tmp_path):
     """临时 project_root: 用于描述 schema, 不需要真实缓存文件。"""
@@ -19,17 +29,17 @@ def project(tmp_path):
 
 @pytest.fixture()
 def db_path(tmp_path):
-    """临时 stock_analysis 表, 含两行样例行有真实查询。"""
+    """临时 stock_analysis 表, 含两行样例行有真实查询(含 rsi, 供兜底 SQL 使用)。"""
     path = tmp_path / "test.db"
     conn = sqlite3.connect(path)
     conn.execute(
-        "CREATE TABLE stock_analysis (code TEXT, date TEXT, close REAL, change_percent REAL)"
+        "CREATE TABLE stock_analysis (code TEXT, date TEXT, close REAL, change_percent REAL, rsi REAL)"
     )
     conn.executemany(
-        "INSERT INTO stock_analysis VALUES (?,?,?,?)",
+        "INSERT INTO stock_analysis VALUES (?,?,?,?,?)",
         [
-            ("600519", "2026-08-21", 1272.83, -1.45),
-            ("600519", "2026-08-20", 1291.55, 0.61),
+            ("600519", "2026-08-21", 1272.83, -1.45, 40.0),
+            ("600519", "2026-08-20", 1291.55, 0.61, 55.0),
         ],
     )
     conn.commit()
@@ -108,3 +118,26 @@ def test_run_question_fails_after_all_attempts(monkeypatch, db_path, project):
     res = pipeline.run_question(db_path, project, "测试问题")
     assert res["success"] is False
     assert "只读校验" in res["message"] or "多次尝试" in res["message"]
+
+
+def test_run_question_fallback_no_key(monkeypatch, db_path, project):
+    """无 LLM 凭证 + 命中常见意图(涨幅 TOP) -> 走兜底, 直接返回真实数据, 不调 LLM。"""
+    monkeypatch.setattr("agent.llm.get_llm_config", lambda: {"api_key": ""})
+    res = pipeline.run_question(db_path, project, "今天涨幅最大的 10 只股票有哪些？")
+    assert res["success"] is True
+    assert res["row_count"] >= 1
+    # 命中兜底分支(非 text2sql 全链路)
+    assert any(e["name"] == "fallback" for e in res["events"])
+    # 返回结构含前端所需字段
+    assert res["chart"] and res["chart"]["type"] == "bar"
+    assert res["followups"]
+    assert "最新交易日" in res["answer"]
+
+
+def test_run_question_no_llm_key_unmatched(monkeypatch, db_path, project):
+    """无 LLM 凭证 + 未命中兜底意图 -> 返回可操作的 no_llm_key 错误, 而非笼统失败。"""
+    monkeypatch.setattr("agent.llm.get_llm_config", lambda: {"api_key": ""})
+    res = pipeline.run_question(db_path, project, "帮我分析一下大盘整体走势")
+    assert res["success"] is False
+    assert res.get("error_code") == "no_llm_key"
+    assert "LLM" in res["message"]
