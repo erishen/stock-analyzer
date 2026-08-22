@@ -5,7 +5,9 @@ Stock Data Fetcher for Stock Analyzer.
 数据源: AkShare (开源免费，无需 API Key)
 """
 
+import json
 import logging
+import re
 import sqlite3
 import sys
 import time
@@ -53,6 +55,7 @@ class StockDataFetcher:
         self.db_path = Path(db_path)
         self._akshare = None
         self._conn = None
+        self._em_failures = 0  # 东财源连续失败计数(熔断用)
 
     @property
     def akshare(self):
@@ -108,31 +111,50 @@ class StockDataFetcher:
         self._conn.commit()
 
     def get_stock_list(self) -> list[dict]:
-        """获取 A 股股票列表"""
+        """获取 A 股股票列表 (东财源优先, 失败自动回退新浪源)"""
         try:
-            df = self.akshare.stock_zh_a_spot_em()
-            if df is None or df.empty:
-                return []
-
-            stocks = []
-            for _, row in df.iterrows():
-                code = row.get("代码", "")
-                name = row.get("名称", "")
-                if code and name and not code.startswith(("688", "300", "301")):
-                    stocks.append(
-                        {
-                            "code": code,
-                            "name": name,
-                        }
-                    )
-            return stocks
-        except requests.RequestException as e:
-            logger.error(f"获取股票列表失败: {e}")
-            return []
-
+            stocks = self._get_stock_list_em()
+            if stocks:
+                return stocks
+            raise ValueError("东财源返回空列表")
         except Exception as e:
-            logger.error(f"获取股票列表失败: {e}")
+            logger.warning(f"东财源获取股票列表失败({str(e)[:80]}), 回退新浪源...")
+        return self._get_stock_list_sina()
+
+    def _get_stock_list_em(self) -> list[dict]:
+        """东财源股票列表 (akshare stock_zh_a_spot_em, 纯6位代码)"""
+        df = self.akshare.stock_zh_a_spot_em()
+        if df is None or df.empty:
             return []
+        stocks = []
+        for _, row in df.iterrows():
+            code = str(row.get("代码", "")).strip()
+            name = str(row.get("名称", "")).strip()
+            if code and name and not code.startswith(("688", "300", "301")):
+                stocks.append({"code": code, "name": name})
+        return stocks
+
+    def _get_stock_list_sina(self) -> list[dict]:
+        """新浪源股票列表 (stock_zh_a_spot, 代码带 sh/sz/bj 前缀需规范化)"""
+        df = self.akshare.stock_zh_a_spot()
+        if df is None or df.empty:
+            return []
+        stocks = []
+        for _, row in df.iterrows():
+            code = self._normalize_code(str(row.get("代码", "")))
+            name = str(row.get("名称", "")).strip()
+            if code and name and not code.startswith(("688", "300", "301")):
+                stocks.append({"code": code, "name": name})
+        return stocks
+
+    @staticmethod
+    def _normalize_code(c: str) -> str:
+        """去掉 sh/sz/bj 等市场前缀, 只留纯6位代码。"""
+        c = c.lower().strip()
+        for p in ("sh", "sz", "bj", "sse.", "szse.", "bse."):
+            if c.startswith(p):
+                return c[len(p):]
+        return c
 
     def fetch_stock_klines(
         self,
@@ -150,6 +172,14 @@ class StockDataFetcher:
             end_date: 结束日期 (如 "20241231")
             adjust: 复权类型 ("qfq" 前复权, "hfq" 后复权, "" 不复权)
         """
+        # 北交所代码走新浪源 (东财/腾讯均无北交所 K 线)
+        if code.startswith(("43", "83", "87", "92")):
+            return self._fetch_bj_sina(code, start_date, end_date)
+
+        # 东财源连续失败达到阈值后熔断，本次运行剩余请求直接走腾讯源
+        if self._em_failures >= 10:
+            return self._fetch_from_tencent(code, start_date, end_date)
+
         try:
             df = self.akshare.stock_zh_a_hist(
                 symbol=code,
@@ -161,6 +191,8 @@ class StockDataFetcher:
 
             if df is None or df.empty:
                 return []
+
+            self._em_failures = 0
 
             records = []
             for _, row in df.iterrows():
@@ -183,16 +215,104 @@ class StockDataFetcher:
                     }
                 )
             return records
-        except requests.RequestException as e:
-            logger.error(f"获取 {code} K线数据失败: {e}")
-            return []
-
-        except ValueError as e:
-            logger.error(f"获取 {code} K线数据失败: {e}")
-            return []
-
+        except (requests.RequestException, ValueError) as e:
+            # 东财源失败(如 TLS 指纹拦截)，降级到腾讯源重试
+            self._em_failures += 1
+            if self._em_failures == 10:
+                logger.warning("东财源连续失败 10 次，本次运行剩余请求直接走腾讯源")
+            else:
+                logger.warning(f"东财源获取 {code} 失败({type(e).__name__})，尝试腾讯源...")
+            return self._fetch_from_tencent(code, start_date, end_date)
         except Exception as e:
             logger.error(f"获取 {code} K线数据失败: {e}")
+            return []
+
+    def _fetch_bj_sina(self, code: str, start_date: str | None, end_date: str | None) -> list[dict]:
+        """北交所新浪源 (腾讯 K 线接口无北交所数据, 东财被 TLS 拦截)
+
+        接口: CN_MarketDataService.getKLineData, volume 单位为股, 单次上限 1023 条。
+        成交额/换手率缺失填 0, 由 ETL/换手率补算模块处理。
+        """
+        try:
+            resp = requests.get(
+                "https://quotes.sina.cn/cn/api/jsonp_v2.php/var/CN_MarketDataService.getKLineData",
+                params={"symbol": f"bj{code}", "scale": 240, "ma": "no", "datalen": 1023},
+                headers={
+                    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                    "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36"
+                },
+                timeout=15,
+            )
+            m = re.search(r"\((\[.*\])\)", resp.text, re.S)
+            if not m:
+                return []
+            records = []
+            for row in json.loads(m.group(1)):
+                date_str = str(row["day"]).replace("/", "-")
+                if start_date and date_str.replace("-", "") < start_date:
+                    continue
+                if end_date and date_str.replace("-", "") > end_date:
+                    continue
+                records.append(
+                    {
+                        "code": code,
+                        "date": date_str,
+                        "open": float(row["open"]),
+                        "close": float(row["close"]),
+                        "high": float(row["high"]),
+                        "low": float(row["low"]),
+                        "volume": float(row["volume"]),
+                        "amount": 0.0,
+                    }
+                )
+            logger.info(f"✅ 新浪北交所源获取 {code} 成功: {len(records)} 条")
+            return records
+        except Exception as e:
+            logger.error(f"新浪北交所源获取 {code} 失败: {e}")
+            return []
+
+    def _fetch_from_tencent(
+        self, code: str, start_date: str | None, end_date: str | None
+    ) -> list[dict]:
+        """从腾讯源获取 K 线数据 (stock_zh_a_hist_tx 降级方案)
+
+        腾讯源返回列: date/open/close/high/low/amount，其中 amount 为成交量，
+        无成交额/振幅/换手率，缺失字段以 0 填充。
+
+        单位注意 (经成交额交叉验证): 科创板(688/689)返回的是股，其余板块返回的是手(×100 转股)。
+        """
+        try:
+            prefix = "sh" if code.startswith(("6", "9")) else "sz"
+            df = self.akshare.stock_zh_a_hist_tx(
+                symbol=f"{prefix}{code}",
+                start_date=start_date or "20200101",
+                end_date=end_date or datetime.now().strftime("%Y%m%d"),
+            )
+            if df is None or df.empty:
+                return []
+
+            is_star = code.startswith(("688", "689"))  # 科创板: 源已是股
+            records = []
+            for _, row in df.iterrows():
+                d = row.get("date", "")
+                date_str = d.strftime("%Y-%m-%d") if hasattr(d, "strftime") else str(d)
+                vol = float(row.get("amount", 0))
+                records.append(
+                    {
+                        "code": code,
+                        "date": date_str,
+                        "open": float(row.get("open", 0)),
+                        "close": float(row.get("close", 0)),
+                        "high": float(row.get("high", 0)),
+                        "low": float(row.get("low", 0)),
+                        "volume": vol if is_star else vol * 100,  # 手 -> 股 (科创板已是股)
+                        "amount": 0.0,
+                    }
+                )
+            logger.info(f"✅ 腾讯源获取 {code} 成功: {len(records)} 条")
+            return records
+        except Exception as e:
+            logger.error(f"腾讯源获取 {code} K线数据失败: {e}")
             return []
 
     def save_klines(self, records: list[dict]):

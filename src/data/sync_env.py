@@ -10,11 +10,15 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 
-def sync_env_from_external(source_path: str | Path | None = None) -> dict:
+def sync_env_from_external(
+    source_path: str | Path | None = None,
+    target_path: str | Path | None = None,
+) -> dict:
     """从外部项目同步 .env 文件
 
     Args:
         source_path: 源 .env 文件路径，如未指定则从环境变量 SYNC_ENV_SOURCE 获取
+        target_path: 目标 .env 文件路径，默认为项目根目录 .env
 
     Returns:
         同步结果字典
@@ -29,7 +33,7 @@ def sync_env_from_external(source_path: str | Path | None = None) -> dict:
         }
 
     source_env = Path(source_path)
-    target_env = Path(__file__).parent.parent.parent / ".env"
+    target_env = Path(target_path) if target_path else Path(__file__).parent.parent.parent / ".env"
 
     if not source_env.exists():
         return {
@@ -59,17 +63,21 @@ def sync_env_from_external(source_path: str | Path | None = None) -> dict:
         }
 
 
-def run_sync_env(source_path: str | Path | None = None) -> dict:
+def run_sync_env(
+    source_path: str | Path | None = None,
+    target_path: str | Path | None = None,
+) -> dict:
     """运行同步
 
     Args:
         source_path: 源 .env 文件路径
+        target_path: 目标 .env 文件路径，默认为项目根目录 .env
     """
     logger.info("\n" + "=" * 60)
     logger.info("🔄 同步环境变量")
     logger.info("=" * 60)
 
-    result = sync_env_from_external(source_path)
+    result = sync_env_from_external(source_path, target_path=target_path)
 
     if result["success"]:
         logger.info(f"\n✅ {result['message']}")

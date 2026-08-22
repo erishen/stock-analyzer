@@ -171,6 +171,11 @@ class StockInfoFetcher:
             result[code] = info.name if info.name else code
         return result
 
+    def get_cached_name(self, code: str) -> str:
+        """仅从本地缓存取名称 (不触发网络请求), 未命中返回空串"""
+        info = self._cache.get(code)
+        return info.name if info and info.name else ""
+
     def refresh_cache(self) -> int:
         """刷新缓存"""
         stocks = self.fetch_all_stock_list()
