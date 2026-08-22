@@ -20,6 +20,7 @@ from pathlib import Path
 from typing import Any
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
+import numpy as np
 import pandas as pd
 
 from config import get_stock_analysis_db_path
@@ -130,65 +131,51 @@ class SignalDetector:
         if len(df) < 30:
             return []
 
-        signals = []
-        latest = df.iloc[-1]
+        # 一次性提取最近两行(转为 dict), 供基于"最近一两行"信号的子检测器复用,
+        # 避免每个子检测器各自重复 df.iloc[-1] 构建 Series 的开销。
+        latest = df.iloc[-1].to_dict()
+        prev = df.iloc[-2].to_dict() if len(df) > 1 else latest
 
         code = latest.get("code", "")
         date = latest.get("date", "")
-        price = float(latest.get("close", 0))
-        change_percent = float(latest.get("change_percent", 0))
+        price = float(latest.get("close", 0) or 0)
+        change_percent = float(latest.get("change_percent", 0) or 0)
 
-        macd_signals = self._detect_macd_signals(df, code, date, price, change_percent)
-        signals.extend(macd_signals)
+        # 5 日动量在给每个信号打分时都会用到, 提前算一次避免重复计算
+        momentum_5d = df["close"].iloc[-1] / df["close"].iloc[-5] - 1 if len(df) >= 5 else 0.0
 
-        kdj_signals = self._detect_kdj_signals(df, code, date, price, change_percent)
-        signals.extend(kdj_signals)
+        signals = []
+        # 基于最近行状态的信号 (latest/prev 均为 dict)
+        for fn, la, pv in (
+            (self._detect_macd_signals, latest, prev),
+            (self._detect_kdj_signals, latest, prev),
+            (self._detect_ma_signals, latest, prev),
+            (self._detect_rsi_signals, latest, prev),
+            (self._detect_boll_signals, latest, prev),
+            (self._detect_volume_signals, latest, prev),
+            (self._detect_trend_signals, latest, prev),
+            (self._detect_williams_signals, latest, prev),
+            (self._detect_pattern_signals, latest, prev),
+            (self._detect_multi_period_signals, latest, prev),
+            (self._detect_price_volume_signals, latest, prev),
+        ):
+            signals.extend(fn(df, code, date, price, change_percent, la, pv))
 
-        ma_signals = self._detect_ma_signals(df, code, date, price, change_percent)
-        signals.extend(ma_signals)
-
-        rsi_signals = self._detect_rsi_signals(df, code, date, price, change_percent)
-        signals.extend(rsi_signals)
-
-        boll_signals = self._detect_boll_signals(df, code, date, price, change_percent)
-        signals.extend(boll_signals)
-
-        volume_signals = self._detect_volume_signals(df, code, date, price, change_percent)
-        signals.extend(volume_signals)
-
-        trend_signals = self._detect_trend_signals(df, code, date, price, change_percent)
-        signals.extend(trend_signals)
-
-        williams_signals = self._detect_williams_signals(df, code, date, price, change_percent)
-        signals.extend(williams_signals)
-
-        cci_signals = self._detect_cci_signals(df, code, date, price, change_percent)
-        signals.extend(cci_signals)
-
-        atr_signals = self._detect_atr_signals(df, code, date, price, change_percent)
-        signals.extend(atr_signals)
-
-        pattern_signals = self._detect_pattern_signals(df, code, date, price, change_percent)
-        signals.extend(pattern_signals)
-
-        multi_period_signals = self._detect_multi_period_signals(df, code, date, price, change_percent)
-        signals.extend(multi_period_signals)
-
-        price_volume_signals = self._detect_price_volume_signals(df, code, date, price, change_percent)
-        signals.extend(price_volume_signals)
+        # 基于滑动窗口向量化计算的信号 (不依赖 latest/prev dict)
+        signals.extend(self._detect_cci_signals(df, code, date, price, change_percent))
+        signals.extend(self._detect_atr_signals(df, code, date, price, change_percent))
 
         for signal in signals:
-            signal.score = self._calculate_signal_score(signal, df)
+            signal.score = self._calculate_signal_score(signal, momentum_5d)
 
         return signals
 
     def _detect_macd_signals(
-        self, df: pd.DataFrame, code: str, date: str, price: float, change_percent: float
+        self, df: pd.DataFrame, code: str, date: str, price: float,
+        change_percent: float, latest: dict, prev: dict,
     ) -> list[Signal]:
         """检测 MACD 信号"""
         signals = []
-        latest = df.iloc[-1]
-        prev = df.iloc[-2] if len(df) > 1 else latest
 
         macd = latest.get("macd", 0) or 0
         macd_signal = latest.get("macd_signal", 0) or 0
@@ -228,12 +215,11 @@ class SignalDetector:
         return signals
 
     def _detect_kdj_signals(
-        self, df: pd.DataFrame, code: str, date: str, price: float, change_percent: float
+        self, df: pd.DataFrame, code: str, date: str, price: float,
+        change_percent: float, latest: dict, prev: dict,
     ) -> list[Signal]:
         """检测 KDJ 信号"""
         signals = []
-        latest = df.iloc[-1]
-        prev = df.iloc[-2] if len(df) > 1 else latest
 
         kdj_k = latest.get("kdj_k", 50) or 50
         kdj_d = latest.get("kdj_d", 50) or 50
@@ -273,12 +259,11 @@ class SignalDetector:
         return signals
 
     def _detect_ma_signals(
-        self, df: pd.DataFrame, code: str, date: str, price: float, change_percent: float
+        self, df: pd.DataFrame, code: str, date: str, price: float,
+        change_percent: float, latest: dict, prev: dict,
     ) -> list[Signal]:
         """检测均线信号"""
         signals = []
-        latest = df.iloc[-1]
-        prev = df.iloc[-2] if len(df) > 1 else latest
 
         ma5 = latest.get("ma5", price) or price
         ma20 = latest.get("ma20", price) or price
@@ -314,12 +299,11 @@ class SignalDetector:
         return signals
 
     def _detect_rsi_signals(
-        self, df: pd.DataFrame, code: str, date: str, price: float, change_percent: float
+        self, df: pd.DataFrame, code: str, date: str, price: float,
+        change_percent: float, latest: dict, prev: dict,
     ) -> list[Signal]:
         """检测 RSI 信号"""
         signals = []
-        latest = df.iloc[-1]
-
         rsi = latest.get("rsi", 50) or 50
 
         if rsi < 30:
@@ -353,12 +337,11 @@ class SignalDetector:
         return signals
 
     def _detect_boll_signals(
-        self, df: pd.DataFrame, code: str, date: str, price: float, change_percent: float
+        self, df: pd.DataFrame, code: str, date: str, price: float,
+        change_percent: float, latest: dict, prev: dict,
     ) -> list[Signal]:
         """检测布林带信号"""
         signals = []
-        latest = df.iloc[-1]
-        prev = df.iloc[-2] if len(df) > 1 else latest
 
         boll_upper = latest.get("boll_upper", price) or price
         boll_lower = latest.get("boll_lower", price) or price
@@ -403,12 +386,11 @@ class SignalDetector:
         return signals
 
     def _detect_volume_signals(
-        self, df: pd.DataFrame, code: str, date: str, price: float, change_percent: float
+        self, df: pd.DataFrame, code: str, date: str, price: float,
+        change_percent: float, latest: dict, prev: dict,
     ) -> list[Signal]:
         """检测成交量信号"""
         signals = []
-        latest = df.iloc[-1]
-
         volume = latest.get("volume", 0) or 0
         turnover_rate = latest.get("turnover_rate", 0) or 0
 
@@ -436,12 +418,11 @@ class SignalDetector:
         return signals
 
     def _detect_trend_signals(
-        self, df: pd.DataFrame, code: str, date: str, price: float, change_percent: float
+        self, df: pd.DataFrame, code: str, date: str, price: float,
+        change_percent: float, latest: dict, prev: dict,
     ) -> list[Signal]:
         """检测趋势信号"""
         signals = []
-        latest = df.iloc[-1]
-
         ma5 = latest.get("ma5", price) or price
         ma10 = latest.get("ma10", price) or price
         ma20 = latest.get("ma20", price) or price
@@ -475,7 +456,8 @@ class SignalDetector:
         return signals
 
     def _detect_williams_signals(
-        self, df: pd.DataFrame, code: str, date: str, price: float, change_percent: float
+        self, df: pd.DataFrame, code: str, date: str, price: float,
+        change_percent: float, latest: dict, prev: dict,
     ) -> list[Signal]:
         """检测威廉指标信号"""
         signals = []
@@ -484,7 +466,6 @@ class SignalDetector:
 
         high_14 = df["high"].iloc[-14:].max()
         low_14 = df["low"].iloc[-14:].min()
-        latest = df.iloc[-1]
         close = latest.get("close", price)
 
         williams = -100 * (high_14 - close) / (high_14 - low_14) if high_14 != low_14 else -50
@@ -526,11 +507,15 @@ class SignalDetector:
         if len(df) < 20:
             return signals
 
-        tp = (df["high"] + df["low"] + df["close"]) / 3
-        sma_tp = tp.rolling(window=20).mean()
-        mad = tp.rolling(window=20).apply(lambda x: abs(x - x.mean()).mean())
-        cci = (tp - sma_tp) / (0.015 * mad)
-        latest_cci = cci.iloc[-1]
+        from numpy.lib.stride_tricks import sliding_window_view
+
+        # 向量化 CCI (等价原 rolling.apply, 去掉逐窗口 Python 回调)
+        tp = ((df["high"] + df["low"] + df["close"]) / 3).to_numpy()
+        win = sliding_window_view(tp, 20)
+        mean = win.mean(axis=1)
+        mad = np.abs(win - mean[:, None]).mean(axis=1)
+        denom = 0.015 * mad
+        latest_cci = 1e9 if denom[-1] == 0 else (tp[-1] - mean[-1]) / denom[-1]
 
         if latest_cci > 100:
             strength = SignalStrength.STRONG if latest_cci > 200 else SignalStrength.MEDIUM
@@ -613,16 +598,15 @@ class SignalDetector:
         return signals
 
     def _detect_pattern_signals(
-        self, df: pd.DataFrame, code: str, date: str, price: float, change_percent: float
+        self, df: pd.DataFrame, code: str, date: str, price: float,
+        change_percent: float, latest: dict, prev: dict,
     ) -> list[Signal]:
         """检测 K 线形态信号"""
         signals = []
         if len(df) < 5:
             return signals
 
-        latest = df.iloc[-1]
-        prev = df.iloc[-2] if len(df) > 1 else latest
-        prev2 = df.iloc[-3] if len(df) > 2 else prev
+        prev2 = df.iloc[-3].to_dict() if len(df) > 2 else prev
 
         open_price = latest.get("open", price)
         high_price = latest.get("high", price)
@@ -744,14 +728,13 @@ class SignalDetector:
         return signals
 
     def _detect_multi_period_signals(
-        self, df: pd.DataFrame, code: str, date: str, price: float, change_percent: float
+        self, df: pd.DataFrame, code: str, date: str, price: float,
+        change_percent: float, latest: dict, prev: dict,
     ) -> list[Signal]:
         """检测多周期共振信号"""
         signals = []
         if len(df) < 60:
             return signals
-
-        latest = df.iloc[-1]
 
         ma5 = latest.get("ma5", price) or price
         ma10 = latest.get("ma10", price) or price
@@ -816,15 +799,13 @@ class SignalDetector:
         return signals
 
     def _detect_price_volume_signals(
-        self, df: pd.DataFrame, code: str, date: str, price: float, change_percent: float
+        self, df: pd.DataFrame, code: str, date: str, price: float,
+        change_percent: float, latest: dict, prev: dict,
     ) -> list[Signal]:
         """检测量价关系信号"""
         signals = []
         if len(df) < 5:
             return signals
-
-        latest = df.iloc[-1]
-        prev = df.iloc[-2] if len(df) > 1 else latest
 
         volume = latest.get("volume", 0) or 0
         prev_volume = prev.get("volume", 0) or 0
@@ -870,7 +851,7 @@ class SignalDetector:
 
         return signals
 
-    def _calculate_signal_score(self, signal: Signal, df: pd.DataFrame) -> float:
+    def _calculate_signal_score(self, signal: Signal, momentum_5d: float) -> float:
         """计算信号综合得分"""
         score = 0.0
 
@@ -903,12 +884,10 @@ class SignalDetector:
         else:
             score -= 10
 
-        if len(df) >= 5:
-            momentum_5d = df["close"].iloc[-1] / df["close"].iloc[-5] - 1
-            if signal.signal_type in bullish_signals:
-                score += momentum_5d * 100
-            else:
-                score -= momentum_5d * 50
+        if signal.signal_type in bullish_signals:
+            score += momentum_5d * 100
+        else:
+            score -= momentum_5d * 50
 
         if signal.signal_type == SignalType.VOLUME_SURGE:
             volume_ratio = signal.details.get("volume_ratio", 1)
@@ -964,7 +943,7 @@ class MarketScanner:
             cursor = self.conn.execute(query)
         return [row[0] for row in cursor.fetchall()]
 
-    def get_stock_data(self, code: str, days: int = 60) -> pd.DataFrame:
+    def get_stock_data(self, code: str, days: int = 60, conn: sqlite3.Connection | None = None) -> pd.DataFrame:
         """获取股票数据"""
         query = """
             SELECT * FROM stock_analysis
@@ -972,7 +951,7 @@ class MarketScanner:
             ORDER BY date DESC
             LIMIT ?
         """
-        df = pd.read_sql_query(query, self.conn, params=(code, days))
+        df = pd.read_sql_query(query, conn or self.conn, params=(code, days))
         if not df.empty:
             df = df.sort_values("date").reset_index(drop=True)
         return df
@@ -1136,26 +1115,47 @@ class MarketScanner:
 
         logger.info(f"\n🔍 开始并行扫描 {total_stocks} 只股票 (workers={max_workers})...")
 
+        # 一次性批量预取最近 60 天所需字段, 避免每只单独 SQL roundtrip
+        # detect 用到的列集合 (扫描只依赖最近一天的状态 + 少量历史序列)
+        fetch_cols = [
+            "code", "date", "open", "close", "high", "low", "volume",
+            "change_percent", "turnover_rate",
+            "ma5", "ma10", "ma20", "ma60",
+            "macd", "macd_signal", "macd_hist",
+            "kdj_k", "kdj_d", "kdj_j",
+            "boll_upper", "boll_lower", "boll_position",
+            "rsi",
+        ]
+        base_df = pd.read_sql_query(
+            f"""
+            SELECT {', '.join(fetch_cols)} FROM stock_analysis
+            WHERE date >= (SELECT date(MAX(date), '-70 days') FROM stock_analysis)
+            ORDER BY code, date
+            """,
+            self.conn,
+        )
+        data_map = {
+            code: g.sort_values("date").reset_index(drop=True)
+            for code, g in base_df.groupby("code")
+        }
+
         name_cache: dict[str, str] = {}
         completed = 0
 
+        # 线程共享只读数据, 无需每工作线程建 DB 连接
         def process_stock(code: str) -> list[Signal]:
-            try:
-                df = self.get_stock_data(code)
-                if df.empty:
-                    return []
-
-                signals = self.detector.detect_all_signals(df)
-
-                if signal_types:
-                    signals = [s for s in signals if s.signal_type in signal_types]
-
-                if min_score > 0:
-                    signals = [s for s in signals if s.score >= min_score]
-
-                return signals
-            except Exception:
+            df = data_map.get(code)
+            if df is None or df.empty:
                 return []
+            signals = self.detector.detect_all_signals(df)
+
+            if signal_types:
+                signals = [s for s in signals if s.signal_type in signal_types]
+
+            if min_score > 0:
+                signals = [s for s in signals if s.score >= min_score]
+
+            return signals
 
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             futures = {executor.submit(process_stock, code): code for code in codes}
