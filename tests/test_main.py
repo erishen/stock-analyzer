@@ -125,21 +125,6 @@ class TestRunSector:
             pass
 
 
-class TestRunSync:
-    """同步命令测试"""
-
-    def test_run_sync_mock(self):
-        """测试同步命令调用"""
-        from src.main import run_sync
-
-        args = MagicMock()
-        args.no_backup = False
-        args.run_etl = False
-
-        with patch("src.main.run_sync", side_effect=run_sync):
-            pass
-
-
 class TestRunSyncEnv:
     """同步环境变量命令测试"""
 

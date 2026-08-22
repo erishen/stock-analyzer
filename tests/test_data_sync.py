@@ -33,27 +33,31 @@ class TestSyncEnvFromExternal:
         """测试同步成功"""
         with tempfile.TemporaryDirectory() as tmpdir:
             source_env = Path(tmpdir) / ".env"
+            target_env = Path(tmpdir) / "target.env"
             source_env.write_text("TEST_KEY=test_value\nAPI_KEY=secret123\n")
 
             from src.data.sync_env import sync_env_from_external
 
-            result = sync_env_from_external(source_env)
+            result = sync_env_from_external(source_env, target_path=target_env)
             assert result["success"] is True
             assert "TEST_KEY" in result["keys"]
             assert "API_KEY" in result["keys"]
+            assert target_env.exists()
 
     def test_sync_with_env_variable(self):
         """测试通过环境变量指定源路径"""
         with tempfile.TemporaryDirectory() as tmpdir:
             source_env = Path(tmpdir) / ".env"
+            target_env = Path(tmpdir) / "target.env"
             source_env.write_text("KEY1=value1\n")
 
             with patch.dict(os.environ, {"SYNC_ENV_SOURCE": str(source_env)}):
                 from src.data.sync_env import sync_env_from_external
 
-                result = sync_env_from_external()
+                result = sync_env_from_external(target_path=target_env)
                 assert result["success"] is True
                 assert "KEY1" in result["keys"]
+                assert target_env.exists()
 
 
 class TestRunSyncEnv:
@@ -63,13 +67,15 @@ class TestRunSyncEnv:
         """测试成功运行"""
         with tempfile.TemporaryDirectory() as tmpdir:
             source_env = Path(tmpdir) / ".env"
+            target_env = Path(tmpdir) / "target.env"
             source_env.write_text("KEY1=value1\nKEY2=value2\n")
 
             from src.data.sync_env import run_sync_env
 
-            result = run_sync_env(source_env)
+            result = run_sync_env(source_env, target_path=target_env)
             assert result["success"] is True
             assert len(result["keys"]) == 2
+            assert target_env.exists()
 
     def test_run_sync_env_failure(self):
         """测试失败情况"""

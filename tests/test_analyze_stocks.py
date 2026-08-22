@@ -38,10 +38,10 @@ class TestStockAnalyzerInit:
         analyzer = StockAnalyzer(use_analysis_db=True)
         assert "stock_analysis.db" in analyzer.db_path
 
-    def test_init_use_asset_lens_db(self):
-        """测试使用 asset_lens 数据库"""
+    def test_init_use_raw_klines_db(self):
+        """测试使用原始 K 线数据库"""
         analyzer = StockAnalyzer(use_analysis_db=False)
-        assert "asset_lens.db" in analyzer.db_path
+        assert "stock_klines.db" in analyzer.db_path
 
 
 class TestStockAnalyzerConnection:

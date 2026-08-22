@@ -18,6 +18,15 @@ from strategy.backtest import (
 )
 
 
+def _to_engine_cols(df: pd.DataFrame) -> dict[str, np.ndarray]:
+    """将测试用的 DataFrame 转为回测引擎的 numpy 列字典格式 (模拟 get_all_stock_data 输出)。"""
+    return {
+        c: df[c].to_numpy(dtype=float, copy=False)
+        for c in df.columns
+        if c != "date"
+    } | {"dates": df["date"].to_numpy()}
+
+
 class TestMomentumStrategy:
     """动量策略测试"""
 
@@ -59,14 +68,20 @@ class TestMomentumStrategy:
 
         dates = pd.date_range("2024-01-01", periods=30, freq="D")
         prices = 100 + np.cumsum(np.random.randn(30) * 2)
+        ret = np.zeros(30)
+        ret[1:] = prices[1:] / prices[:-1] - 1
+        vol = pd.Series(ret).rolling(20).std().shift(1).iloc[25]
+        if np.isnan(vol):
+            vol = 0.0
         df = pd.DataFrame(
             {
                 "date": dates,
                 "close": prices,
+                "volatility": [vol] * 30,
             }
         )
 
-        vol = strategy.calculate_volatility(df, 25)
+        vol = strategy.calculate_volatility(_to_engine_cols(df), 25)
         assert vol >= 0
 
     def test_calculate_volatility_insufficient_data(self):
@@ -77,10 +92,11 @@ class TestMomentumStrategy:
             {
                 "date": pd.date_range("2024-01-01", periods=10, freq="D"),
                 "close": [100] * 10,
+                "volatility": [1.0] * 10,
             }
         )
 
-        vol = strategy.calculate_volatility(df, 5)
+        vol = strategy.calculate_volatility(_to_engine_cols(df), 5)
         assert vol == 1.0
 
     def test_select_stocks_empty_data(self):
@@ -112,8 +128,15 @@ class TestMomentumStrategy:
                 "boll_lower": np.linspace(95, 115, 30),
             }
         )
+        # 预计算列 (与 get_all_stock_data 一致): 动量=close[i]/close[i-20]-1 > 0, 波动率小
+        close = df["close"].to_numpy()
+        momentum = np.zeros(30)
+        momentum[20:] = close[20:] / close[:-20] - 1.0
+        momentum[0:20] = np.nan
+        df["momentum"] = momentum
+        df["volatility"] = 0.05
 
-        all_data = {"sh600000": df}
+        all_data = {"sh600000": _to_engine_cols(df)}
         result = strategy.select_stocks(all_data, 25, "2024-01-26")
 
         assert isinstance(result, list)
@@ -147,7 +170,7 @@ class TestMeanReversionStrategy:
             }
         )
 
-        all_data = {"sh600000": df}
+        all_data = {"sh600000": _to_engine_cols(df)}
         result = strategy.select_stocks(all_data, 25, "2024-01-26")
 
         assert len(result) > 0
@@ -184,7 +207,7 @@ class TestTrendFollowingStrategy:
             }
         )
 
-        all_data = {"sh600000": df}
+        all_data = {"sh600000": _to_engine_cols(df)}
         result = strategy.select_stocks(all_data, 29, "2024-01-30")
 
         assert isinstance(result, list)
@@ -206,7 +229,7 @@ class TestTrendFollowingStrategy:
             }
         )
 
-        all_data = {"sh600000": df}
+        all_data = {"sh600000": _to_engine_cols(df)}
         result = strategy.select_stocks(all_data, 29, "2024-01-30")
 
         assert isinstance(result, list)
@@ -244,8 +267,10 @@ class TestMultiFactorStrategy:
                 "ma20": np.linspace(100, 114, 30),
             }
         )
+        df["mom_sum"] = 0.01
+        df["volatility"] = 0.05
 
-        factors = strategy.calculate_factors(df, 25)
+        factors = strategy.calculate_factors(_to_engine_cols(df), 25)
 
         assert "trend" in factors
         assert "momentum" in factors

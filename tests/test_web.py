@@ -23,7 +23,7 @@ class TestBacktestRequest:
     def test_default_values(self):
         req = BacktestRequest()
         assert req.strategy == "momentum"
-        assert req.holding_days == 5
+        assert req.holding_days == 20
         assert req.initial_capital == 100000.0
         assert req.exclude_st is True
 
