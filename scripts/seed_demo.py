@@ -9,6 +9,15 @@ import random
 import sqlite3
 from pathlib import Path
 
+# 与 Web 服务端共用同一数据库路径解析(investkit_utils.db.paths),
+# 确保构建期 seed 写入的位置 == 运行时 Web 读取的位置(否则 Render 上会"库不存在")。
+try:
+    from investkit_utils.db import get_stock_analysis_db_path as _resolve_default_db_path
+except Exception:  # 兜底: investkit_utils 不可用时退化为相对路径
+    def _resolve_default_db_path() -> Path:
+        return Path(__file__).parent.parent / "investkit_utils" / "data" / "stock_analysis.db"
+
+
 DEMO_STOCKS = [
     ("sh600000", "Demo银行", 15.0),
     ("sh600519", "Demo茅台", 180.0),
@@ -27,7 +36,7 @@ DEMO_STOCKS = [
 
 def generate_demo_db(output_path: Path | None = None) -> Path:
     if output_path is None:
-        output_path = Path(__file__).parent.parent / "data" / "stock_analysis.db"
+        output_path = _resolve_default_db_path()
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     if output_path.exists():
