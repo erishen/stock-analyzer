@@ -1,0 +1,12 @@
+# Lobster 项目配置
+# 继承 config.base.yaml 并覆盖特定配置
+
+app:
+  name: "lobster"
+  version: "0.1.0"
+
+api:
+  port: 8001
+
+llm:
+  default_provider: "ollama"

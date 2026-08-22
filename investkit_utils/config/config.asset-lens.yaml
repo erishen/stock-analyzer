@@ -1,0 +1,21 @@
+# Asset Lens 项目配置
+# 继承 config.base.yaml 并覆盖特定配置
+
+app:
+  name: "asset-lens"
+  version: "1.0.0"
+
+database:
+  sqlite:
+    path: "data/asset_lens.db"
+
+api:
+  port: 8000
+
+ml:
+  model_path: "models/"
+  features:
+    count: 51
+  prediction:
+    batch_size: 100
+    confidence_threshold: 0.6

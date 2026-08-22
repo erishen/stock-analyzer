@@ -1,0 +1,19 @@
+# Stock Analyzer 项目配置
+# 继承 config.base.yaml 并覆盖特定配置
+
+app:
+  name: "stock-analyzer"
+  version: "0.1.0"
+
+database:
+  sqlite:
+    path: "data/stock_klines.db"
+
+api:
+  port: 8002
+
+data_sources:
+  akshare:
+    enabled: true
+    retry_count: 3
+    timeout: 30

@@ -9,7 +9,8 @@ description = "Stock Analyzer - 股票数据分析工具"
 readme = "README.md"
 requires-python = ">=3.11,<3.14"
 dependencies = [
-    "investkit-utils",
+    "pydantic>=2.0.0",
+    "pyyaml>=6.0.0",
     "matplotlib>=3.7.0,<4.0.0",
     "numpy>=1.24.0,<3.0.0",
     "pandas>=2.0.0,<3.0.0",
@@ -21,7 +22,10 @@ dependencies = [
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["src*"]
+include = ["src*", "investkit_utils*"]
+
+[tool.setuptools.package-data]
+investkit_utils = ["**/*.yaml", "**/*.yml", "**/*.json"]
 
 [project.optional-dependencies]
 dev = [
@@ -72,6 +76,3 @@ exclude_lines = [
     "raise NotImplementedError",
 ]
 show_missing = true
-
-[tool.uv.sources]
-investkit-utils = { workspace = true }
