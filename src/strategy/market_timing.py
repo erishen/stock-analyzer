@@ -118,9 +118,12 @@ class MarketTiming:
                     signal="无数据",
                 )
 
-            total, up_count, _down_count, avg_change, avg_rsi, avg_ma5, avg_ma20 = row
+            total, up_count, down_count, avg_change, avg_rsi, avg_ma5, avg_ma20 = row
 
-            breadth = up_count / total if total > 0 else 0
+            # breadth 口径：上涨家数 / (上涨家数 + 下跌家数)，剔除平盘（涨跌幅=0）。
+            # 与 Web 端 src/web/api.py 的 NULLIF(change_percent,0) 一致，避免平盘虚增分母压低读数。
+            effective = up_count + down_count
+            breadth = up_count / effective if effective > 0 else 0
 
             cursor = conn.execute(
                 """

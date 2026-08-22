@@ -31,6 +31,14 @@ class OptimizationResult:
     best_drawdown: float
     all_results: list[dict[str, Any]]
     total_combinations: int
+    # 训练/验证分段指标 (未分段时为空字符串)
+    train_start: str = ""
+    train_end: str = ""
+    val_start: str = ""
+    val_end: str = ""
+    val_return: float = 0.0
+    val_sharpe: float = 0.0
+    val_drawdown: float = 0.0
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -39,6 +47,13 @@ class OptimizationResult:
             "best_sharpe": round(self.best_sharpe, 2),
             "best_drawdown": round(self.best_drawdown * 100, 2),
             "total_combinations": self.total_combinations,
+            "train_start": self.train_start,
+            "train_end": self.train_end,
+            "val_start": self.val_start,
+            "val_end": self.val_end,
+            "val_return": round(self.val_return * 100, 2),
+            "val_sharpe": round(self.val_sharpe, 2),
+            "val_drawdown": round(self.val_drawdown * 100, 2),
             "top_10_results": [
                 {
                     "params": r["params"],
@@ -266,3 +281,182 @@ def run_optimization(
         return optimize_mean_reversion_strategy(db_path)
     else:
         raise ValueError(f"未知策略类型: {strategy_type}")
+
+
+def _split_trading_dates(
+    engine: BacktestEngine,
+    start_date: str | None,
+    end_date: str | None,
+) -> tuple[list[str], str, str, str]:
+    """返回 (全部交易日, 训练起始, 训练结束, 验证结束)。
+
+    将 [start_date, end_date] 按交易日中位分割: 前半段训练, 后半段验证。
+    未指定日期时取数据库实际最早/最晚。
+    """
+    all_data = engine.get_all_stock_data()
+    dates = engine.get_date_range(all_data)
+    if start_date:
+        dates = [d for d in dates if d >= start_date]
+    if end_date:
+        dates = [d for d in dates if d <= end_date]
+    if len(dates) < 10:
+        raise ValueError("有效交易日不足，无法分段寻优")
+
+    train_end = dates[len(dates) // 2]
+    train_start = dates[0]
+    val_end = dates[-1]
+    return dates, train_start, train_end, val_end
+
+
+def optimize_with_split(
+    db_path: Path,
+    strategy_type: str,
+    start_date: str | None = None,
+    end_date: str | None = None,
+    initial_capital: float = 100000.0,
+    progress_callback: Callable | None = None,
+) -> OptimizationResult:
+    """带训练/验证分段的参数寻优 (避免过拟合选参)。
+
+    训练段: 网格搜索全部参数组合, 按夏普比率取最优。
+    验证段: 将训练最优参数套用到后半段独立回测, 得到验证指标。
+    """
+    # 确定该策略的网格范围
+    if strategy_type == "momentum":
+        # 5 回看 × 4 持有 × 3 动量 × 2 波动率 = 120 组 (聚焦关键参数, 控制耗时)
+        lookback_values = list(range(10, 31, 5))  # 10,15,20,25,30
+        holding_values = list(range(5, 21, 5))  # 5,10,15,20 (含默认20)
+        momentum_values = [round(x * 0.05, 2) for x in range(0, 3)]  # 0.0,0.05,0.10
+        volatility_values = [round(x, 2) for x in (0.08, 0.14)]  # 0.08,0.14
+    elif strategy_type == "mean_reversion":
+        rsi_values = list(range(20, 36, 5))
+        holding_values = list(range(3, 11, 2))
+    else:
+        raise ValueError(f"未知策略类型: {strategy_type}")
+
+    engine = BacktestEngine(db_path)
+    engine.connect()
+    try:
+        _, train_start, train_end, val_end = _split_trading_dates(engine, start_date, end_date)
+        # 验证段起始 = 训练结束的下一交易日
+        all_dates = engine.get_date_range(engine.get_all_stock_data())
+        ordered = [d for d in all_dates if not start_date or d >= start_date]
+        ordered = [d for d in ordered if not end_date or d <= end_date]
+        val_start = ""
+        for d in ordered:
+            if d > train_end:
+                val_start = d
+                break
+
+        # 组装参数组合
+        if strategy_type == "momentum":
+            combinations = list(product(lookback_values, holding_values, momentum_values, volatility_values))
+        else:
+            combinations = list(product(rsi_values, holding_values))
+        total = len(combinations)
+
+        logger.info("\n🔧 自动寻优 (训练/验证分段) - %s", strategy_type)
+        logger.info(f"   组合数: {total}")
+        logger.info(f"   训练段: {train_start} ~ {train_end}")
+        logger.info(f"   验证段: {val_start} ~ {val_end}")
+
+        all_results: list[dict[str, Any]] = []
+        best_result: dict[str, Any] | None = None
+        best_sharpe = -float("inf")
+
+        for i, combo in enumerate(combinations):
+            if progress_callback:
+                progress_callback(i + 1, total)
+            try:
+                if strategy_type == "momentum":
+                    lookback, holding, min_mom, max_vol = combo
+                    strategy = MomentumStrategy(
+                        lookback_days=lookback,
+                        holding_days=holding,
+                        min_momentum=min_mom,
+                        max_volatility=max_vol,
+                        exclude_st=True,
+                    )
+                    params = {
+                        "lookback_days": lookback,
+                        "holding_days": holding,
+                        "min_momentum": min_mom,
+                        "max_volatility": max_vol,
+                    }
+                else:
+                    rsi_oversold, holding = combo
+                    strategy = MeanReversionStrategy(
+                        rsi_oversold=rsi_oversold,
+                        holding_days=holding,
+                        exclude_st=True,
+                    )
+                    params = {"rsi_oversold": rsi_oversold, "holding_days": holding}
+
+                # 训练段回测
+                train_result = engine.run_backtest(
+                    strategy, initial_capital, start_date=train_start, end_date=train_end
+                ) if strategy_type == "momentum" or strategy_type == "mean_reversion" else None
+                # 注: run_backtest 第二个参数 position_size 默认0.1; 此处按默认即可
+
+                if train_result is None or train_result.total_trades == 0:
+                    continue
+
+                all_results.append(
+                    {
+                        "params": params,
+                        "total_return": train_result.total_return,
+                        "sharpe_ratio": train_result.sharpe_ratio,
+                        "max_drawdown": train_result.max_drawdown,
+                        "win_rate": train_result.win_rate,
+                        "total_trades": train_result.total_trades,
+                    }
+                )
+
+                if train_result.sharpe_ratio > best_sharpe:
+                    best_sharpe = train_result.sharpe_ratio
+                    best_result = all_results[-1]
+            except Exception:
+                continue
+
+        if best_result is None:
+            raise ValueError("寻优失败，训练段没有有效结果")
+
+        # 验证段: 用训练最优参数独立回测
+        val_result = None
+        if val_start:
+            if strategy_type == "momentum":
+                best_strat = MomentumStrategy(
+                    lookback_days=best_result["params"]["lookback_days"],
+                    holding_days=best_result["params"]["holding_days"],
+                    min_momentum=best_result["params"]["min_momentum"],
+                    max_volatility=best_result["params"]["max_volatility"],
+                    exclude_st=True,
+                )
+            else:
+                best_strat = MeanReversionStrategy(
+                    rsi_oversold=best_result["params"]["rsi_oversold"],
+                    holding_days=best_result["params"]["holding_days"],
+                    exclude_st=True,
+                )
+            try:
+                val_result = engine.run_backtest(best_strat, initial_capital, start_date=val_start, end_date=val_end)
+            except Exception:
+                val_result = None
+
+        return OptimizationResult(
+            best_params=best_result["params"],
+            best_return=best_result["total_return"],
+            best_sharpe=best_result["sharpe_ratio"],
+            best_drawdown=best_result["max_drawdown"],
+            all_results=all_results,
+            total_combinations=total,
+            train_start=train_start,
+            train_end=train_end,
+            val_start=val_start,
+            val_end=val_end,
+            val_return=val_result.total_return if val_result else 0.0,
+            val_sharpe=val_result.sharpe_ratio if val_result else 0.0,
+            val_drawdown=val_result.max_drawdown if val_result else 0.0,
+        )
+    finally:
+        engine.close()
