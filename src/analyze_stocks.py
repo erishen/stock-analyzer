@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).parent))
-from config import DATA_DIR, OUTPUT_DIR, get_asset_lens_db_path, get_stock_analysis_db_path
+from config import DATA_DIR, OUTPUT_DIR, get_stock_analysis_db_path, get_stock_klines_db_path
 from utils.font_config import setup_chinese_font
 
 logger = logging.getLogger(__name__)
@@ -37,7 +37,7 @@ class StockAnalyzer:
             use_analysis_db: 是否使用分析数据库 (含技术指标)
         """
         if db_path is None:
-            db_path = str(get_stock_analysis_db_path()) if use_analysis_db else str(get_asset_lens_db_path())
+            db_path = str(get_stock_analysis_db_path()) if use_analysis_db else str(get_stock_klines_db_path())
         self.db_path = db_path
         self.conn = None
         self.df = None

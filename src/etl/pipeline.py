@@ -20,7 +20,7 @@ import numpy as np
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from config import get_asset_lens_db_path, get_stock_analysis_db_path
+from config import get_stock_analysis_db_path, get_stock_klines_db_path
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +35,9 @@ class ETLConfig:
     min_data_days: int = 30
     calculate_indicators: bool = True
     indicator_windows: list[int] = field(default_factory=lambda: [5, 10, 20, 60])
+    # 增量模式: >0 时每只只重算/写回最近 N 行, 历史行保留原值不动
+    incremental_window: int = 0
+    warmup_rows: int = 90  # 增量时额外前置数据用于滚动指标预热(不写回)
 
 
 @dataclass
@@ -85,18 +88,29 @@ class DataExtractor:
         cursor = self.conn.execute(query)
         return cursor.fetchone()[0]
 
-    def extract_stock_data(self, code: str) -> pd.DataFrame:
-        """提取单只股票的 K 线数据"""
-        query = """
-            SELECT
-                code, date, open, close, high, low,
-                volume, amount, amplitude, change_percent,
-                change_amount, turnover_rate
-            FROM stock_klines
-            WHERE code = ?
-            ORDER BY date ASC
+    def extract_stock_data(self, code: str, tail_rows: int | None = None) -> pd.DataFrame:
+        """提取单只股票的 K 线数据
+
+        tail_rows: 大于 0 时仅返回最近 N 行(按日期升序), 用于增量窗口处理。
         """
-        df = pd.read_sql_query(query, self.conn, params=(code,))
+        base_cols = (
+            "code, date, open, close, high, low, volume, amount, "
+            "amplitude, change_percent, change_amount, turnover_rate"
+        )
+        if tail_rows:
+            query = f"""
+                SELECT {base_cols} FROM (
+                    SELECT * FROM stock_klines WHERE code = ? ORDER BY date DESC LIMIT ?
+                ) ORDER BY date ASC
+            """
+            df = pd.read_sql_query(query, self.conn, params=(code, tail_rows))
+        else:
+            query = f"""
+                SELECT {base_cols} FROM stock_klines
+                WHERE code = ?
+                ORDER BY date ASC
+            """
+            df = pd.read_sql_query(query, self.conn, params=(code,))
         return df
 
     def extract_all_stocks(self, batch_size: int = 100) -> list[tuple[str, pd.DataFrame]]:
@@ -122,10 +136,39 @@ class DataTransformer:
         df = self._clean_data(df)
         df = self._convert_types(df)
         df = self._sort_by_date(df)
+        df = self._fix_change_percent(df)
+        df = self._fix_amount(df)
 
         if self.config.calculate_indicators:
             df = self._calculate_all_indicators(df)
 
+        return df
+
+    def _fix_change_percent(self, df: pd.DataFrame) -> pd.DataFrame:
+        """补算涨跌幅
+
+        部分数据源（如腾讯源降级获取）不提供涨跌幅字段，落库为 0。
+        此时基于收盘价序列重新计算。
+        """
+        if "change_percent" not in df.columns or "close" not in df.columns:
+            return df
+        if (df["change_percent"] == 0).all():
+            df["change_percent"] = (df["close"].pct_change() * 100).fillna(0)
+        return df
+
+    def _fix_amount(self, df: pd.DataFrame) -> pd.DataFrame:
+        """估算成交额
+
+        腾讯源不提供成交额(amount=0)。用 成交量 × 当日均价( OHLC 均值 ) 估算，
+        精度足够支撑金额加权类指标(如 VWAP 近似)。
+        """
+        required = {"amount", "volume", "open", "close", "high", "low"}
+        if not required.issubset(df.columns):
+            return df
+        mask = (df["amount"] == 0) & (df["volume"] > 0)
+        if mask.any():
+            avg_price = (df["open"] + df["close"] + df["high"] + df["low"]) / 4
+            df.loc[mask, "amount"] = (df.loc[mask, "volume"] * avg_price[mask]).round(2)
         return df
 
     def _clean_data(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -381,10 +424,8 @@ class DataLoader:
         placeholders = ", ".join(["?" for _ in columns])
         column_names = ", ".join(columns)
 
-        records = []
-        for _, row in df.iterrows():
-            record = tuple(row[col] if col in df.columns else None for col in columns)
-            records.append(record)
+        # itertuples 比 iterrows 快一个量级, 且返回原生类型可被 sqlite 绑定
+        records = [tuple(row) for row in df[columns].itertuples(index=False, name=None)]
 
         query = f"""
             INSERT OR REPLACE INTO stock_analysis ({column_names})
@@ -455,9 +496,17 @@ class ETLPipeline:
             total_codes = len(codes)
             logger.info(f"📊 待处理股票数量: {total_codes}")
 
+            # 增量模式下的窗口设置: tail_rows 含 warmup(只算不写), 写回仅最近 incremental_window 行
+            incremental = self.config.incremental_window > 0
+            tail_rows = (
+                self.config.incremental_window + self.config.warmup_rows
+                if incremental
+                else None
+            )
+
             for i, code in enumerate(codes, 1):
                 try:
-                    raw_df = self.extractor.extract_stock_data(code)
+                    raw_df = self.extractor.extract_stock_data(code, tail_rows=tail_rows)
                     result.records_extracted += len(raw_df)
 
                     if len(raw_df) < self.config.min_data_days:
@@ -466,7 +515,13 @@ class ETLPipeline:
                     transformed_df = self.transformer.transform(raw_df)
                     result.records_transformed += len(transformed_df)
 
-                    loaded = self.loader.load_stock_data(transformed_df)
+                    # 增量: 只写回最近 incremental_window 行, 更早历史行不动(指标依赖窗口已含 warmup)
+                    write_df = (
+                        transformed_df.tail(self.config.incremental_window)
+                        if incremental
+                        else transformed_df
+                    )
+                    loaded = self.loader.load_stock_data(write_df)
                     result.records_loaded += loaded
                     result.stocks_processed += 1
 
@@ -543,7 +598,7 @@ def run_etl(
     project_root / "data"
 
     config = ETLConfig(
-        source_db=Path(source_db) if source_db else get_asset_lens_db_path(),
+        source_db=Path(source_db) if source_db else get_stock_klines_db_path(),
         target_db=Path(target_db) if target_db else get_stock_analysis_db_path(),
     )
 

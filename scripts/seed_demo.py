@@ -4,9 +4,9 @@ Demo 模式数据生成脚本
 生成模拟股票数据到 SQLite 数据库，供 Demo 模式使用
 """
 
-import sqlite3
-import random
 import math
+import random
+import sqlite3
 from pathlib import Path
 
 DEMO_STOCKS = [
@@ -56,7 +56,6 @@ def generate_demo_db(output_path: Path | None = None) -> Path:
     cursor.execute("CREATE INDEX idx_code_date ON stock_analysis(code, date)")
 
     for code, name, base_price in DEMO_STOCKS:
-        price = base_price
         prev_close = base_price
         volume_base = random.uniform(1e6, 1e7)
         obv = 0
@@ -96,10 +95,7 @@ def generate_demo_db(output_path: Path | None = None) -> Path:
                 losses = [max(prices[i-1] - prices[i], 0) for i in range(-13, 0)]
                 avg_gain = sum(gains) / 14
                 avg_loss = sum(losses) / 14
-                if avg_loss == 0:
-                    rsi = 100.0
-                else:
-                    rsi = 100 - 100 / (1 + avg_gain / avg_loss)
+                rsi = 100.0 if avg_loss == 0 else 100 - 100 / (1 + avg_gain / avg_loss)
 
             boll_mid = ma20
             boll_std = math.sqrt(sum((p - ma20) ** 2 for p in prices[-20:]) / max(1, len(prices[-20:])))

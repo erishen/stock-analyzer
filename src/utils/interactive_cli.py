@@ -4,6 +4,7 @@ Interactive CLI for Stock Analyzer.
 """
 
 import logging
+import os
 import sys
 from pathlib import Path
 
@@ -92,7 +93,6 @@ class InteractiveCLI:
         action = questionary.select(
             "数据管理",
             choices=[
-                questionary.Choice("📥 同步数据", value="sync"),
                 questionary.Choice("🔄 运行 ETL", value="etl"),
                 questionary.Choice("📊 查看统计", value="stats"),
                 questionary.Choice("📤 导出数据", value="export"),
@@ -100,9 +100,7 @@ class InteractiveCLI:
             ],
         ).ask()
 
-        if action == "sync":
-            self._run_sync()
-        elif action == "etl":
+        if action == "etl":
             self._run_etl()
         elif action == "stats":
             self._show_stats()
@@ -244,17 +242,6 @@ class InteractiveCLI:
             if new_path:
                 self.db_path = Path(new_path)
                 logger.info(f"数据库路径已更新: {self.db_path}")
-
-    def _run_sync(self):
-        logger.info("\n正在同步数据...")
-
-        from data import run_sync
-
-        result = run_sync()
-        if result.get("success"):
-            logger.info(" 数据同步成功")
-        else:
-            logger.error(f" 同步失败: {result.get('error')}")
 
     def _run_etl(self):
         logger.info("\n正在运行 ETL...")
@@ -401,8 +388,9 @@ class InteractiveCLI:
 
         from web import run_server
 
-        logger.info(" Web 服务已启动: http://127.0.0.1:8000")
-        run_server(host="127.0.0.1", port=8000)
+        port = int(os.environ.get("WEB_PORT", "8001"))
+        logger.info(f" Web 服务已启动: http://127.0.0.1:{port}")
+        run_server(host="127.0.0.1", port=port)
 
     def _exit(self):
         logger.debug("\n感谢使用 Stock Analyzer! ")

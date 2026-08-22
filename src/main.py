@@ -5,12 +5,22 @@ Stock Analyzer - Main Entry Point
 
 import argparse
 import logging
+import os
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 
-from config import DATA_DIR, OUTPUT_DIR, get_asset_lens_db_path, get_stock_analysis_db_path
+# 加载项目 .env (早于 argparse, 供 WEB_PORT 等配置; 不覆盖已有环境变量)
+_ENV_FILE = Path(__file__).parent.parent / ".env"
+if _ENV_FILE.exists():
+    for _line in _ENV_FILE.read_text(encoding="utf-8").splitlines():
+        _s = _line.strip()
+        if _s and not _s.startswith("#") and "=" in _s:
+            _k, _, _v = _s.partition("=")
+            os.environ.setdefault(_k.strip(), _v.strip())
+
+from config import DATA_DIR, OUTPUT_DIR, get_stock_analysis_db_path
 
 logger = logging.getLogger(__name__)
 PROJECT_ROOT = Path(__file__).parent.parent
@@ -30,7 +40,13 @@ def run_etl(args):
     logger.info("📦 ETL 数据管道")
     logger.info("=" * 60)
 
-    source_db = args.source_db if args.source_db else get_asset_lens_db_path()
+    # 默认源: 本地 klines 库 (每日更新, 裸代码)
+    if args.source_db:
+        source_db = args.source_db
+    else:
+        from config import get_stock_klines_db_path
+
+        source_db = get_stock_klines_db_path()
     target_db = args.target_db if args.target_db else get_stock_analysis_db_path()
 
     stock_codes = args.codes.split(",") if args.codes else None
@@ -236,22 +252,6 @@ def run_visualize(args):
             logger.info(f"   - {p}")
 
 
-def run_sync(args):
-    """运行数据同步"""
-
-    from data import run_sync
-
-    result = run_sync(backup=not args.no_backup, source_path=args.source)
-
-    if result["success"] and args.run_etl:
-        logger.info("\n" + "=" * 60)
-        logger.info("📦 自动运行 ETL...")
-        logger.info("=" * 60)
-        from etl import run_etl as etl_pipeline
-
-        etl_pipeline()
-
-
 def run_refresh_names(args):
     """刷新股票名称缓存"""
 
@@ -281,6 +281,52 @@ def run_fetch(args):
         end_date=args.end_date,
         limit=args.limit,
     )
+
+    # 全市场拉取完成后, 自动更新资产快照(市值/股本/估值), 供自定义规则选股使用
+    if not codes and not args.limit:
+        logger.info("\n" + "=" * 60)
+        logger.info("🔄 自动刷新资产快照 (市值/股本/估值)")
+        _refresh_asset_snapshot("auto")
+
+
+def _load_asset_fetch():
+    """从 data_tools 动态加载资产快照抓取模块 (本地工具, 不随仓库分发)。"""
+    sys.path.insert(0, str(PROJECT_ROOT))
+    from data_tools import asset_fetch
+
+    return asset_fetch
+
+
+def _refresh_asset_snapshot(source: str) -> None:
+    """刷新资产快照并打印结果。用于 CLI 命令与 fetch 后的自动刷新。"""
+    result = _load_asset_fetch().refresh_snapshot(source)
+    if result.get("success"):
+        logger.info(
+            "✅ 资产快照已更新: %d 只, 数据源=%s (更新时间 %s)",
+            result.get("count", 0),
+            result.get("source", "?"),
+            result.get("updated_at", "?"),
+        )
+    else:
+        logger.warning("⚠️ 资产快照刷新失败: %s", result.get("error", "未知错误"))
+
+
+def run_asset_snapshot(args):
+    """拉取并更新全市场资产快照(市值/股本/估值)"""
+    logger.info("\n" + "=" * 60)
+    logger.info("📊 获取资产快照 (市值/股本/估值), 数据源=%s", args.source)
+
+    result = _load_asset_fetch().refresh_snapshot(args.source)
+    if result.get("success"):
+        logger.info(
+            "\n✅ 资产快照已更新: %d 只, 数据源=%s\n   更新时间: %s",
+            result.get("count", 0),
+            result.get("source", "?"),
+            result.get("updated_at", "?"),
+        )
+    else:
+        logger.error("\n❌ 资产快照刷新失败: %s", result.get("error", "未知错误"))
+        raise SystemExit(1)
 
 
 def run_sync_env(args):
@@ -1016,13 +1062,16 @@ def run_risk_attribution(args):
 
 
 def main():
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(message)s",
+    )
+
     parser = argparse.ArgumentParser(
         description="Stock Analyzer - 股票数据分析工具",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 示例:
-  python -m src.main sync             # 同步外部数据库
-  python -m src.main sync --run-etl   # 同步后自动运行 ETL
   python -m src.main etl              # 运行 ETL 流程
   python -m src.main analyze          # 运行分析
   python -m src.main stats            # 显示统计信息
@@ -1038,11 +1087,6 @@ def main():
 
     subparsers = parser.add_subparsers(dest="command", help="可用命令")
 
-    sync_parser = subparsers.add_parser("sync", help="从外部数据库同步")
-    sync_parser.add_argument("--source", type=str, help="源数据库路径")
-    sync_parser.add_argument("--no-backup", action="store_true", help="不备份目标数据库")
-    sync_parser.add_argument("--run-etl", action="store_true", help="同步后自动运行 ETL")
-
     subparsers.add_parser("refresh-names", help="刷新股票名称缓存")
 
     fetch_parser = subparsers.add_parser("fetch", help="获取股票 K 线数据")
@@ -1054,6 +1098,12 @@ def main():
 
     sync_env_parser = subparsers.add_parser("sync-env", help="从外部项目同步环境变量")
     sync_env_parser.add_argument("--source", type=str, help="源 .env 文件路径")
+
+    # 资产快照(市值/股本/估值): 东财优先, 限流自动回退腾讯源
+    asset_snap_parser = subparsers.add_parser("asset-snapshot", help="拉取并更新全市场资产快照(市值/股本/估值)")
+    asset_snap_parser.add_argument("--source", type=str, default="auto", choices=["auto", "eastmoney", "tencent"], help="数据源 (默认 auto: 东财优先, 失败回退腾讯)")
+
+    _asset_init_parser = subparsers.add_parser("asset-init", help="全量初始化资产快照(每次初始化数据后调用)")
 
     etl_parser = subparsers.add_parser("etl", help="运行 ETL 数据管道")
     etl_parser.add_argument("--source-db", type=str, help="源数据库路径")
@@ -1197,7 +1247,9 @@ def main():
 
     web_parser = subparsers.add_parser("web", help="启动 Web 界面")
     web_parser.add_argument("--host", type=str, default="127.0.0.1", help="服务器地址")
-    web_parser.add_argument("--port", type=int, default=8000, help="服务器端口")
+    web_parser.add_argument(
+        "--port", type=int, default=int(os.environ.get("WEB_PORT", "8001")), help="服务器端口 (默认读 WEB_PORT, 否则 8001)"
+    )
 
     db_optimize_parser = subparsers.add_parser("db-optimize", help="数据库性能优化")
     db_optimize_parser.add_argument("--db", type=str, help="数据库路径")
@@ -1225,14 +1277,14 @@ def main():
 
     if args.command == "interactive":
         run_interactive_mode(args)
-    elif args.command == "sync":
-        run_sync(args)
     elif args.command == "sync-env":
         run_sync_env(args)
     elif args.command == "refresh-names":
         run_refresh_names(args)
     elif args.command == "fetch":
         run_fetch(args)
+    elif args.command in ("asset-snapshot", "asset-init"):
+        run_asset_snapshot(args)
     elif args.command == "etl":
         run_etl(args)
     elif args.command == "analyze":
