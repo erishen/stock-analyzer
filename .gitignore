@@ -88,3 +88,5 @@ Thumbs.db
 fix_logger.py
 fix_logger2.py
 replace_print.py
+
+.workbuddy/
