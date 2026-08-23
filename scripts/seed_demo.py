@@ -4,6 +4,7 @@ Demo 模式数据生成脚本
 生成模拟股票数据到 SQLite 数据库，供 Demo 模式使用
 """
 
+import datetime
 import math
 import random
 import sqlite3
@@ -64,15 +65,27 @@ def generate_demo_db(output_path: Path | None = None) -> Path:
     """)
     cursor.execute("CREATE INDEX idx_code_date ON stock_analysis(code, date)")
 
+    # 生成最近 200 个交易日(跳过周末), 最新一天为今天(若为周末则取最近交易日),
+    # 避免 Demo 数据固定停在 2026-03-19 这类过时时点。
+    today = datetime.date.today()
+    while today.weekday() >= 5:  # 5=周六, 6=周日
+        today -= datetime.timedelta(days=1)
+    trade_dates: list[datetime.date] = []
+    cursor_day = today
+    while len(trade_dates) < 200:
+        if cursor_day.weekday() < 5:
+            trade_dates.append(cursor_day)
+        cursor_day -= datetime.timedelta(days=1)
+    trade_dates.reverse()  # 升序: 最旧 -> 最新
+    latest_date = trade_dates[-1]
+
     for code, name, base_price in DEMO_STOCKS:
         prev_close = base_price
         volume_base = random.uniform(1e6, 1e7)
         obv = 0
         prices = []
 
-        for day_offset in range(200):
-            import datetime
-            d = datetime.date(2025, 9, 1) + datetime.timedelta(days=day_offset)
+        for day_offset, d in enumerate(trade_dates):
             date = d.strftime("%Y-%m-%d")
 
             change = random.gauss(0, 0.02) + 0.0005
@@ -156,7 +169,7 @@ def generate_demo_db(output_path: Path | None = None) -> Path:
 
     demo_stocks_dict = {code: name for code, name, _ in DEMO_STOCKS}
     cache = {
-        "updated_at": "2025-09-01T00:00:00",
+        "updated_at": latest_date.strftime("%Y-%m-%dT00:00:00"),
         "stocks": {
             code: {"code": code, "name": name, "industry": "模拟", "sector": "模拟行业", "market": "A股"}
             for code, name in demo_stocks_dict.items()

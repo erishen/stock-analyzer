@@ -300,6 +300,9 @@ export const AgentPanel: FC = () => {
                   const cols = r?.columns ?? []
                   return (
                     <>
+                      <div className="text-[11px] text-amber-600 bg-amber-50 border border-amber-200 rounded px-2 py-1">
+                        ⚠️ 演示数据：以下为 Demo 模拟行情（股票名称已脱敏为 DemoXX），非实时市场数据，数据日期以查询结果中的日期为准。
+                      </div>
                       {m.content && <div className="md-body" dangerouslySetInnerHTML={{ __html: renderMarkdown(m.content) }} />}
                       {r?.chart && renderChart(r.chart, rows)}
                       {r && rows.length > 0 && (
