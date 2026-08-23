@@ -65,3 +65,48 @@ def test_translate_avoids_double_annotation(project):
 def test_load_name_code_missing_file(tmp_path):
     c2n, n2c = schema.load_name_code(str(tmp_path))
     assert c2n == {} and n2c == {}
+
+
+import sqlite3 as _sqlite3  # noqa: E402
+from pathlib import Path as _Path  # noqa: E402
+
+
+@pytest.fixture()
+def partial_db(tmp_path):
+    """故意缺少 amplitude/turnover_rate/change_amount 的瘦表, 模拟 demo seed。"""
+    db = tmp_path / "partial.db"
+    conn = _sqlite3.connect(db)
+    conn.execute(
+        "CREATE TABLE stock_analysis ("
+        "id INTEGER, code TEXT, date TEXT, open REAL, close REAL, high REAL, low REAL,"
+        "volume REAL, amount REAL, change_percent REAL, rsi REAL)"
+    )
+    conn.execute(
+        "INSERT INTO stock_analysis VALUES (1,'600519','2026-08-21',1700,1710,1720,1690,1000,1.7e9,1.2,65)"
+    )
+    conn.commit()
+    conn.close()
+    return str(db)
+
+
+def test_describe_schema_only_lists_existing_columns(partial_db):
+    """声明了但表缺失的列(amplitude/turnover_rate/change_amount)不得出现在 schema 文本。"""
+    desc = schema.describe_schema(".", partial_db)
+    assert "turnover_rate" not in desc
+    assert "amplitude" not in desc
+    assert "change_amount" not in desc
+    # 真实存在的列应当出现
+    assert "change_percent" in desc
+    assert "rsi" in desc
+
+
+def test_describe_schema_no_fabricated_columns(partial_db):
+    """更严格: schema 列出的每一个 `- col:` 都必须真实存在于 PRAGMA。"""
+    import re
+
+    conn = _sqlite3.connect(partial_db)
+    real = {r[1] for r in conn.execute("PRAGMA table_info(stock_analysis)")}
+    conn.close()
+    desc = schema.describe_schema(".", partial_db)
+    mentioned = set(re.findall(r"^\s*- (\w+):", desc, re.M))
+    assert mentioned <= real

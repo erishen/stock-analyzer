@@ -20,6 +20,8 @@ COLUMN_HINTS: dict[str, str] = {
     "volume": "成交量(手)", "amount": "成交额(元)",
     "amplitude": "振幅%", "change_percent": "日涨跌幅%(正=上涨)", "turnover_rate": "换手率%",
     "ma5": "5日均线", "ma10": "10日均线", "ma20": "20日均线", "ma60": "60日均线",
+    "ma5_ratio": "收盘价/MA5, >1 在5日线上方", "ma10_ratio": "收盘价/MA10",
+    "ma20_ratio": "收盘价/MA20, >1 在20日线上方(中期偏多)", "ma60_ratio": "收盘价/MA60",
     "close_ma5_ratio": "收盘价/MA5, >1 在5日线上方",
     "close_ma20_ratio": "收盘价/MA20, >1 在20日线上方(中期偏多)",
     "ema12": "12日指数均线", "ema26": "26日指数均线",
@@ -43,8 +45,11 @@ COLUMN_HINTS: dict[str, str] = {
 
 BASE_COLS = [
     "code", "date", "open", "close", "high", "low", "volume", "amount",
-    "amplitude", "change_percent", "change_amount", "turnover_rate",
+    "change_percent",
 ]
+# 注: BASE_COLS 仅作为「常用字段」的推荐展示顺序。实际输出时 describe_schema 会
+# 以真实表结构(PRAGMA)为准过滤, 表不存在的列(如 amplitude/turnover_rate/change_amount)
+# 不会被列给 LLM, 避免误导其生成非法 SQL。
 
 
 def _stock_info_path(project_root: Path) -> Path:
@@ -157,6 +162,8 @@ def describe_schema(project_root: str, db_path: str) -> str:
     lines.append("")
     lines.append("常用字段:")
     for c in BASE_COLS:
+        if c not in cols:
+            continue  # 仅列出表真实存在的列, 避免把 schema 描述里声明但表结构缺失的列(如 turnover_rate)误导 LLM 生成非法 SQL
         hint = COLUMN_HINTS.get(c, "")
         lines.append(f"  - {c}: {hint}")
     lines.append("")
