@@ -63,6 +63,15 @@ async function fetchAPI<T>(endpoint: string, options: RequestInit = {}): Promise
       (data && typeof data === 'object' && 'message' in data
         ? (data as Record<string, unknown>).message
         : null) || `请求失败（HTTP ${response.status}）`
+
+    // 后端主动禁用类响应(如公网部署返回 403 + {disabled:true}): 视为"功能不可用"而非异常,
+    // 以 {disabled:true} 形式 resolve, 让调用方在 then 中按禁用态渲染, 避免误报为读取失败。
+    const disabled =
+      data && typeof data === 'object' && (data as Record<string, unknown>).disabled === true
+    if (response.status === 403 && disabled) {
+      return { disabled: true, message: String(msg) } as unknown as T
+    }
+
     throw new Error(String(msg))
   }
   return data as T
