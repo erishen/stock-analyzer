@@ -1158,6 +1158,7 @@ async def get_stock_detail(code: str, limit: int = 120, days: int = 250):
         limit = min(3000, max(10, limit))
         days = min(3000, max(60, days))
         with sqlite3.connect(str(db_path)) as conn:
+            conn.row_factory = sqlite3.Row
             rows = conn.execute(
                 """
                 SELECT date, open, high, low, close, volume, amount,
@@ -1171,6 +1172,7 @@ async def get_stock_detail(code: str, limit: int = 120, days: int = 250):
                 """,
                 (code, days),
             ).fetchall()
+            rows = [dict(r) for r in rows]
 
         if not rows:
             return JSONResponse(content=StockDetailResponse(success=False, code=code, error="未找到该股票数据").to_dict())
@@ -1195,36 +1197,36 @@ async def get_stock_detail(code: str, limit: int = 120, days: int = 250):
 
         last = rows[-1]
         latest = {
-            "date": last[0],
-            "open": round(last[1] or 0, 2),
-            "high": round(last[2] or 0, 2),
-            "low": round(last[3] or 0, 2),
-            "close": round(last[4] or 0, 2),
-            "volume": last[5] or 0,
-            "amount": last[6] or 0,
+            "date": last["date"],
+            "open": round(last["open"] or 0, 2),
+            "high": round(last["high"] or 0, 2),
+            "low": round(last["low"] or 0, 2),
+            "close": round(last["close"] or 0, 2),
+            "volume": last["volume"] or 0,
+            "amount": last["amount"] or 0,
             "turnover_rate": 0,
-            "change_percent": round(last[7] or 0, 2),
+            "change_percent": round(last["change_percent"] or 0, 2),
         }
 
         indicators = {
-            "ma5": round(last[9] or 0, 2),
-            "ma10": round(last[10] or 0, 2),
-            "ma20": round(last[11] or 0, 2),
-            "ma60": round(last[12] or 0, 2),
-            "macd": round(last[13] or 0, 3),
-            "macd_hist": round(last[14] or 0, 3),
-            "rsi": round(last[15] or 0, 2),
-            "kdj_k": round(last[16] or 0, 2),
-            "kdj_d": round(last[17] or 0, 2),
-            "kdj_j": round(last[18] or 0, 2),
-            "boll_upper": round(last[19] or 0, 2),
-            "boll_mid": round(last[20] or 0, 2),
-            "boll_lower": round(last[21] or 0, 2),
-            "atr": round(last[22] or 0, 2),
+            "ma5": round(last["ma5"] or 0, 2),
+            "ma10": round(last["ma10"] or 0, 2),
+            "ma20": round(last["ma20"] or 0, 2),
+            "ma60": round(last["ma60"] or 0, 2),
+            "macd": round(last["macd"] or 0, 3),
+            "macd_hist": round(last["macd_hist"] or 0, 3),
+            "rsi": round(last["rsi"] or 0, 2),
+            "kdj_k": round(last["kdj_k"] or 0, 2),
+            "kdj_d": round(last["kdj_d"] or 0, 2),
+            "kdj_j": round(last["kdj_j"] or 0, 2),
+            "boll_upper": round(last["boll_upper"] or 0, 2),
+            "boll_mid": round(last["boll_mid"] or 0, 2),
+            "boll_lower": round(last["boll_lower"] or 0, 2),
+            "atr": round(last["atr"] or 0, 2),
         }
 
         # 区间收益: 当前收盘价相对 N 个交易日前 (或上市以来) 收盘价
-        closes = [r[4] for r in rows]
+        closes = [r["close"] for r in rows]
         cur = closes[-1]
         period_returns: dict[str, float] = {}
         for label, w in _PERIOD_WINDOWS.items():
@@ -1236,17 +1238,17 @@ async def get_stock_detail(code: str, limit: int = 120, days: int = 250):
 
         kline = [
             {
-                "date": r[0],
-                "open": round(r[1] or 0, 2),
-                "high": round(r[2] or 0, 2),
-                "low": round(r[3] or 0, 2),
-                "close": round(r[4] or 0, 2),
-                "volume": r[5] or 0,
-                "change_percent": round(r[8] or 0, 2),
-                "ma5": round(r[9] or 0, 2),
-                "ma10": round(r[10] or 0, 2),
-                "ma20": round(r[11] or 0, 2),
-                "ma60": round(r[12] or 0, 2),
+                "date": r["date"],
+                "open": round(r["open"] or 0, 2),
+                "high": round(r["high"] or 0, 2),
+                "low": round(r["low"] or 0, 2),
+                "close": round(r["close"] or 0, 2),
+                "volume": r["volume"] or 0,
+                "change_percent": round(r["change_percent"] or 0, 2),
+                "ma5": round(r["ma5"] or 0, 2),
+                "ma10": round(r["ma10"] or 0, 2),
+                "ma20": round(r["ma20"] or 0, 2),
+                "ma60": round(r["ma60"] or 0, 2),
             }
             for r in rows[-limit:]
         ]
