@@ -204,7 +204,7 @@ portfolio-risk-parity:
 
 web:
 	uv sync --extra web
-	cd frontend && npm install && npm run build
+	cd frontend && pnpm install && pnpm run build
 	uv run python -m src.main web
 
 dev:
@@ -223,7 +223,7 @@ dev:
 	done; \
 	sleep 1
 	@uv sync --extra web >/dev/null 2>&1 || uv sync --extra web
-	@cd frontend && npm install --silent 2>/dev/null || npm install
+	@cd frontend && (pnpm install --silent 2>/dev/null || pnpm install)
 	@backend_port=$$(grep -E '^WEB_PORT=' .env 2>/dev/null | cut -d= -f2 | tr -d ' '); \
 	backend_port=$${backend_port:-8001}; \
 	trap 'echo ""; echo "🛑 正在停止服务..."; bp=$$(grep -E "^WEB_PORT=" .env 2>/dev/null | cut -d= -f2 | tr -d " "); bp=$${bp:-8001}; fp=$$(grep -E "^VITE_PORT=" .env 2>/dev/null | cut -d= -f2 | tr -d " "); fp=$${fp:-3000}; for p in $$bp $$fp; do pids=$$(lsof -ti :$$p 2>/dev/null); if [ -n "$$pids" ]; then echo "清理端口 $$p (PID: $$pids)"; echo "$$pids" | xargs kill 2>/dev/null || true; fi; done; sleep 1; for p in $$bp $$fp; do pids=$$(lsof -ti :$$p 2>/dev/null); if [ -n "$$pids" ]; then echo "强制清理端口 $$p"; echo "$$pids" | xargs kill -9 2>/dev/null || true; fi; done' INT TERM EXIT; \
@@ -239,7 +239,7 @@ dev:
 	done; \
 	if [ $$ready -eq 1 ]; then \
 		echo "✅ 后端就绪, 启动前端..."; \
-		cd frontend && npm run dev & \
+		cd frontend && pnpm run dev & \
 		FRONTEND_PID=$$!; \
 	else \
 		echo "❌ 后端未就绪, 不启动前端"; \
@@ -249,14 +249,14 @@ dev:
 
 web-dev:
 	uv sync --extra web
-	cd frontend && npm install && npm run dev &
+	cd frontend && pnpm install && pnpm run dev &
 
 web-build:
-	cd frontend && npm install && npm run build
+	cd frontend && pnpm install && pnpm run build
 
 web-public:
 	uv sync --extra web
-	cd frontend && npm install && npm run build
+	cd frontend && pnpm install && pnpm run build
 	uv run python -m src.main web --host 0.0.0.0
 
 stats:
