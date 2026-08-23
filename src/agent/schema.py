@@ -101,13 +101,14 @@ def load_name_code(project_root: str) -> tuple[dict[str, str], dict[str, str]]:
 
 
 def code_from_name(project_root: str, name: str) -> str:
-    """中文名 -> code。支持精确匹配与常见命名的模糊匹配, 找不到原样返回。"""
+    """中文名 -> 完整代码(带 sh/sz/bj 前缀)。支持精确匹配与常见命名的模糊匹配, 找不到原样返回。"""
     name = (name or "").strip()
     if not name:
         return name
-    c2n, n2c = load_name_code(project_root)
-    if name in n2c:
-        return n2c[name]
+    # 优先走 中文名 -> 完整代码 映射(含占位名与真实名别名, 返回带前缀代码)
+    mapping = _name_to_fullcode_map(project_root)
+    if name in mapping:
+        return mapping[name]
 
     # 规范化: 去掉空白与常见后缀, 便于模糊匹配
     def _norm(s: str) -> str:
@@ -118,57 +119,70 @@ def code_from_name(project_root: str, name: str) -> str:
 
     target = _norm(name)
     if target:
-        # 1) 规范化后精确匹配
-        for code, n in c2n.items():
-            if _norm(n) == target:
+        # 1) 规范化后精确匹配(占位名)
+        for n, code in mapping.items():
+            if n.startswith("Demo") and _norm(n) == target:
                 return code
         # 2) 包含匹配: 输入是股票名的子串或反之
-        for code, n in c2n.items():
-            if n and (target in n or n in target):
+        for n, code in mapping.items():
+            if n.startswith("Demo") and n and (target in _norm(n) or _norm(n) in target):
                 return code
-        # 3) 演示库真实名别名匹配(如"茅台"/"贵州茅台" -> 600519)
+        # 3) 演示库真实名别名匹配(如"茅台"/"贵州茅台" -> sh600519)
         for code, aliases in DEMO_REALNAME_ALIASES.items():
-            clean = re.sub(r"^(sh|sz|bj)", "", code)
             if target == _norm(aliases[0]) or any(target in _norm(a) or _norm(a) in target for a in aliases):
-                return clean
+                return code
     return name
 
 
-def translate_stock_names(project_root: str, text: str) -> str:
-    """把句子里能识别的股票中文名替换为 code, 减少 LLM 生成 SQL 时的瞎猜。
+def _name_to_fullcode_map(project_root: str) -> dict[str, str]:
+    """构造 中文名(占位名/真实名别名) -> 完整代码(带 sh/sz/bj 前缀) 的映射。
 
-    例如「今天贵州茅台涨幅」-> 「今天贵州茅台(代码600519)涨幅」。
+    注意: 必须返回带前缀的完整代码(如 sh600519), 因为 stock_analysis 主表 code 列
+    存的就是带前缀格式; 若返回去前缀的 600519, LLM 生成 WHERE code='600519' 会查不到。
+    """
+    p = _stock_info_path(Path(project_root))
+    fullcode_by_name: dict[str, str] = {}
+    if p.exists():
+        try:
+            data = json.loads(p.read_text(encoding="utf-8"))
+            stocks = data.get("stocks", {}) if isinstance(data, dict) else {}
+            for code, info in stocks.items():
+                name = (info or {}).get("name", "")
+                if name and code not in fullcode_by_name:
+                    fullcode_by_name[name] = code
+        except Exception:  # pragma: no cover
+            pass
+    # 注入真实名别名(覆盖演示库脱敏占位名场景)
+    for code, aliases in DEMO_REALNAME_ALIASES.items():
+        for a in aliases:
+            if a not in fullcode_by_name:
+                fullcode_by_name[a] = code
+    return fullcode_by_name
+
+
+def translate_stock_names(project_root: str, text: str) -> str:
+    """把句子里能识别的股票中文名替换为完整 code, 减少 LLM 生成 SQL 时的瞎猜。
+
+    例如「今天贵州茅台涨幅」-> 「今天贵州茅台(代码sh600519)涨幅」。
     用一次编译的交替正则单遍替换, 长名优先, 避免子串二次命中与顺序错乱。
 
     同时支持演示库的真实名别名(如"茅台"/"贵州茅台" -> sh600519), 让自然语言查询能命中
-    脱敏后的 DemoXX 数据; 替换时保留用户原话(真实名), 仅标注 code。
+    脱敏后的 DemoXX 数据; 替换时保留用户原话(真实名), 标注的 code 为带前缀的完整代码,
+    与 stock_analysis 主表 code 列格式一致, 确保 LLM 生成的 SQL 能命中。
     """
     if not text:
         return text
-    c2n, _ = load_name_code(project_root)
-    if not c2n:
+    mapping = _name_to_fullcode_map(project_root)
+    if not mapping:
         return text
 
-    # 占位名(DemoXX) -> code, 以及真实名别名 -> code
-    uniq: dict[str, str] = {}
-    for code, n in c2n.items():
-        cur = uniq.get(n)
-        if cur is None or code < cur:
-            uniq[n] = code
-    # 注入真实名别名(长名优先, 避免"茅台"抢在"贵州茅台"之前)
-    for code, aliases in DEMO_REALNAME_ALIASES.items():
-        clean = re.sub(r"^(sh|sz|bj)", "", code)
-        for a in aliases:
-            # 别名不与已有占位名冲突时写入; 若冲突以占位名为准(占位名已在上面)
-            if a not in uniq:
-                uniq[a] = clean
-
-    names = sorted(uniq.keys(), key=len, reverse=True)
+    # 占位名(DemoXX) 与真实名别名 都可能命中; 长名优先, 避免"茅台"抢在"贵州茅台"之前
+    names = sorted(mapping.keys(), key=len, reverse=True)
 
     # 一次编译的交替正则, 单遍替换 (长名在前, re 对同一位置取首个匹配分支)
     pattern = re.compile("|".join(re.escape(n) for n in names))
     def _rep(m):
-        return f"{m.group(0)}(代码{uniq[m.group(0)]})"
+        return f"{m.group(0)}(代码{mapping[m.group(0)]})"
     return pattern.sub(_rep, text)
 
 
@@ -211,15 +225,15 @@ def describe_schema(project_root: str, db_path: str) -> str:
     lines.append(f"(共列出 {used} 个已注释指标字段)")
     lines.append("")
     lines.append("查询建议:")
-    lines.append("  - code 用单引号, 例如 WHERE code='600519'")
-    lines.append("  - 股票用中文名提及时, 先自行换算为代码(如 贵州茅台=600519), 用 code 条件查询")
+    lines.append("  - code 用单引号且带市场前缀, 例如 WHERE code='sh600519' (注意: 表内 code 列存的是带 sh/sz/bj 前缀的完整代码)")
+    lines.append("  - 股票用中文名提及时, 问题中已被标注为 '真实名(代码sh600519)' 形式, 直接用其中的带前缀代码查询")
     lines.append("  - 时间序列查询默认给最近一个/几个交易日, 数据最大日期为 " + str(max_date))
-    lines.append("  - 需要股票名称时, 可用常见映射: 贵州茅台=600519, 五粮液=000858, "
-                 "宁德时代=300750, 比亚迪=002594, 平安银行=000001, 贵州茅台=600519")
+    lines.append("  - 需要股票名称时, 可用常见映射: 贵州茅台=sh600519, 五粮液=sz000858, "
+                 "宁德时代=sz300750, 比亚迪=sz002594, 平安银行=sz000001")
     lines.append("")
     lines.append("注意: 本演示库股票 name 字段为脱敏占位名(如 'Demo茅台'/'Demo银行'), "
-                 "不要按真实名(茅台/贵州茅台)用 name 字段 LIKE 匹配, 一律用 code 条件查询; "
-                 "用户用真实名提问时, 问题中已被标注为 '真实名(代码600519)' 形式, 直接用其中的代码即可。")
+                 "不要按真实名(茅台/贵州茅台)用 name 字段 LIKE 匹配, 一律用带前缀的 code 条件查询"
+                 "(如 WHERE code='sh600519'); 用户问题中已标注完整代码, 直接照搬即可。")
     return "\n".join(lines)
 
 
