@@ -39,6 +39,7 @@ output/bj_codes.txt
 *.db-shm
 *.db-wal
 data/stock_analysis.db
+data/*.demo_backup_*
 data/stock_klines.db
 data/stock_info_cache.json
 
