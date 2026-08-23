@@ -20,7 +20,16 @@ logger = logging.getLogger(__name__)
 OPS = (">", "<", ">=", "<=", "=", "!=")
 
 # 不允许作为条件的标识列
-_ID_COLS = {"id", "code", "date", "created_at"}
+_ID_COLS = {"id",  "code", "date", "created_at"}
+
+
+def _normalize_code(c: str) -> str:
+    """去前缀(sh600519/sz000001/bj920000)只留纯6位代码, 与 asset_snapshot.code 对齐。"""
+    c = c.lower().strip()
+    for p in ("sh", "sz", "bj", "sse.", "szse.", "bse."):
+        if c.startswith(p):
+            return c[len(p):]
+    return c
 
 
 class ScreenerCondition:
@@ -137,7 +146,9 @@ def scan(
         from data.asset import load_snapshot
 
         asset_snap = load_snapshot()
-        asset_map = {a["code"]: a for a in asset_snap.get("items", [])}
+        # 方案B后 stock_analysis.code 带前缀(sh600519), 而 asset_snapshot.code 为纯6位;
+        # 归一化 key 保证二者能按统一 code 合并, 否则资产字段(市值/PE/PB)全部丢失。
+        asset_map = {_normalize_code(a["code"]): a for a in asset_snap.get("items", [])}
     except Exception:
         asset_map = {}
 
@@ -161,8 +172,8 @@ def scan(
     for r in rows:
         row = dict(zip(stock_cols, r, strict=True))
         code = row.get("code", "")
-        # 合并资产字段
-        asset = asset_map.get(code)
+        # 合并资产字段 (code 归一化后与 asset_map 对齐)
+        asset = asset_map.get(_normalize_code(code))
         if asset:
             for f in ASSET_FIELDS:
                 row[f] = asset.get(f)
