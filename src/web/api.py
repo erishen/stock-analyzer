@@ -96,19 +96,27 @@ def _chat_auth_required(request: Request, authorization: str | None = Header(def
     """/api/agent/chat 鉴权: 本机放行; 非本机需 Bearer TOKEN。
 
     令牌读 WEB_CHAT_TOKEN (.env / 环境变量)。未配置令牌时非本机访问一律拒绝(安全默认)。
+
+    公开演示场景(如 Render 免费 Demo)可通过环境变量 AGENT_CHAT_PUBLIC=1 关闭令牌校验,
+    允许任意来源访问 Agent 对话。该接口仅做只读 SQL 查询, 不暴露任何密钥或可写操作, 风险可控。
+    本地/私有部署默认仍走令牌或本机放行(不开启公开模式)。
     """
     host = (request.client.host if request.client else "") or ""
     if _is_loopback(host):
         return
     expected = os.environ.get("WEB_CHAT_TOKEN", "").strip()
-    if not expected:
-        raise HTTPException(
-            status_code=401,
-            detail="非本机访问 Agent 对话需配置 WEB_CHAT_TOKEN",
-        )
-    given = (authorization or "").removeprefix("Bearer ").strip()
-    if given != expected:
-        raise HTTPException(status_code=401, detail="认证失败: 无效或缺失令牌")
+    if expected:
+        given = (authorization or "").removeprefix("Bearer ").strip()
+        if given != expected:
+            raise HTTPException(status_code=401, detail="认证失败: 无效或缺失令牌")
+        return
+    # 未配置令牌: 仅在显式开启公开模式时才放行, 否则拒绝
+    if os.environ.get("AGENT_CHAT_PUBLIC", "").strip() == "1":
+        return
+    raise HTTPException(
+        status_code=401,
+        detail="非本机访问 Agent 对话需配置 WEB_CHAT_TOKEN(或设置 AGENT_CHAT_PUBLIC=1 开启公开演示模式)",
+    )
 
 
 def _require_settings_local(request: Request):

@@ -82,9 +82,13 @@ def _load_names(db_path: str, project_root: str) -> dict[str, str]:
         mapping: dict[str, str] = {}
         for code, info in stocks.items():
             name = (info or {}).get("name", "")
-            clean = re.sub(r"^(sh|sz|bj)", "", str(code))
-            if clean and name:
-                mapping[clean] = name
+            if not name:
+                continue
+            raw = str(code)
+            mapping[raw] = name  # 原始键(如 sh600000)
+            clean = re.sub(r"^(sh|sz|bj)", "", raw)
+            if clean:
+                mapping[clean] = name  # 去前缀键(如 600000)
         if mapping:
             return mapping
     return {}
