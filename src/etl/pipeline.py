@@ -25,6 +25,33 @@ from config import get_stock_analysis_db_path, get_stock_klines_db_path
 logger = logging.getLogger(__name__)
 
 
+def _normalize_code(code: str) -> str:
+    """把股票代码规范为带市场前缀格式。
+
+    源库 stock_klines 的 code 是纯 6 位数字(如 600519 / 000001),
+    统一转换为 sh/sz/bj 前缀(如 sh600519 / sz000001), 与项目其余逻辑
+    (中文名别名表、SQL 提示词、Demo 种子库)的带前缀约定对齐。
+
+    已带前缀的(code 本身以 sh/sz/bj 开头)原样返回, 避免重复加前缀。
+    """
+    if not code:
+        return code
+    s = str(code).strip().lower()
+    if s[:2] in ("sh", "sz", "bj"):
+        return s  # 已带前缀
+    if not s.isdigit() or len(s) != 6:
+        return s  # 非标准 6 位代码, 不动
+    lead = s[0]
+    if lead in ("6", "9"):  # 沪市主板 / 科创板
+        return f"sh{s}"
+    if lead in ("0", "3"):  # 深市主板 / 创业板
+        return f"sz{s}"
+    if lead in ("8", "4"):  # 北交所
+        return f"bj{s}"
+    return s  # 兜底(如 2 开头等), 不臆造前缀
+
+
+
 @dataclass
 class ETLConfig:
     """ETL 配置"""
@@ -418,6 +445,11 @@ class DataLoader:
             return 0
 
         df = df.copy()
+        # 源库 stock_klines 的 code 为纯 6 位数字(无前缀), 统一规范为带市场前缀格式
+        # (sh/sz/bj), 使分析库 stock_analysis 与现有代码逻辑(中文名映射 / SQL 提示词 /
+        # Demo 库均按 sh600519 带前缀)保持一致, Agent 查询 WHERE code='sh600519' 方能命中。
+        if "code" in df.columns:
+            df["code"] = df["code"].map(_normalize_code)
         df["date"] = df["date"].dt.strftime("%Y-%m-%d")
 
         columns = [col for col in df.columns if col not in ["created_at"]]

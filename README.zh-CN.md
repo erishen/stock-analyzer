@@ -87,7 +87,8 @@ AI 智能体被限制为 **只读** 查询：
 stock-analyzer/
 ├── data/                       # 数据目录
 │   ├── stock_klines.db         # 原始日线 K 线数据 (源库)
-│   ├── stock_analysis.db       # 分析数据库 (~700 万行，51 个指标)
+│   ├── stock_analysis.db       # 分析数据库 (~700 万行，51 个指标) —— 本地正式全市场数据, 由 make etl 从 stock_klines.db 生成
+│   ├── stock_analysis_demo.db  # 演示库 (12 只 DemoXX 占位股, 模拟行情) —— 线上 Render 通过 STOCK_ANALYSIS_DB_PATH 指向此库, 与本地正式库隔离
 │   ├── asset_snapshot.db       # 全市场资产快照 (市值 / 估值)
 │   ├── stock_info_cache.json   # 股票名称 ↔ 代码缓存
 │   ├── cache/                  # 慢接口结果缓存 (14 天后自动清理)

@@ -933,16 +933,23 @@ def get_market_by_code(code: str) -> str:
     上交所: 60x 主板, 688/689 科创板
     深交所: 000/001/002/003 主板, 300/301/302 创业板
     北交所: 43x/83x/87x/88x/920 (当前库暂无)
+
+    兼容带市场前缀的代码 (sh600519 / sz000001 / bj8xxxxx) 与纯六位代码。
     """
-    if code.startswith(("688", "689")):
+    raw = str(code or "").strip().lower()
+    if raw[:2] in ("sh", "sz", "bj"):
+        raw = raw[2:]
+    if not raw or not raw.isdigit():
+        return "其他"
+    if raw.startswith(("688", "689")):
         return "科创板"
-    if code.startswith("60"):
+    if raw.startswith("60"):
         return "上证主板"
-    if code.startswith(("300", "301", "302")):
+    if raw.startswith(("300", "301", "302")):
         return "创业板"
-    if code.startswith(("000", "001", "002", "003")):
+    if raw.startswith(("000", "001", "002", "003")):
         return "深证主板"
-    if code.startswith(("43", "83", "87", "88", "920")):
+    if raw.startswith(("43", "83", "87", "88", "920")):
         return "北交所"
     return "其他"
 
