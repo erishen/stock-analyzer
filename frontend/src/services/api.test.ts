@@ -60,6 +60,11 @@ describe('fetchAPI', () => {
     await expect(fetchAPI('/x')).rejects.toThrow('服务内部错误')
   })
 
+  it('502 空 body 网关错误应 reject 并提示可能冷启动', async () => {
+    mockFetchOnce(() => new Response('', { status: 502 }))
+    await expect(fetchAPI('/x')).rejects.toThrow('网关错误')
+  })
+
   it('空 body 的 2xx 应宽松 resolve 为 {success:true}', async () => {
     mockFetchOnce(() => new Response('', { status: 200 }))
     const r = await fetchAPI<{ success?: boolean }>('/ok')

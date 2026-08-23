@@ -50,7 +50,12 @@ export async function fetchAPI<T>(endpoint: string, options: RequestInit = {}): 
       // 2xx 但空 body：返回宽松对象，调用方自行处理
       return { success: true } as unknown as T
     }
-    throw new Error(`服务返回空响应（HTTP ${response.status}），请稍后重试或检查部署。`)
+    // 5xx 网关层错误(如 502/503)多为实例冷启动或临时不可用, 提示重试而非"检查部署"以免误判为代码故障
+    const isGateway = response.status >= 500
+    const hint = isGateway
+      ? `网关错误（HTTP ${response.status}），实例可能正在冷启动或临时不可用，请稍候几秒刷新重试。`
+      : `服务返回空响应（HTTP ${response.status}），请稍后重试或检查部署。`
+    throw new Error(hint)
   }
   let data: unknown
   try {
