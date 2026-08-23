@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import logging
+import re
 import sqlite3
 from typing import Any
 
@@ -189,7 +190,10 @@ def run_question(
                     for r in data["rows"]:
                         nr = dict(r)
                         if "code" in nr and "name" not in nr:
-                            nr["name"] = c2n.get(str(nr["code"]), nr["code"])
+                            # c2n 的键已去市场前缀(sh/sz/bj), 查表前需对齐
+                            raw_code = str(nr["code"])
+                            clean = re.sub(r"^(sh|sz|bj)", "", raw_code)
+                            nr["name"] = c2n.get(clean, nr["code"])
                         enriched.append(nr)
                     if enriched:
                         data["rows"] = enriched
