@@ -81,6 +81,24 @@ The AI agent is restricted to **read-only** queries:
 - SQL validated against a read-only allowlist (blocks writes, dangerous functions, multiple statements, oversized `LIMIT`)
 - Results capped at 200 rows
 
+**Agent chat endpoint (`/api/agent/chat`) access control** — three modes, pick one:
+
+| Mode | Config | Behavior |
+|---|---|---|
+| Local / loopback | (default) | Requests from `127.0.0.1`/`::1` are always allowed. |
+| Public demo | `AGENT_CHAT_PUBLIC=1` (no `WEB_CHAT_TOKEN`) | Non-loopback requests allowed **without** a token. Interface is read-only SQL only — safe for public demos. This is what the hosted demo uses. |
+| Token-protected | `WEB_CHAT_TOKEN=<secret>` (no `AGENT_CHAT_PUBLIC`) | Non-loopback requests require `Authorization: Bearer <secret>`. Frontend: click "设置访问令牌（可选）" in the AI panel and paste the same value. |
+
+Generate a token:
+
+```bash
+openssl rand -hex 32
+# or
+python -c "import secrets; print(secrets.token_hex(32))"
+```
+
+Setting both `WEB_CHAT_TOKEN` and `AGENT_CHAT_PUBLIC=1`: token takes precedence for non-loopback (Bearer still checked); loopback is always allowed. If you run your own deployment and want real LLM answers (free-form Q&A / portfolio diagnosis) instead of the read-only SQL fallback, set `LLM_API_KEY` (+ `LLM_BASE_URL`/`LLM_MODEL`) **and** `WEB_CHAT_TOKEN`, then remove `AGENT_CHAT_PUBLIC`.
+
 ## Project Structure
 
 ```

@@ -2,13 +2,39 @@ import type { Stats, ScanResult, ScreenerFieldsResult, AssetSnapshotResult, Asse
 
 const API_BASE = '/api'
 
+// Agent 对话令牌: 私有部署在后端设 WEB_CHAT_TOKEN 后, 前端需带 Bearer;
+// 公开 Demo(AGENT_CHAT_PUBLIC=1) 不填也能用。存 localStorage, 不随请求外泄到服务端以外的任何地方。
+const WEB_CHAT_TOKEN_KEY = 'stock-analyzer:web_chat_token'
+
+export function getWebChatToken(): string {
+  try {
+    return localStorage.getItem(WEB_CHAT_TOKEN_KEY) ?? ''
+  } catch {
+    return ''
+  }
+}
+
+export function setWebChatToken(token: string): void {
+  try {
+    if (token) localStorage.setItem(WEB_CHAT_TOKEN_KEY, token)
+    else localStorage.removeItem(WEB_CHAT_TOKEN_KEY)
+  } catch {
+    /* 忽略隐私模式等存储异常 */
+  }
+}
+
 async function fetchAPI<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(options.headers as Record<string, string>),
+  }
+  if (endpoint === '/agent/chat') {
+    const tk = getWebChatToken().trim()
+    if (tk) headers['Authorization'] = `Bearer ${tk}`
+  }
   const response = await fetch(`${API_BASE}${endpoint}`, {
     ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
+    headers,
   })
   return response.json()
 }

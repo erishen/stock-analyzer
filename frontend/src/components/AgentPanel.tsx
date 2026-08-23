@@ -2,7 +2,7 @@ import { FC, useState, useRef, useEffect } from 'react'
 import ReactECharts from 'echarts-for-react'
 import { marked } from 'marked'
 import type { AgentChatResult } from '@/types'
-import { api } from '@/services/api'
+import { api, getWebChatToken, setWebChatToken } from '@/services/api'
 import { IndicatorGuide } from './IndicatorGuide'
 
 interface ChatMsg {
@@ -101,11 +101,19 @@ export const AgentPanel: FC = () => {
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
   const [showSql, setShowSql] = useState(false)
+  const [showToken, setShowToken] = useState(false)
+  const [token, setToken] = useState('')
   const bottomRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [msgs, sending])
+
+  // 初始化令牌(来自 localStorage), 并同步给 api 层
+  useEffect(() => {
+    const saved = getWebChatToken()
+    setToken(saved)
+  }, [])
 
   const send = async (text?: string) => {
     const q = (text ?? input).trim()
@@ -219,6 +227,42 @@ export const AgentPanel: FC = () => {
           { term: '数据安全', desc: 'Agent 只能生成只读 SELECT查询，绝不改写任何数据；持仓与查询结果会随问题发送至所配置的第三方LLM服务，请留意其数据使用条款' },
         ]}
       />
+
+      {/* 访问令牌(可选): 仅当部署方开启了 WEB_CHAT_TOKEN 鉴权时才需要填; 公开 Demo 留空即可 */}
+      <div className="mt-3 text-xs">
+        <button
+          type="button"
+          onClick={() => setShowToken((s) => !s)}
+          className="text-gray-500 hover:text-blue-600 underline-offset-2 hover:underline"
+        >
+          {showToken ? '收起访问令牌' : '设置访问令牌（可选）'}
+        </button>
+        {showToken && (
+          <div className="mt-2 flex gap-2 items-center">
+            <input
+              type={token ? 'password' : 'text'}
+              value={token}
+              onChange={(e) => setToken(e.target.value)}
+              onBlur={() => setWebChatToken(token.trim())}
+              placeholder="私有部署请填后端 WEB_CHAT_TOKEN；公开 Demo 不用填"
+              className="flex-1 border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <button
+              type="button"
+              onClick={() => {
+                setToken('')
+                setWebChatToken('')
+              }}
+              className="px-2 py-1.5 border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-50 text-xs"
+            >
+              清除
+            </button>
+          </div>
+        )}
+        {showToken && token.trim() && (
+          <p className="mt-1 text-green-600">✓ 已保存，发送问题时会带上 Bearer 令牌</p>
+        )}
+      </div>
 
       {/* 消息区 */}
       <div className="mt-3 space-y-4">
