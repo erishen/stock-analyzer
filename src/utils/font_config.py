@@ -14,12 +14,11 @@ import platform
 import warnings
 from pathlib import Path
 
-import matplotlib.pyplot as plt
-from matplotlib import font_manager
-
 
 def _available_font_names():
     """返回 matplotlib 字体管理器已注册字体的名称集合(小写)，用于判断候选字体是否真实可用。"""
+    from matplotlib import font_manager
+
     return {f.name.lower() for f in font_manager.fontManager.ttflist}
 
 
@@ -53,7 +52,17 @@ def setup_chinese_font():
 
     返回最终选定的字体名（已成功设置）；若都不可用则返回 "sans-serif" 并警告。
     可重复调用（幂等）。
+
+    注意: matplotlib 为重量级可选依赖(仅绘图/CLI 需要), 此处延迟导入,
+    避免 web 启动链(仅装 fastapi+uvicorn 的 web extra)因缺少 matplotlib 而崩溃。
     """
+    try:
+        import matplotlib.pyplot as plt
+        from matplotlib import font_manager
+    except Exception:
+        # 无 matplotlib(如 web 部署): 跳过中文字体配置, 不阻断启动
+        return None
+
     candidates = _platform_candidates()
     available = _available_font_names()
 
@@ -91,9 +100,16 @@ def setup_chinese_font():
 
 
 def get_chinese_font():
-    """获取当前实际可用的中文字体名（复用模块导入时探测的结果）。"""
+    """获取当前实际可用的中文字体名（首次调用时探测，并缓存结果复用）。
+
+    无 matplotlib 环境(如 web 部署)返回 None，调用方需自行容错。
+    """
+    global _chosen_font
+    if _chosen_font is _UNSET:
+        _chosen_font = setup_chinese_font() or None
     return _chosen_font
 
 
-# 模块导入时执行一次字体探测，并记录最终选定的字体名供 get_chinese_font 复用
-_chosen_font = setup_chinese_font()
+# 延迟探测标记: 避免在模块导入时(web 启动链)就触发 matplotlib 导入。
+_UNSET = object()
+_chosen_font = _UNSET
