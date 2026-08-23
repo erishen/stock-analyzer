@@ -280,7 +280,7 @@ export const StocksPanel: FC = () => {
           <button
             onClick={reload}
             disabled={loading}
-            className="px-5 py-2 bg-violet-600 text-white rounded-md hover:bg-violet-700 disabled:opacity-50 w-full flex-1"
+            className="px-5 py-2 text-sm font-medium bg-violet-600 text-white rounded-md hover:bg-violet-700 disabled:opacity-50 w-full"
           >
             {loading ? '查询中...' : '查询'}
           </button>
@@ -291,7 +291,7 @@ export const StocksPanel: FC = () => {
           <button
             onClick={startUpdate}
             disabled={updateStatus?.status === 'running'}
-            className="px-5 py-2 bg-emerald-600 text-white text-sm rounded-md hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap w-full"
+            className="px-5 py-2 text-sm font-medium bg-emerald-600 text-white rounded-md hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap w-full"
           >
             {updateStatus?.status === 'running' ? '更新中...' : '拉取最新数据'}
           </button>
