@@ -110,3 +110,47 @@ def test_describe_schema_no_fabricated_columns(partial_db):
     desc = schema.describe_schema(".", partial_db)
     mentioned = set(re.findall(r"^\s*- (\w+):", desc, re.M))
     assert mentioned <= real
+
+
+@pytest.fixture()
+def demo_project(tmp_path):
+    """模拟演示库: 股票名为脱敏占位名(DemoXX), 但用户用真实名提问。"""
+    root = tmp_path / "demo"
+    (root / "data").mkdir(parents=True)
+    cache = {
+        "stocks": {
+            "sh600519": {"name": "Demo茅台"},
+            "sh600000": {"name": "Demo银行"},
+            "sz300750": {"name": "Demo新能源"},
+        }
+    }
+    (root / "data" / "stock_info_cache.json").write_text(
+        json.dumps(cache, ensure_ascii=False), encoding="utf-8"
+    )
+    return str(root)
+
+
+def test_translate_realname_alias_maps_to_code(demo_project):
+    """演示库用脱敏占位名, 但用户用真实名(茅台/贵州茅台)提问应映射到对应代码。"""
+    out = schema.translate_stock_names(demo_project, "茅台技术面怎么样")
+    assert "茅台(代码600519)" in out
+    out2 = schema.translate_stock_names(demo_project, "贵州茅台涨幅")
+    assert "贵州茅台(代码600519)" in out2
+    out3 = schema.translate_stock_names(demo_project, "宁德时代走势")
+    assert "宁德时代(代码300750)" in out3
+
+
+def test_code_from_name_realname_alias(demo_project):
+    assert schema.code_from_name(demo_project, "茅台") == "600519"
+    assert schema.code_from_name(demo_project, "贵州茅台") == "600519"
+    assert schema.code_from_name(demo_project, "宁德时代") == "300750"
+    # 占位名本身仍可用
+    assert schema.code_from_name(demo_project, "Demo茅台") == "600519"
+
+
+def test_translate_keeps_realname_text_demo_placeholder(demo_project):
+    """翻译时保留用户原话(真实名), 不要在演示库占位名上二次标注。"""
+    out = schema.translate_stock_names(demo_project, "茅台涨了吗")
+    assert out.count("600519") == 1
+    assert "Demo茅台" not in out  # 不应出现占位名, 用户说的是真实名
+

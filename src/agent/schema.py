@@ -12,6 +12,25 @@ import sqlite3
 from functools import lru_cache
 from pathlib import Path
 
+
+# 演示库把真实标的脱敏为 DemoXX 占位名, 但用户/LLM 仍习惯用真实名(如"茅台""贵州茅台")提问。
+# 这里提供「真实名(含常见简称) -> 演示库代码」的别名表, 让自然语言查询能命中演示数据,
+# 而展示名仍保持 DemoXX 脱敏风格(不改 seed 数据)。键为脱敏占位名, 值为该占位名对应的真实名别名列表。
+DEMO_REALNAME_ALIASES: dict[str, list[str]] = {
+    "sh600000": ["浦发银行", "浦发", "上海浦东发展银行"],
+    "sh600519": ["贵州茅台", "茅台", "茅台酒"],
+    "sh600036": ["招商银行", "招行", "招商"],
+    "sz000001": ["平安银行", "平安", "深圳平安银行"],
+    "sh601318": ["中国平安", "平安保险", "平安保险集团"],
+    "sh600030": ["中信证券", "中信", "中信证券股份"],
+    "sz002415": ["海康威视", "海康", "杭州海康威视"],
+    "sh600196": ["复星医药", "复星", "上海复星医药"],
+    "sh600887": ["伊利股份", "伊利", "内蒙古伊利"],
+    "sz300750": ["宁德时代", "宁德", "CATL", "宁德时代新能源"],
+    "sh600585": ["海螺水泥", "海螺", "安徽海螺水泥"],
+    "sz000002": ["万科", "万科A", "万科企业", "深圳万科"],
+}
+
 # 关键列的中文注释, 提示模型如何处理数值含义与涨跌方向
 COLUMN_HINTS: dict[str, str] = {
     "code": "股票代码, 如 '600519'(6/0/3开头为A股, 8/4开头为北交所), 查询务必加引号",
@@ -107,6 +126,11 @@ def code_from_name(project_root: str, name: str) -> str:
         for code, n in c2n.items():
             if n and (target in n or n in target):
                 return code
+        # 3) 演示库真实名别名匹配(如"茅台"/"贵州茅台" -> 600519)
+        for code, aliases in DEMO_REALNAME_ALIASES.items():
+            clean = re.sub(r"^(sh|sz|bj)", "", code)
+            if target == _norm(aliases[0]) or any(target in _norm(a) or _norm(a) in target for a in aliases):
+                return clean
     return name
 
 
@@ -115,6 +139,9 @@ def translate_stock_names(project_root: str, text: str) -> str:
 
     例如「今天贵州茅台涨幅」-> 「今天贵州茅台(代码600519)涨幅」。
     用一次编译的交替正则单遍替换, 长名优先, 避免子串二次命中与顺序错乱。
+
+    同时支持演示库的真实名别名(如"茅台"/"贵州茅台" -> sh600519), 让自然语言查询能命中
+    脱敏后的 DemoXX 数据; 替换时保留用户原话(真实名), 仅标注 code。
     """
     if not text:
         return text
@@ -122,12 +149,20 @@ def translate_stock_names(project_root: str, text: str) -> str:
     if not c2n:
         return text
 
-    # 长度去重 -> 按长度降序
+    # 占位名(DemoXX) -> code, 以及真实名别名 -> code
     uniq: dict[str, str] = {}
     for code, n in c2n.items():
         cur = uniq.get(n)
         if cur is None or code < cur:
             uniq[n] = code
+    # 注入真实名别名(长名优先, 避免"茅台"抢在"贵州茅台"之前)
+    for code, aliases in DEMO_REALNAME_ALIASES.items():
+        clean = re.sub(r"^(sh|sz|bj)", "", code)
+        for a in aliases:
+            # 别名不与已有占位名冲突时写入; 若冲突以占位名为准(占位名已在上面)
+            if a not in uniq:
+                uniq[a] = clean
+
     names = sorted(uniq.keys(), key=len, reverse=True)
 
     # 一次编译的交替正则, 单遍替换 (长名在前, re 对同一位置取首个匹配分支)
@@ -181,6 +216,10 @@ def describe_schema(project_root: str, db_path: str) -> str:
     lines.append("  - 时间序列查询默认给最近一个/几个交易日, 数据最大日期为 " + str(max_date))
     lines.append("  - 需要股票名称时, 可用常见映射: 贵州茅台=600519, 五粮液=000858, "
                  "宁德时代=300750, 比亚迪=002594, 平安银行=000001, 贵州茅台=600519")
+    lines.append("")
+    lines.append("注意: 本演示库股票 name 字段为脱敏占位名(如 'Demo茅台'/'Demo银行'), "
+                 "不要按真实名(茅台/贵州茅台)用 name 字段 LIKE 匹配, 一律用 code 条件查询; "
+                 "用户用真实名提问时, 问题中已被标注为 '真实名(代码600519)' 形式, 直接用其中的代码即可。")
     return "\n".join(lines)
 
 
