@@ -1069,7 +1069,7 @@ async def get_stocks(
 
             rows = conn.execute(
                 """
-                SELECT code, open, high, low, close, change_percent, volume, amount, turnover_rate
+                SELECT code, open, high, low, close, change_percent, volume, amount
                 FROM stock_analysis
                 WHERE date = ?
                 """,
@@ -1099,7 +1099,7 @@ async def get_stocks(
                     change_percent=r[5] or 0,
                     volume=r[6] or 0,
                     amount=r[7] or 0,
-                    turnover_rate=r[8] or 0,
+                    turnover_rate=0,
                 )
             )
 
@@ -1160,7 +1160,7 @@ async def get_stock_detail(code: str, limit: int = 120, days: int = 250):
         with sqlite3.connect(str(db_path)) as conn:
             rows = conn.execute(
                 """
-                SELECT date, open, high, low, close, volume, amount, turnover_rate,
+                SELECT date, open, high, low, close, volume, amount,
                        change_percent, ma5, ma10, ma20, ma60,
                        macd, macd_hist, rsi, kdj_k, kdj_d, kdj_j,
                        boll_upper, boll_mid, boll_lower, atr
@@ -1202,8 +1202,8 @@ async def get_stock_detail(code: str, limit: int = 120, days: int = 250):
             "close": round(last[4] or 0, 2),
             "volume": last[5] or 0,
             "amount": last[6] or 0,
-            "turnover_rate": round(last[7] or 0, 2),
-            "change_percent": round(last[8] or 0, 2),
+            "turnover_rate": 0,
+            "change_percent": round(last[7] or 0, 2),
         }
 
         indicators = {

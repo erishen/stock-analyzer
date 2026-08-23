@@ -394,7 +394,7 @@ export const StocksPanel: FC = () => {
                       </td>
                       <td className="p-3 text-sm text-right">{fmtVolume(s.volume)}</td>
                       <td className="p-3 text-sm text-right">{fmtAmount(s.amount)}</td>
-                      <td className="p-3 text-sm text-right">{s.turnover_rate.toFixed(2)}</td>
+                      <td className="p-3 text-sm text-right">{s.turnover_rate ? s.turnover_rate.toFixed(2) : '—'}</td>
                     </tr>
                   ))
                 )}
