@@ -240,3 +240,52 @@ class TestFastAPIApp:
         assert "/api/portfolio" in routes
         assert "/api/sector" in routes
         assert "/api/market-timing" in routes
+        assert "/api/stock/{code}" in routes
+
+
+class TestStockDetailEndpoint:
+    """测试股票详情接口 /api/stock/{code} (回归: 列索引错位曾导致 tuple index out of range)"""
+
+    def _client(self):
+        from starlette.testclient import TestClient
+
+        return TestClient(app)
+
+    def test_stock_detail_success(self):
+        """已知存在的 seed 股票应返回 success=true 且字段齐全, 不再越界崩溃"""
+        import os
+
+        os.environ.setdefault(
+            "STOCK_ANALYSIS_DB_PATH",
+            os.path.join(os.path.dirname(__file__), "..", "data", "stock_analysis.db"),
+        )
+        client = self._client()
+        resp = client.get("/api/stock/sh600887?limit=120&days=2500")
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["success"] is True, body.get("error")
+        assert body["code"] == "sh600887"
+        # 关键字段齐全且为数值 (曾因 last[22] 越界使详情弹窗崩溃)
+        assert body["latest"]["close"] is not None
+        assert isinstance(body["indicators"]["atr"], (int, float))
+        assert isinstance(body["indicators"]["ma5"], (int, float))
+        assert len(body["kline"]) > 0
+        # 每条 kline 的 OHLC 均非 None
+        for k in body["kline"]:
+            assert k["close"] is not None
+            assert k["ma5"] is not None
+
+    def test_stock_detail_unknown_code(self):
+        """不存在的股票应优雅返回 success=false, 不抛 500"""
+        import os
+
+        os.environ.setdefault(
+            "STOCK_ANALYSIS_DB_PATH",
+            os.path.join(os.path.dirname(__file__), "..", "data", "stock_analysis.db"),
+        )
+        client = self._client()
+        resp = client.get("/api/stock/sh000000?limit=120&days=2500")
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["success"] is False
+        assert body["error"]
