@@ -32,11 +32,40 @@ async function fetchAPI<T>(endpoint: string, options: RequestInit = {}): Promise
     const tk = getWebChatToken().trim()
     if (tk) headers['Authorization'] = `Bearer ${tk}`
   }
-  const response = await fetch(`${API_BASE}${endpoint}`, {
-    ...options,
-    headers,
-  })
-  return response.json()
+  let response: Response
+  try {
+    response = await fetch(`${API_BASE}${endpoint}`, {
+      ...options,
+      headers,
+    })
+  } catch (netErr) {
+    // 网络层错误(连接被重置/超时/worker 崩溃) -> 抛可读错误而非原生 json 异常
+    const reason = netErr instanceof Error ? netErr.message : String(netErr)
+    throw new Error(`网络请求失败：${reason}（服务可能正在冷启动，请稍后重试）`)
+  }
+  // 先读文本，避免空 body 直接 response.json() 抛 "Unexpected end of JSON input"
+  const text = await response.text()
+  if (!text) {
+    if (response.ok) {
+      // 2xx 但空 body：返回宽松对象，调用方自行处理
+      return { success: true } as unknown as T
+    }
+    throw new Error(`服务返回空响应（HTTP ${response.status}），请稍后重试或检查部署。`)
+  }
+  let data: unknown
+  try {
+    data = JSON.parse(text)
+  } catch {
+    throw new Error(`服务返回了非 JSON 内容（HTTP ${response.status}），请稍后重试。`)
+  }
+  if (!response.ok) {
+    const msg =
+      (data && typeof data === 'object' && 'message' in data
+        ? (data as Record<string, unknown>).message
+        : null) || `请求失败（HTTP ${response.status}）`
+    throw new Error(String(msg))
+  }
+  return data as T
 }
 
 export const api = {
