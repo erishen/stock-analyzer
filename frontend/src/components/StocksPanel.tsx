@@ -222,7 +222,7 @@ export const StocksPanel: FC = () => {
         ]}
       />
 
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-4">
+      <div className={`grid grid-cols-1 ${updateEnabled ? 'md:grid-cols-6' : 'md:grid-cols-5'} gap-4 mb-4`}>
         <div className="flex flex-col">
           <label className="text-xs text-gray-500 mb-1">搜索 (代码/名称)</label>
           <input
@@ -285,19 +285,23 @@ export const StocksPanel: FC = () => {
             {loading ? '查询中...' : '查询'}
           </button>
         </div>
+        {updateEnabled && (
+        <div className="flex flex-col">
+          <label className="text-xs text-gray-500 mb-1">&nbsp;</label>
+          <button
+            onClick={startUpdate}
+            disabled={updateStatus?.status === 'running'}
+            className="px-5 py-2 bg-emerald-600 text-white text-sm rounded-md hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap w-full"
+          >
+            {updateStatus?.status === 'running' ? '更新中...' : '拉取最新数据'}
+          </button>
+        </div>
+        )}
       </div>
 
       {/* 数据更新: 触发后台增量拉取 + ETL (仅 WEB_ENABLE_UPDATE=1 时展示) */}
       {updateEnabled && (
       <div className="flex items-center gap-3 mb-4 flex-wrap">
-        <button
-          onClick={startUpdate}
-          disabled={updateStatus?.status === 'running'}
-          className="px-4 py-2 bg-emerald-600 text-white text-sm rounded-md hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
-        >
-          {updateStatus?.status === 'running' ? '更新中...' : '拉取最新数据'}
-        </button>
-
         {updateStatus?.status === 'running' && (
           <div className="flex-1 min-w-64">
             <div className="flex justify-between text-xs text-gray-500 mb-1">
