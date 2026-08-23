@@ -23,7 +23,7 @@ export function setWebChatToken(token: string): void {
   }
 }
 
-async function fetchAPI<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+export async function fetchAPI<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...(options.headers as Record<string, string>),
@@ -59,15 +59,15 @@ async function fetchAPI<T>(endpoint: string, options: RequestInit = {}): Promise
     throw new Error(`服务返回了非 JSON 内容（HTTP ${response.status}），请稍后重试。`)
   }
   if (!response.ok) {
-    const msg =
-      (data && typeof data === 'object' && 'message' in data
-        ? (data as Record<string, unknown>).message
-        : null) || `请求失败（HTTP ${response.status}）`
+    const obj = (data && typeof data === 'object' ? (data as Record<string, unknown>) : {}) as Record<string, unknown>
+    const detail = (obj.detail && typeof obj.detail === 'object' ? obj.detail : {}) as Record<string, unknown>
+    const rawMsg = obj.message ?? detail.message ?? null
+    const msg = (rawMsg != null ? String(rawMsg) : null) || `请求失败（HTTP ${response.status}）`
 
-    // 后端主动禁用类响应(如公网部署返回 403 + {disabled:true}): 视为"功能不可用"而非异常,
+    // 后端主动禁用类响应(如公网部署返回 403 + {detail:{disabled:true}}): 视为"功能不可用"而非异常,
     // 以 {disabled:true} 形式 resolve, 让调用方在 then 中按禁用态渲染, 避免误报为读取失败。
-    const disabled =
-      data && typeof data === 'object' && (data as Record<string, unknown>).disabled === true
+    // 注意后端用 HTTPException(detail={...}) 包裹, disabled 在 data.detail 下; 兼容顶层 disabled。
+    const disabled = obj.disabled === true || detail.disabled === true
     if (response.status === 403 && disabled) {
       return { disabled: true, message: String(msg) } as unknown as T
     }
