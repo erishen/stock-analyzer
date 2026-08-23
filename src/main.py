@@ -488,7 +488,8 @@ def run_backtest(args):
         logger.info("   请先运行: python -m src.main etl")
         return
 
-    exclude_st = not args.include_st if args.include_st else args.exclude_st
+    # --include-st 开启时包含 ST, 否则默认排除 (依靠 not 推导, 不依赖默认开关)
+    exclude_st = not args.include_st
 
     result = run_strategy_backtest(
         db_path=db_path,
@@ -1157,7 +1158,7 @@ def main():
     backtest_parser.add_argument("--max-momentum", type=float, default=1.0, help="最大动量阈值")
     backtest_parser.add_argument("--max-volatility", type=float, default=0.15, help="最大波动率阈值")
     backtest_parser.add_argument("--min-price", type=float, default=2.0, help="最低价格过滤")
-    backtest_parser.add_argument("--exclude-st", action="store_true", default=True, help="排除ST股票")
+    backtest_parser.add_argument("--exclude-st", action="store_true", help="排除ST股票 (默认排除, 可用 --include-st 包含)")
     backtest_parser.add_argument("--include-st", action="store_true", help="包含ST股票")
     backtest_parser.add_argument("--stop-loss", type=float, default=0.0, help="止损比例 (如 0.05 表示 5%%)")
     backtest_parser.add_argument("--take-profit", type=float, default=0.0, help="止盈比例 (如 0.1 表示 10%%)")
