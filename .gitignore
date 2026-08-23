@@ -75,9 +75,10 @@ frontend/vite.config.d.ts
 !frontend/postcss.config.js
 !frontend/tailwind.config.js
 
-# Web static (built from frontend by render.yaml buildCommand) — not committed
-src/web/static/assets/
-src/web/static/index.html
+# Web static: render.yaml buildCommand 会自动 build 覆盖; 此处保留 git 跟踪作为
+# build 失败时的兜底, 避免线上回落到占位页。
+# src/web/static/assets/
+# src/web/static/index.html
 
 # OS files
 .DS_Store
