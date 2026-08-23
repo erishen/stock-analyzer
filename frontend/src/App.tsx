@@ -15,11 +15,18 @@ import { SettingsPanel } from '@/components/SettingsPanel'
 import { api } from '@/services/api'
 import type { Stats } from '@/types'
 
+const STORAGE_KEY = 'stock-analyzer:activeTab'
+const ALL_TABS = ['agent', 'stocks', 'scan', 'paper', 'market', 'backtest', 'portfolio', 'sector', 'dict', 'settings']
+
 const App: FC = () => {
-  const [activeTab, setActiveTab] = useState('agent')
+  const [activeTab, setActiveTab] = useState<string>(() => {
+    const saved = typeof localStorage !== 'undefined' ? localStorage.getItem(STORAGE_KEY) : null
+    return saved && ALL_TABS.includes(saved) ? saved : 'agent'
+  })
   // 已访问过的 Tab 集合: 首次进入才挂载并触发加载, 之后保持挂载不丢数据。
   // 首屏只挂载 agent(AI 选股), 其余 Tab 的预热请求推迟到用户真正切入时。
-  const [visited, setVisited] = useState<Set<string>>(() => new Set(['agent']))
+  // 持久化的 activeTab 也视为已访问, 刷新后可直接渲染, 不会空白。
+  const [visited, setVisited] = useState<Set<string>>(() => new Set(['agent', activeTab]))
   const [stats, setStats] = useState<Stats | null>(null)
 
   useEffect(() => {
@@ -28,6 +35,9 @@ const App: FC = () => {
 
   const switchTab = (id: string) => {
     setActiveTab(id)
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(STORAGE_KEY, id)
+    }
     setVisited((prev) => {
       if (prev.has(id)) return prev
       const next = new Set(prev)
