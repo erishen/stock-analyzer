@@ -24,8 +24,16 @@ export const SettingsPanel: FC = () => {
       setConfigured(s.configured_api_key)
       setMasked(s.api_key_masked || '')
       setLoading(false)
-    }).catch(() => {
-      setMsg({ type: 'err', text: '读取配置失败' })
+    }).catch((e) => {
+      const msg = e instanceof Error ? e.message : String(e)
+      // 公网/共享部署下, 后端主动返回 403 (message 提示仅本地可用) 是预期行为,
+      // 不应误报为"读取失败"; 其余情况才视为真正的读取错误。
+      if (msg.includes('本地') || msg.includes('localhost') || msg.includes('禁用')) {
+        setDisabled(true)
+        setLoading(false)
+        return
+      }
+      setMsg({ type: 'err', text: '读取配置失败：' + msg })
       setLoading(false)
     })
   }, [])
