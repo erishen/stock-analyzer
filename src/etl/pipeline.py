@@ -51,7 +51,6 @@ def _normalize_code(code: str) -> str:
     return s  # 兜底(如 2 开头等), 不臆造前缀
 
 
-
 @dataclass
 class ETLConfig:
     """ETL 配置"""
@@ -530,11 +529,7 @@ class ETLPipeline:
 
             # 增量模式下的窗口设置: tail_rows 含 warmup(只算不写), 写回仅最近 incremental_window 行
             incremental = self.config.incremental_window > 0
-            tail_rows = (
-                self.config.incremental_window + self.config.warmup_rows
-                if incremental
-                else None
-            )
+            tail_rows = self.config.incremental_window + self.config.warmup_rows if incremental else None
 
             for i, code in enumerate(codes, 1):
                 try:
@@ -548,11 +543,7 @@ class ETLPipeline:
                     result.records_transformed += len(transformed_df)
 
                     # 增量: 只写回最近 incremental_window 行, 更早历史行不动(指标依赖窗口已含 warmup)
-                    write_df = (
-                        transformed_df.tail(self.config.incremental_window)
-                        if incremental
-                        else transformed_df
-                    )
+                    write_df = transformed_df.tail(self.config.incremental_window) if incremental else transformed_df
                     loaded = self.loader.load_stock_data(write_df)
                     result.records_loaded += loaded
                     result.stocks_processed += 1

@@ -23,9 +23,7 @@ def project(tmp_path):
             "bj830799": {"name": "*ST某北交所"},
         }
     }
-    (root / "data" / "stock_info_cache.json").write_text(
-        json.dumps(cache, ensure_ascii=False), encoding="utf-8"
-    )
+    (root / "data" / "stock_info_cache.json").write_text(json.dumps(cache, ensure_ascii=False), encoding="utf-8")
     return str(root)
 
 
@@ -81,9 +79,7 @@ def partial_db(tmp_path):
         "id INTEGER, code TEXT, date TEXT, open REAL, close REAL, high REAL, low REAL,"
         "volume REAL, amount REAL, change_percent REAL, rsi REAL)"
     )
-    conn.execute(
-        "INSERT INTO stock_analysis VALUES (1,'600519','2026-08-21',1700,1710,1720,1690,1000,1.7e9,1.2,65)"
-    )
+    conn.execute("INSERT INTO stock_analysis VALUES (1,'600519','2026-08-21',1700,1710,1720,1690,1000,1.7e9,1.2,65)")
     conn.commit()
     conn.close()
     return str(db)
@@ -124,9 +120,7 @@ def demo_project(tmp_path):
             "sz300750": {"name": "Demo新能源"},
         }
     }
-    (root / "data" / "stock_info_cache.json").write_text(
-        json.dumps(cache, ensure_ascii=False), encoding="utf-8"
-    )
+    (root / "data" / "stock_info_cache.json").write_text(json.dumps(cache, ensure_ascii=False), encoding="utf-8")
     return str(root)
 
 
@@ -153,4 +147,3 @@ def test_translate_keeps_realname_text_demo_placeholder(demo_project):
     out = schema.translate_stock_names(demo_project, "茅台涨了吗")
     assert out.count("sh600519") == 1
     assert "Demo茅台" not in out  # 不应出现占位名, 用户说的是真实名
-

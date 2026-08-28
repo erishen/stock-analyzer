@@ -60,9 +60,7 @@ def _load_override() -> dict[str, str]:
 
 def _save_override(cfg: dict[str, str]) -> None:
     _OVERRIDE_FILE.parent.mkdir(parents=True, exist_ok=True)
-    _OVERRIDE_FILE.write_text(
-        json.dumps(cfg, ensure_ascii=False, indent=2), encoding="utf-8"
-    )
+    _OVERRIDE_FILE.write_text(json.dumps(cfg, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
 def save_override(cfg: dict[str, str]) -> None:
@@ -106,9 +104,7 @@ def get_llm_config() -> dict[str, str]:
 def require_llm_config() -> dict[str, str]:
     cfg = get_llm_config()
     if not cfg["api_key"]:
-        raise RuntimeError(
-            "未找到 LLM_API_KEY: 请在工作区 work/harness/datapulse/.env 里配置 LLM 凭证"
-        )
+        raise RuntimeError("未找到 LLM_API_KEY: 请在工作区 work/harness/datapulse/.env 里配置 LLM 凭证")
     return cfg
 
 

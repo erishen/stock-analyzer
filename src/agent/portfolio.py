@@ -33,8 +33,7 @@ def build_paper_context(db_path) -> str:
         weight_txt = f", 仓位占比{weight}%" if weight not in (None, 0, "", "0") else ""
         # 隐私脱敏: 只外发持仓代码、名称、盈亏率与建议; 不下发精确成本/现价/市值金额
         lines.append(
-            f"- {pos.get('name')}({pos.get('code')}): 盈亏{pos.get('pnl_pct')}%{weight_txt}, "
-            f"建议: {pos.get('advice')}"
+            f"- {pos.get('name')}({pos.get('code')}): 盈亏{pos.get('pnl_pct')}%{weight_txt}, 建议: {pos.get('advice')}"
         )
     market = diag.get("market", {}) or {}
     lines.append(f"大盘环境: {market.get('state', '未知')} · {market.get('advice', '')}")

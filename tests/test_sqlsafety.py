@@ -4,6 +4,7 @@ from agent.sqlsafety import MAX_LIMIT, enforce_max_rows, sanitize_statement, val
 
 # ---------- 只读放行 ----------
 
+
 def test_allows_simple_select():
     ok, err = validate_readonly("SELECT * FROM stock_analysis LIMIT 10")
     assert ok, err
@@ -26,6 +27,7 @@ def test_strips_trailing_semicolons():
 
 
 # ---------- 只写/危险操作一律拒绝 ----------
+
 
 def test_rejects_all_mutations():
     for sql in [
@@ -56,6 +58,7 @@ def test_rejects_non_select_lead():
 
 # ---------- 危险函数 ----------
 
+
 def test_rejects_dangerous_functions():
     for sql in [
         "SELECT readfile('/etc/passwd') LIMIT 1",
@@ -68,6 +71,7 @@ def test_rejects_dangerous_functions():
 
 
 # ---------- LIMIT 约束 ----------
+
 
 def test_requires_limit():
     ok, err = validate_readonly("SELECT * FROM stock_analysis")
@@ -87,6 +91,7 @@ def test_accepts_limit_at_max():
 
 # ---------- 多语句/注释规避 ----------
 
+
 def test_rejects_multiple_statements():
     ok, err = validate_readonly("SELECT 1; SELECT 2")
     assert not ok, "内部出现分号应拒绝"
@@ -105,6 +110,7 @@ def test_empty_sql_rejected():
 
 
 # ---------- enforce_max_rows ----------
+
 
 def test_enforce_max_rows_truncates():
     rows = [{"i": i} for i in range(250)]

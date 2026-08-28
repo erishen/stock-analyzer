@@ -1,4 +1,3 @@
-
 from investkit_utils.utils.financial import (
     calculate_cagr,
     calculate_compound_interest,

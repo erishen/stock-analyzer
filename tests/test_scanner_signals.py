@@ -223,8 +223,13 @@ class TestSignalDetector:
         change_percent = float(latest.get("change_percent", 0))
 
         signals = detector._detect_macd_signals(
-            sample_df, code, date, price, change_percent,
-            latest=sample_df.iloc[-1].to_dict(), prev=sample_df.iloc[-2].to_dict(),
+            sample_df,
+            code,
+            date,
+            price,
+            change_percent,
+            latest=sample_df.iloc[-1].to_dict(),
+            prev=sample_df.iloc[-2].to_dict(),
         )
 
         assert isinstance(signals, list)
@@ -240,8 +245,13 @@ class TestSignalDetector:
         change_percent = float(latest.get("change_percent", 0))
 
         signals = detector._detect_rsi_signals(
-            sample_df, code, date, price, change_percent,
-            latest=sample_df.iloc[-1].to_dict(), prev=sample_df.iloc[-2].to_dict(),
+            sample_df,
+            code,
+            date,
+            price,
+            change_percent,
+            latest=sample_df.iloc[-1].to_dict(),
+            prev=sample_df.iloc[-2].to_dict(),
         )
 
         assert isinstance(signals, list)
@@ -257,8 +267,13 @@ class TestSignalDetector:
         change_percent = float(latest.get("change_percent", 0))
 
         signals = detector._detect_ma_signals(
-            sample_df, code, date, price, change_percent,
-            latest=sample_df.iloc[-1].to_dict(), prev=sample_df.iloc[-2].to_dict(),
+            sample_df,
+            code,
+            date,
+            price,
+            change_percent,
+            latest=sample_df.iloc[-1].to_dict(),
+            prev=sample_df.iloc[-2].to_dict(),
         )
 
         assert isinstance(signals, list)
@@ -274,8 +289,13 @@ class TestSignalDetector:
         change_percent = float(latest.get("change_percent", 0))
 
         signals = detector._detect_volume_signals(
-            sample_df, code, date, price, change_percent,
-            latest=sample_df.iloc[-1].to_dict(), prev=sample_df.iloc[-2].to_dict(),
+            sample_df,
+            code,
+            date,
+            price,
+            change_percent,
+            latest=sample_df.iloc[-1].to_dict(),
+            prev=sample_df.iloc[-2].to_dict(),
         )
 
         assert isinstance(signals, list)
@@ -291,8 +311,13 @@ class TestSignalDetector:
         change_percent = float(latest.get("change_percent", 0))
 
         signals = detector._detect_boll_signals(
-            sample_df, code, date, price, change_percent,
-            latest=sample_df.iloc[-1].to_dict(), prev=sample_df.iloc[-2].to_dict(),
+            sample_df,
+            code,
+            date,
+            price,
+            change_percent,
+            latest=sample_df.iloc[-1].to_dict(),
+            prev=sample_df.iloc[-2].to_dict(),
         )
 
         assert isinstance(signals, list)
@@ -308,8 +333,13 @@ class TestSignalDetector:
         change_percent = float(latest.get("change_percent", 0))
 
         signals = detector._detect_kdj_signals(
-            sample_df, code, date, price, change_percent,
-            latest=sample_df.iloc[-1].to_dict(), prev=sample_df.iloc[-2].to_dict(),
+            sample_df,
+            code,
+            date,
+            price,
+            change_percent,
+            latest=sample_df.iloc[-1].to_dict(),
+            prev=sample_df.iloc[-2].to_dict(),
         )
 
         assert isinstance(signals, list)

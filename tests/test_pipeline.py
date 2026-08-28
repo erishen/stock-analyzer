@@ -32,9 +32,7 @@ def db_path(tmp_path):
     """临时 stock_analysis 表, 含两行样例行有真实查询(含 rsi, 供兜底 SQL 使用)。"""
     path = tmp_path / "test.db"
     conn = sqlite3.connect(path)
-    conn.execute(
-        "CREATE TABLE stock_analysis (code TEXT, date TEXT, close REAL, change_percent REAL, rsi REAL)"
-    )
+    conn.execute("CREATE TABLE stock_analysis (code TEXT, date TEXT, close REAL, change_percent REAL, rsi REAL)")
     conn.executemany(
         "INSERT INTO stock_analysis VALUES (?,?,?,?,?)",
         [

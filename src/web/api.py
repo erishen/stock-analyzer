@@ -229,9 +229,7 @@ async def paper_add_position(req: PaperAddRequest):
     """模拟建仓"""
     pf = get_paper(db_path)
     return JSONResponse(
-        content=pf.add_position(
-            req.code, req.buy_price, req.shares, req.buy_date, req.stop_loss, req.take_profit
-        )
+        content=pf.add_position(req.code, req.buy_price, req.shares, req.buy_date, req.stop_loss, req.take_profit)
     )
 
 
@@ -239,9 +237,7 @@ async def paper_add_position(req: PaperAddRequest):
 async def paper_close_position(req: PaperCloseRequest):
     """模拟卖出"""
     pf = get_paper(db_path)
-    return JSONResponse(
-        content=pf.close_position(req.code, req.sell_price, req.sell_date, req.shares)
-    )
+    return JSONResponse(content=pf.close_position(req.code, req.sell_price, req.sell_date, req.shares))
 
 
 @app.post("/api/agent/chat")
@@ -266,10 +262,7 @@ async def agent_chat(req: AgentChatRequest, _: None = Depends(_chat_auth_require
         return JSONResponse(content={"success": False, "message": f"Agent 模块不可用: {e}"})
 
     question = (messages[-1].get("content") or "").strip()
-    history = [
-        {"role": m.get("role", "user"), "content": (m.get("content") or "")}
-        for m in messages[:-1]
-    ]
+    history = [{"role": m.get("role", "user"), "content": (m.get("content") or "")} for m in messages[:-1]]
 
     # 问及持仓/买卖时, 注入模拟仓快照帮助模型作答
     context = ""
@@ -289,18 +282,21 @@ async def agent_settings():
     """读取当前 LLM 配置(供设置 Tab 展示)。api_key 脱敏返回。"""
     try:
         from agent import llm as agent_llm
+
         cfg = agent_llm.get_llm_config()
     except Exception as e:  # pragma: no cover
         return JSONResponse(content={"success": False, "message": f"读取配置失败: {e}"}, status_code=500)
-    mask = (cfg.get("api_key") or "")
+    mask = cfg.get("api_key") or ""
     masked = (mask[:4] + "****" + mask[-4:]) if len(mask) > 8 else ("****" if mask else "")
-    return JSONResponse(content={
-        "success": True,
-        "base_url": cfg.get("base_url", ""),
-        "model": cfg.get("model", ""),
-        "configured_api_key": bool(mask),
-        "api_key_masked": masked,
-    })
+    return JSONResponse(
+        content={
+            "success": True,
+            "base_url": cfg.get("base_url", ""),
+            "model": cfg.get("model", ""),
+            "configured_api_key": bool(mask),
+            "api_key_masked": masked,
+        }
+    )
 
 
 @app.post("/api/agent/settings", dependencies=[Depends(_require_settings_local)])
@@ -308,6 +304,7 @@ async def agent_settings_save(req: LLMSettingsRequest):
     """保存运行时 LLM 配置覆盖。空字段表示该项沿用 .env 默认。"""
     try:
         from agent import llm as agent_llm
+
         base = agent_llm.get_llm_config()
         merged = {
             "base_url": (req.base_url or "").strip() or base["base_url"],
@@ -327,6 +324,7 @@ async def agent_settings_reset():
     """清除运行时覆盖, 恢复使用 .env 配置。"""
     try:
         from agent import llm as agent_llm
+
         agent_llm.clear_override()
     except Exception as e:  # pragma: no cover
         return JSONResponse(content={"success": False, "message": f"重置失败: {e}"}, status_code=500)
@@ -349,8 +347,11 @@ async def scan_signals(request: ScanRequest):
         from scanner import run_scan
 
         result = run_scan(
-            db_path=db_path, signal_type=None, min_score=0,
-            parallel=True, max_workers=8,
+            db_path=db_path,
+            signal_type=None,
+            min_score=0,
+            parallel=True,
+            max_workers=8,
         )
         return {
             "total_stocks": result.total_stocks,
@@ -596,9 +597,7 @@ def submit_optimize(request: OptimizeRequest):
     if not db_path.exists():
         return JSONResponse(content=OptimizeResponse(success=False, error="数据库不存在").to_dict())
     if request.strategy not in ("momentum", "mean_reversion"):
-        return JSONResponse(
-            content={"success": False, "error": f"暂只支持动量/均值回归策略, 当前: {request.strategy}"}
-        )
+        return JSONResponse(content={"success": False, "error": f"暂只支持动量/均值回归策略, 当前: {request.strategy}"})
 
     task_id = uuid.uuid4().hex[:16]
     task = {
@@ -863,9 +862,12 @@ async def market_history(days: int = 90):
 
         with sqlite3.connect(str(db_path)) as conn:
             # 最近 days 个交易日
-            trade_dates = [r[0] for r in conn.execute(
-                "SELECT DISTINCT date FROM stock_analysis ORDER BY date DESC LIMIT ?", (days,)
-            ).fetchall()][::-1]
+            trade_dates = [
+                r[0]
+                for r in conn.execute(
+                    "SELECT DISTINCT date FROM stock_analysis ORDER BY date DESC LIMIT ?", (days,)
+                ).fetchall()
+            ][::-1]
             if not trade_dates:
                 return MarketHistoryResponse(success=False, error="无数据").to_dict()
 
@@ -1182,7 +1184,9 @@ async def get_stock_detail(code: str, limit: int = 120, days: int = 250):
             rows = [dict(r) for r in rows]
 
         if not rows:
-            return JSONResponse(content=StockDetailResponse(success=False, code=code, error="未找到该股票数据").to_dict())
+            return JSONResponse(
+                content=StockDetailResponse(success=False, code=code, error="未找到该股票数据").to_dict()
+            )
 
         rows.reverse()  # 升序: 旧 → 新
 

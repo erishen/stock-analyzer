@@ -27,6 +27,7 @@ for st in STRATEGIES:
     print(f"\n>>> 回测 {NAMES[st]} (holding={HOLDING})...", file=sys.stderr)
     results[st] = run_backtest(db_path=db, strategy_type=st, holding_days=HOLDING)
 
+
 # --- 分年度收益 (从 equity_curve) ---
 def yearly_returns(equity_curve):
     by_year = {}
@@ -40,6 +41,7 @@ def yearly_returns(equity_curve):
             out[y] = (by_year[y] / prev - 1) * 100
         prev = by_year[y]
     return out
+
 
 yearly = {st: yearly_returns(r.equity_curve) for st, r in results.items()}
 
@@ -85,8 +87,7 @@ profile = {
     "strategies": {st: results[st].to_dict() for st in STRATEGIES},
     "yearly_returns_pct": yearly,
     "ranking": [
-        {"rank": i + 1, "strategy": n, "score": round(s, 1)}
-        for i, (n, s) in enumerate(comparison.overall_ranking)
+        {"rank": i + 1, "strategy": n, "score": round(s, 1)} for i, (n, s) in enumerate(comparison.overall_ranking)
     ],
 }
 out = PROJECT_ROOT / "output" / "reports" / "strategy_profile.json"

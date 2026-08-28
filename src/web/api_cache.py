@@ -79,9 +79,9 @@ def cache_dir() -> Path:
 
 def make_key(endpoint: str, params: dict[str, Any]) -> str:
     """生成缓存文件名: {endpoint}_{datelatest}_{params_hash}.json"""
-    params_hash = hashlib.md5(
-        json.dumps(params, sort_keys=True, ensure_ascii=False, default=str).encode()
-    ).hexdigest()[:12]
+    params_hash = hashlib.md5(json.dumps(params, sort_keys=True, ensure_ascii=False, default=str).encode()).hexdigest()[
+        :12
+    ]
     return f"{endpoint}_{_get_latest_date()}_{params_hash}"
 
 

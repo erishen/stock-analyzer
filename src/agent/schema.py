@@ -34,35 +34,76 @@ DEMO_REALNAME_ALIASES: dict[str, list[str]] = {
 COLUMN_HINTS: dict[str, str] = {
     "code": "股票代码, 如 '600519'(6/0/3开头为A股, 8/4开头为北交所), 查询务必加引号",
     "date": "交易日, 字符串格式 'YYYY-MM-DD'",
-    "open": "开盘价", "close": "收盘价", "high": "最高价", "low": "最低价",
-    "volume": "成交量(手)", "amount": "成交额(元)",
-    "amplitude": "振幅%", "change_percent": "日涨跌幅%(正=上涨)", "turnover_rate": "换手率%",
-    "ma5": "5日均线", "ma10": "10日均线", "ma20": "20日均线", "ma60": "60日均线",
-    "ma5_ratio": "收盘价/MA5, >1 在5日线上方", "ma10_ratio": "收盘价/MA10",
-    "ma20_ratio": "收盘价/MA20, >1 在20日线上方(中期偏多)", "ma60_ratio": "收盘价/MA60",
+    "open": "开盘价",
+    "close": "收盘价",
+    "high": "最高价",
+    "low": "最低价",
+    "volume": "成交量(手)",
+    "amount": "成交额(元)",
+    "amplitude": "振幅%",
+    "change_percent": "日涨跌幅%(正=上涨)",
+    "turnover_rate": "换手率%",
+    "ma5": "5日均线",
+    "ma10": "10日均线",
+    "ma20": "20日均线",
+    "ma60": "60日均线",
+    "ma5_ratio": "收盘价/MA5, >1 在5日线上方",
+    "ma10_ratio": "收盘价/MA10",
+    "ma20_ratio": "收盘价/MA20, >1 在20日线上方(中期偏多)",
+    "ma60_ratio": "收盘价/MA60",
     "close_ma5_ratio": "收盘价/MA5, >1 在5日线上方",
     "close_ma20_ratio": "收盘价/MA20, >1 在20日线上方(中期偏多)",
-    "ema12": "12日指数均线", "ema26": "26日指数均线",
-    "macd": "MACD 快线 DIF", "macd_signal": "MACD 慢线 DEA",
-    "macd_hist": "MACD 柱(MACD-DEA), 红涨绿跌", "macd_cross": "1=金叉, -1=死叉, 0=无",
-    "rsi": "RSI(0-100), >70 超买, <30 超卖", "rsi_overbought": "RSI 超买标记(1/0)",
+    "ema12": "12日指数均线",
+    "ema26": "26日指数均线",
+    "macd": "MACD 快线 DIF",
+    "macd_signal": "MACD 慢线 DEA",
+    "macd_hist": "MACD 柱(MACD-DEA), 红涨绿跌",
+    "macd_cross": "1=金叉, -1=死叉, 0=无",
+    "rsi": "RSI(0-100), >70 超买, <30 超卖",
+    "rsi_overbought": "RSI 超买标记(1/0)",
     "rsi_oversold": "RSI 超卖标记(1/0)",
-    "boll_mid": "布林中轨(20日均线)", "boll_upper": "布林上轨", "boll_lower": "布林下轨",
-    "boll_width": "布林带宽度", "boll_position": "收盘价在布林带中的位置(0-1)",
-    "kdj_k": "KDJ K值", "kdj_d": "KDJ D值", "kdj_j": "KDJ J值", "kdj_cross": "1=金叉, -1=死叉",
-    "atr": "真实波幅", "atr_ratio": "ATR/收盘价(波动幅度占比)",
-    "obv": "能量潮", "obv_ma10": "OBV 10日均线", "obv_signal": "OBV 信号(1/-1/0)",
-    "williams_r": "威廉指标(-100~0)", "williams_overbought": "超买标记", "williams_oversold": "超卖标记",
-    "momentum_5d": "5日动量(涨跌幅%)", "momentum_10d": "10日动量%", "momentum_20d": "20日动量%",
-    "roc_10": "10日变动率%", "roc_20": "20日变动率%",
+    "boll_mid": "布林中轨(20日均线)",
+    "boll_upper": "布林上轨",
+    "boll_lower": "布林下轨",
+    "boll_width": "布林带宽度",
+    "boll_position": "收盘价在布林带中的位置(0-1)",
+    "kdj_k": "KDJ K值",
+    "kdj_d": "KDJ D值",
+    "kdj_j": "KDJ J值",
+    "kdj_cross": "1=金叉, -1=死叉",
+    "atr": "真实波幅",
+    "atr_ratio": "ATR/收盘价(波动幅度占比)",
+    "obv": "能量潮",
+    "obv_ma10": "OBV 10日均线",
+    "obv_signal": "OBV 信号(1/-1/0)",
+    "williams_r": "威廉指标(-100~0)",
+    "williams_overbought": "超买标记",
+    "williams_oversold": "超卖标记",
+    "momentum_5d": "5日动量(涨跌幅%)",
+    "momentum_10d": "10日动量%",
+    "momentum_20d": "20日动量%",
+    "roc_10": "10日变动率%",
+    "roc_20": "20日变动率%",
     "pct_change": "区间涨跌幅%",
-    "volatility_5d": "5日波动率", "volatility_10d": "10日波动率", "volatility_20d": "20日波动率",
-    "high_low_ratio": "最高/最低比", "close_open_ratio": "收盘/开盘比",
-    "upper_shadow": "上影线长", "lower_shadow": "下影线长", "body_size": "K线实体长度",
+    "volatility_5d": "5日波动率",
+    "volatility_10d": "10日波动率",
+    "volatility_20d": "20日波动率",
+    "high_low_ratio": "最高/最低比",
+    "close_open_ratio": "收盘/开盘比",
+    "upper_shadow": "上影线长",
+    "lower_shadow": "下影线长",
+    "body_size": "K线实体长度",
 }
 
 BASE_COLS = [
-    "code", "date", "open", "close", "high", "low", "volume", "amount",
+    "code",
+    "date",
+    "open",
+    "close",
+    "high",
+    "low",
+    "volume",
+    "amount",
     "change_percent",
 ]
 # 注: BASE_COLS 仅作为「常用字段」的推荐展示顺序。实际输出时 describe_schema 会
@@ -180,8 +221,10 @@ def translate_stock_names(project_root: str, text: str) -> str:
 
     # 一次编译的交替正则, 单遍替换 (长名在前, re 对同一位置取首个匹配分支)
     pattern = re.compile("|".join(re.escape(n) for n in names))
+
     def _rep(m):
         return f"{m.group(0)}(代码{mapping[m.group(0)]})"
+
     return pattern.sub(_rep, text)
 
 
@@ -195,10 +238,7 @@ def describe_schema(project_root: str, db_path: str) -> str:
     with sqlite3.connect(db_path) as conn:
         cur = conn.execute("PRAGMA table_info(stock_analysis)")
         cols = [r[1] for r in cur.fetchall()]
-        row = conn.execute(
-            "SELECT COUNT(DISTINCT code), COUNT(*), MIN(date), MAX(date) "
-            "FROM stock_analysis"
-        ).fetchone()
+        row = conn.execute("SELECT COUNT(DISTINCT code), COUNT(*), MIN(date), MAX(date) FROM stock_analysis").fetchone()
     stock_count, total_rows, min_date, max_date = row
 
     indicator_cols = [c for c in cols if c not in BASE_COLS and c not in ("id", "created_at")]
@@ -224,15 +264,21 @@ def describe_schema(project_root: str, db_path: str) -> str:
     lines.append(f"(共列出 {used} 个已注释指标字段)")
     lines.append("")
     lines.append("查询建议:")
-    lines.append("  - code 用单引号且带市场前缀, 例如 WHERE code='sh600519' (注意: 表内 code 列存的是带 sh/sz/bj 前缀的完整代码)")
+    lines.append(
+        "  - code 用单引号且带市场前缀, 例如 WHERE code='sh600519' (注意: 表内 code 列存的是带 sh/sz/bj 前缀的完整代码)"
+    )
     lines.append("  - 股票用中文名提及时, 问题中已被标注为 '真实名(代码sh600519)' 形式, 直接用其中的带前缀代码查询")
     lines.append("  - 时间序列查询默认给最近一个/几个交易日, 数据最大日期为 " + str(max_date))
-    lines.append("  - 需要股票名称时, 可用常见映射: 贵州茅台=sh600519, 五粮液=sz000858, "
-                 "宁德时代=sz300750, 比亚迪=sz002594, 平安银行=sz000001")
+    lines.append(
+        "  - 需要股票名称时, 可用常见映射: 贵州茅台=sh600519, 五粮液=sz000858, "
+        "宁德时代=sz300750, 比亚迪=sz002594, 平安银行=sz000001"
+    )
     lines.append("")
-    lines.append("注意: 本演示库股票 name 字段为脱敏占位名(如 'Demo茅台'/'Demo银行'), "
-                 "不要按真实名(茅台/贵州茅台)用 name 字段 LIKE 匹配, 一律用带前缀的 code 条件查询"
-                 "(如 WHERE code='sh600519'); 用户问题中已标注完整代码, 直接照搬即可。")
+    lines.append(
+        "注意: 本演示库股票 name 字段为脱敏占位名(如 'Demo茅台'/'Demo银行'), "
+        "不要按真实名(茅台/贵州茅台)用 name 字段 LIKE 匹配, 一律用带前缀的 code 条件查询"
+        "(如 WHERE code='sh600519'); 用户问题中已标注完整代码, 直接照搬即可。"
+    )
     return "\n".join(lines)
 
 

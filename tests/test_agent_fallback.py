@@ -55,9 +55,7 @@ def demo_db(tmp_path):
             "sh601318": {"name": "Demo保险"},
         }
     }
-    (tmp_path / "stock_info_cache.json").write_text(
-        __import__("json").dumps(cache, ensure_ascii=False)
-    )
+    (tmp_path / "stock_info_cache.json").write_text(__import__("json").dumps(cache, ensure_ascii=False))
     return str(db), str(tmp_path)
 
 

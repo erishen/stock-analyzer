@@ -393,9 +393,11 @@ def optimize_with_split(
                     params = {"rsi_oversold": rsi_oversold, "holding_days": holding}
 
                 # 训练段回测
-                train_result = engine.run_backtest(
-                    strategy, initial_capital, start_date=train_start, end_date=train_end
-                ) if strategy_type == "momentum" or strategy_type == "mean_reversion" else None
+                train_result = (
+                    engine.run_backtest(strategy, initial_capital, start_date=train_start, end_date=train_end)
+                    if strategy_type == "momentum" or strategy_type == "mean_reversion"
+                    else None
+                )
                 # 注: run_backtest 第二个参数 position_size 默认0.1; 此处按默认即可
 
                 if train_result is None or train_result.total_trades == 0:

@@ -20,11 +20,9 @@ from strategy.backtest import (
 
 def _to_engine_cols(df: pd.DataFrame) -> dict[str, np.ndarray]:
     """将测试用的 DataFrame 转为回测引擎的 numpy 列字典格式 (模拟 get_all_stock_data 输出)。"""
-    return {
-        c: df[c].to_numpy(dtype=float, copy=False)
-        for c in df.columns
-        if c != "date"
-    } | {"dates": df["date"].to_numpy()}
+    return {c: df[c].to_numpy(dtype=float, copy=False) for c in df.columns if c != "date"} | {
+        "dates": df["date"].to_numpy()
+    }
 
 
 class TestMomentumStrategy:

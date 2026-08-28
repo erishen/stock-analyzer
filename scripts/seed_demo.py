@@ -121,8 +121,8 @@ def generate_demo_db(output_path: Path | None = None) -> Path:
 
             rsi = 50.0
             if len(prices) >= 14:
-                gains = [max(prices[i] - prices[i-1], 0) for i in range(-13, 0)]
-                losses = [max(prices[i-1] - prices[i], 0) for i in range(-13, 0)]
+                gains = [max(prices[i] - prices[i - 1], 0) for i in range(-13, 0)]
+                losses = [max(prices[i - 1] - prices[i], 0) for i in range(-13, 0)]
                 avg_gain = sum(gains) / 14
                 avg_loss = sum(losses) / 14
                 rsi = 100.0 if avg_loss == 0 else 100 - 100 / (1 + avg_gain / avg_loss)
@@ -140,37 +140,79 @@ def generate_demo_db(output_path: Path | None = None) -> Path:
             williams_r = random.uniform(-100, 0)
 
             cols = [
-                "code", "date", "open", "close", "high", "low", "volume", "amount",
+                "code",
+                "date",
+                "open",
+                "close",
+                "high",
+                "low",
+                "volume",
+                "amount",
                 "change_percent",
-                "ma5", "ma10", "ma20", "ma60",
-                "ma5_ratio", "ma10_ratio", "ma20_ratio", "ma60_ratio",
-                "ema12", "ema26", "macd", "macd_signal", "macd_hist",
-                "rsi", "boll_mid", "boll_upper", "boll_lower",
-                "kdj_k", "kdj_d", "kdj_j",
-                "atr", "obv", "williams_r",
+                "ma5",
+                "ma10",
+                "ma20",
+                "ma60",
+                "ma5_ratio",
+                "ma10_ratio",
+                "ma20_ratio",
+                "ma60_ratio",
+                "ema12",
+                "ema26",
+                "macd",
+                "macd_signal",
+                "macd_hist",
+                "rsi",
+                "boll_mid",
+                "boll_upper",
+                "boll_lower",
+                "kdj_k",
+                "kdj_d",
+                "kdj_j",
+                "atr",
+                "obv",
+                "williams_r",
             ]
             vals = [
-                code, date,
-                round(open_price, 2), round(close, 2), round(high, 2), round(low, 2),
-                round(volume, 2), round(amount, 2), change_percent,
-                round(ma5, 2), round(ma10, 2), round(ma20, 2), round(ma60, 2),
-                round(close/ma5 - 1, 4) if ma5 else 0,
-                round(close/ma10 - 1, 4) if ma10 else 0,
-                round(close/ma20 - 1, 4) if ma20 else 0,
-                round(close/ma60 - 1, 4) if ma60 else 0,
-                round(close * 0.9, 2), round(close * 0.8, 2),
-                round(close * 0.05, 4), round(close * 0.03, 4), round(close * 0.02, 4),
+                code,
+                date,
+                round(open_price, 2),
+                round(close, 2),
+                round(high, 2),
+                round(low, 2),
+                round(volume, 2),
+                round(amount, 2),
+                change_percent,
+                round(ma5, 2),
+                round(ma10, 2),
+                round(ma20, 2),
+                round(ma60, 2),
+                round(close / ma5 - 1, 4) if ma5 else 0,
+                round(close / ma10 - 1, 4) if ma10 else 0,
+                round(close / ma20 - 1, 4) if ma20 else 0,
+                round(close / ma60 - 1, 4) if ma60 else 0,
+                round(close * 0.9, 2),
+                round(close * 0.8, 2),
+                round(close * 0.05, 4),
+                round(close * 0.03, 4),
+                round(close * 0.02, 4),
                 round(rsi, 2),
-                round(boll_mid, 2), round(boll_upper, 2), round(boll_lower, 2),
-                round(k_k, 2), round(k_d, 2), round(k_j, 2),
-                round(atr, 2), round(obv, 2), round(williams_r, 2),
+                round(boll_mid, 2),
+                round(boll_upper, 2),
+                round(boll_lower, 2),
+                round(k_k, 2),
+                round(k_d, 2),
+                round(k_j, 2),
+                round(atr, 2),
+                round(obv, 2),
+                round(williams_r, 2),
             ]
             placeholders = ",".join("?" for _ in vals)
             cursor.execute(f"INSERT INTO stock_analysis ({','.join(cols)}) VALUES ({placeholders})", vals)
 
             prev_close = close
 
-        print(f"  {code} ({name}): {day_offset+1} days, final ¥{prev_close:.2f}")
+        print(f"  {code} ({name}): {day_offset + 1} days, final ¥{prev_close:.2f}")
 
     conn.commit()
     conn.close()
@@ -185,13 +227,14 @@ def generate_demo_db(output_path: Path | None = None) -> Path:
     }
     cache_path = output_path.parent / "stock_info_cache.json"
     import json
+
     with open(cache_path, "w", encoding="utf-8") as f:
         json.dump(cache, f, ensure_ascii=False, indent=2)
 
     db_size = output_path.stat().st_size
     cache_size = cache_path.stat().st_size
-    print(f"\n✅ Demo DB: {output_path} ({db_size/1024:.1f} KB)")
-    print(f"✅ Demo 股票信息: {cache_path} ({cache_size/1024:.1f} KB)")
+    print(f"\n✅ Demo DB: {output_path} ({db_size / 1024:.1f} KB)")
+    print(f"✅ Demo 股票信息: {cache_path} ({cache_size / 1024:.1f} KB)")
     return output_path
 
 

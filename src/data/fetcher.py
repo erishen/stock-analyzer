@@ -153,7 +153,7 @@ class StockDataFetcher:
         c = c.lower().strip()
         for p in ("sh", "sz", "bj", "sse.", "szse.", "bse."):
             if c.startswith(p):
-                return c[len(p):]
+                return c[len(p) :]
         return c
 
     def fetch_stock_klines(
@@ -271,9 +271,7 @@ class StockDataFetcher:
             logger.error(f"新浪北交所源获取 {code} 失败: {e}")
             return []
 
-    def _fetch_from_tencent(
-        self, code: str, start_date: str | None, end_date: str | None
-    ) -> list[dict]:
+    def _fetch_from_tencent(self, code: str, start_date: str | None, end_date: str | None) -> list[dict]:
         """从腾讯源获取 K 线数据 (stock_zh_a_hist_tx 降级方案)
 
         腾讯源返回列: date/open/close/high/low/amount，其中 amount 为成交量，

@@ -17,10 +17,24 @@ MAX_LIMIT = 200
 
 # 任何语句中出现即拒绝的危险关键字
 _BLOCKED = [
-    "insert", "update", "delete", "drop", "alter", "create",
-    "replace", "truncate", "attach", "detach", "vacuum",
-    "pragma", "reindex", "commit", "rollback", "delete",
-    "writefile", "load_extension",
+    "insert",
+    "update",
+    "delete",
+    "drop",
+    "alter",
+    "create",
+    "replace",
+    "truncate",
+    "attach",
+    "detach",
+    "vacuum",
+    "pragma",
+    "reindex",
+    "commit",
+    "rollback",
+    "delete",
+    "writefile",
+    "load_extension",
 ]
 # 常与提权/读取文件相关, 直接拒绝
 _BLOCKED_FUNCS = ["glob(", "load_extension", "readfile", "writefile"]

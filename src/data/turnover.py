@@ -151,9 +151,7 @@ def patch_turnover(
     analysis_updated = 0
     if analysis_db is not None and analysis_db.exists():
         with contextlib.suppress(sqlite3.Error):
-            analysis_updated = patch_db_turnover(
-                analysis_db, snapshots, only_date=only_date, table="stock_analysis"
-            )
+            analysis_updated = patch_db_turnover(analysis_db, snapshots, only_date=only_date, table="stock_analysis")
 
     return {
         "snapshots": len(snapshots),

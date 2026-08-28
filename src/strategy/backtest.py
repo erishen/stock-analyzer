@@ -213,7 +213,9 @@ class MomentumStrategy:
             return 0.0
         return (end_price - start_price) / start_price
 
-    def calculate_volatility(self, columns: dict[str, np.ndarray], date_idx: int, window: int = PRECOMP_VOL_WINDOW) -> float:
+    def calculate_volatility(
+        self, columns: dict[str, np.ndarray], date_idx: int, window: int = PRECOMP_VOL_WINDOW
+    ) -> float:
         """计算波动率"""
         if window == PRECOMP_VOL_WINDOW:
             return float(columns["volatility"][date_idx])
@@ -407,7 +409,12 @@ class TrendFollowingStrategy:
                 if not (np.isnan(ma5) or np.isnan(ma10) or np.isnan(ma20)) and ma5 > ma10 > ma20:
                     signal_score = (ma5 - ma20) / ma20 * 100 if ma20 > 0 else 0
             else:
-                if not np.isnan(close_price) and not np.isnan(boll_upper) and close_price > boll_upper and boll_upper > 0:
+                if (
+                    not np.isnan(close_price)
+                    and not np.isnan(boll_upper)
+                    and close_price > boll_upper
+                    and boll_upper > 0
+                ):
                     signal_score = (close_price - boll_upper) / boll_upper * 100
 
             if signal_score > 0:
@@ -459,7 +466,11 @@ class MultiFactorStrategy:
         volume = columns["volume"][date_idx]
 
         trend_score = 0
-        if not (np.isnan(close) or np.isnan(ma5) or np.isnan(ma10) or np.isnan(ma20)) and ma5 > ma10 > ma20 and close > ma5:
+        if (
+            not (np.isnan(close) or np.isnan(ma5) or np.isnan(ma10) or np.isnan(ma20))
+            and ma5 > ma10 > ma20
+            and close > ma5
+        ):
             trend_score = (close - ma20) / ma20 * 100 if ma20 > 0 else 0
 
         # 动量/波动率直接用预计算列 (窗口 20), 与逐日重算语义一致

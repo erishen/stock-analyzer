@@ -153,8 +153,10 @@ for y in all_years:
 out = {
     "config": {"holding_days": HOLDING, "period": "2020-01~2026-08", "universe": "全市场"},
     "filters": {
-        "liq": "amount>=5000万", "price": "close>=5元",
-        "vol": "volatility_20d<=0.035", "trend": "close/ma60>=0.75",
+        "liq": "amount>=5000万",
+        "price": "close>=5元",
+        "vol": "volatility_20d<=0.035",
+        "trend": "close/ma60>=0.75",
     },
     "results": {n: results[n].to_dict() for n, _ in CONFIGS},
     "yearly_returns_pct": {n: yearly_returns(results[n].equity_curve) for n, _ in CONFIGS},

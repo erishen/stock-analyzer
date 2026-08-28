@@ -1102,7 +1102,13 @@ def main():
 
     # 资产快照(市值/股本/估值): 东财优先, 限流自动回退腾讯源
     asset_snap_parser = subparsers.add_parser("asset-snapshot", help="拉取并更新全市场资产快照(市值/股本/估值)")
-    asset_snap_parser.add_argument("--source", type=str, default="auto", choices=["auto", "eastmoney", "tencent"], help="数据源 (默认 auto: 东财优先, 失败回退腾讯)")
+    asset_snap_parser.add_argument(
+        "--source",
+        type=str,
+        default="auto",
+        choices=["auto", "eastmoney", "tencent"],
+        help="数据源 (默认 auto: 东财优先, 失败回退腾讯)",
+    )
 
     _asset_init_parser = subparsers.add_parser("asset-init", help="全量初始化资产快照(每次初始化数据后调用)")
 
@@ -1158,7 +1164,9 @@ def main():
     backtest_parser.add_argument("--max-momentum", type=float, default=1.0, help="最大动量阈值")
     backtest_parser.add_argument("--max-volatility", type=float, default=0.15, help="最大波动率阈值")
     backtest_parser.add_argument("--min-price", type=float, default=2.0, help="最低价格过滤")
-    backtest_parser.add_argument("--exclude-st", action="store_true", help="排除ST股票 (默认排除, 可用 --include-st 包含)")
+    backtest_parser.add_argument(
+        "--exclude-st", action="store_true", help="排除ST股票 (默认排除, 可用 --include-st 包含)"
+    )
     backtest_parser.add_argument("--include-st", action="store_true", help="包含ST股票")
     backtest_parser.add_argument("--stop-loss", type=float, default=0.0, help="止损比例 (如 0.05 表示 5%%)")
     backtest_parser.add_argument("--take-profit", type=float, default=0.0, help="止盈比例 (如 0.1 表示 10%%)")
@@ -1249,7 +1257,10 @@ def main():
     web_parser = subparsers.add_parser("web", help="启动 Web 界面")
     web_parser.add_argument("--host", type=str, default="127.0.0.1", help="服务器地址")
     web_parser.add_argument(
-        "--port", type=int, default=int(os.environ.get("WEB_PORT", "8001")), help="服务器端口 (默认读 WEB_PORT, 否则 8001)"
+        "--port",
+        type=int,
+        default=int(os.environ.get("WEB_PORT", "8001")),
+        help="服务器端口 (默认读 WEB_PORT, 否则 8001)",
     )
 
     db_optimize_parser = subparsers.add_parser("db-optimize", help="数据库性能优化")

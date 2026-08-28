@@ -115,11 +115,13 @@ class TestConfigFunctionsExtended:
     def setup_method(self):
         clear_config_cache()
         import investkit_utils.config.loader as loader_mod
+
         loader_mod._default_config_path = None
 
     def teardown_method(self):
         clear_config_cache()
         import investkit_utils.config.loader as loader_mod
+
         loader_mod._default_config_path = None
 
     def test_get_config_default(self):

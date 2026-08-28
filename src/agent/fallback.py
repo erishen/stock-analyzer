@@ -139,10 +139,7 @@ def run_fallback(db_path: str, project_root: str, question: str) -> dict[str, An
 
     kind = spec["kind"]
     if not rows:
-        answer = (
-            f"在最新交易日（{latest}）未找到符合条件的股票。\n\n"
-            "> 数据来自演示库（模拟生成），仅用于功能演示。"
-        )
+        answer = f"在最新交易日（{latest}）未找到符合条件的股票。\n\n> 数据来自演示库（模拟生成），仅用于功能演示。"
         chart = None
     else:
         # 注入中文名(放在第一列)

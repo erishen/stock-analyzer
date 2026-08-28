@@ -31,8 +31,8 @@ class PaperPortfolio:
     def _load(self) -> dict[str, Any]:
         default = {
             "updated_at": "",
-            "positions": {},   # code -> dict
-            "closed": [],      # 卖出历史
+            "positions": {},  # code -> dict
+            "closed": [],  # 卖出历史
         }
         if self.store_path.exists():
             try:
@@ -66,7 +66,7 @@ class PaperPortfolio:
                 return code
         try:
             fetcher = get_stock_info_fetcher()
-            name = fetcher.get_cached_name(code)          # 先按原样
+            name = fetcher.get_cached_name(code)  # 先按原样
             if not name:
                 name = fetcher.get_cached_name(self._full_code(code))  # 再按 sh/sz 前缀
             if name:
@@ -131,17 +131,19 @@ class PaperPortfolio:
 
         buy_price = pos["buy_price"]
         profit_pct = (sell_price - buy_price) / buy_price
-        self.data["closed"].append({
-            "code": code,
-            "name": pos["name"],
-            "sell_date": sell_date or date.today().isoformat(),
-            "buy_date": pos.get("buy_date", ""),
-            "buy_price": buy_price,
-            "sell_price": float(sell_price),
-            "shares": sell_shares,
-            "profit": (float(sell_price) - buy_price) * sell_shares,
-            "profit_pct": profit_pct,
-        })
+        self.data["closed"].append(
+            {
+                "code": code,
+                "name": pos["name"],
+                "sell_date": sell_date or date.today().isoformat(),
+                "buy_date": pos.get("buy_date", ""),
+                "buy_price": buy_price,
+                "sell_price": float(sell_price),
+                "shares": sell_shares,
+                "profit": (float(sell_price) - buy_price) * sell_shares,
+                "profit_pct": profit_pct,
+            }
+        )
 
         remaining = held - sell_shares
         if remaining <= 1e-9:
@@ -170,8 +172,16 @@ class PaperPortfolio:
         }
 
         if cur is None:
-            return {**base, "current_price": None, "pnl": 0, "pnl_pct": 0,
-                    "action": "无数据", "level": "muted", "advice": "该股票无最新行情(可能停牌/退市)", "reasons": []}
+            return {
+                **base,
+                "current_price": None,
+                "pnl": 0,
+                "pnl_pct": 0,
+                "action": "无数据",
+                "level": "muted",
+                "advice": "该股票无最新行情(可能停牌/退市)",
+                "reasons": [],
+            }
 
         cur_price = cur["close"]
         value = cur_price * shares
@@ -179,7 +189,7 @@ class PaperPortfolio:
         pnl_pct = (cur_price - buy_price) / buy_price
 
         reasons = []
-        neg_signals = []   # 偏空信号
+        neg_signals = []  # 偏空信号
         crit_signals = []  # 明显转弱信号
 
         def f(v):
@@ -199,11 +209,19 @@ class PaperPortfolio:
         cur_rsi = f(cur.get("rsi"))
         prev_rsi = f(prev.get("rsi")) if prev else None
 
-        if None not in (cur_close, cur_ma20, prev_close, prev_ma20) and prev_close >= prev_ma20 and cur_close < cur_ma20:
+        if (
+            None not in (cur_close, cur_ma20, prev_close, prev_ma20)
+            and prev_close >= prev_ma20
+            and cur_close < cur_ma20
+        ):
             crit_signals.append("跌破MA20")
         elif cur_close is not None and cur_ma20 is not None and cur_close < cur_ma20:
             neg_signals.append("位于MA20下方")
-        if None not in (cur_close, cur_ma10, prev_close, prev_ma10) and prev_close >= prev_ma10 and cur_close < cur_ma10:
+        if (
+            None not in (cur_close, cur_ma10, prev_close, prev_ma10)
+            and prev_close >= prev_ma10
+            and cur_close < cur_ma10
+        ):
             crit_signals.append("跌破MA10")
         if None not in (cur_macd_hist, prev_macd_hist) and prev_macd_hist > 0 and cur_macd_hist < 0:
             crit_signals.append("MACD死叉")
@@ -216,18 +234,26 @@ class PaperPortfolio:
         if change_pct is not None and abs(change_pct) >= 9.5:
             neg_signals.append("当日价格异动")
 
-        reasons = (neg_signals + crit_signals)
+        reasons = neg_signals + crit_signals
 
         stop_loss = pos.get("stop_loss", 0.08)
         take_profit = pos.get("take_profit", 0.20)
         if pnl_pct <= -stop_loss:
             action, level, advice = "止损", "danger", f"已亏 {pnl_pct:.1%}, 跌破止损线 -{stop_loss:.0%}, 建议止跌离场"
         elif pnl_pct >= take_profit:
-            action, level, advice = "止盈", "success", f"已盈利 {pnl_pct:.1%}, 达到目标 {take_profit:.0%}, 可分步止盈锁定"
+            action, level, advice = (
+                "止盈",
+                "success",
+                f"已盈利 {pnl_pct:.1%}, 达到目标 {take_profit:.0%}, 可分步止盈锁定",
+            )
         elif crit_signals:
             action, level, advice = "减仓/离场", "danger", f"{'、'.join(crit_signals)}, 趋势转弱, 建议减仓或离场"
         elif neg_signals:
-            action, level, advice = "关注/减仓", "warning", f"{'、'.join(neg_signals)}, 短期转弱, 建议适当减仓或设好止损"
+            action, level, advice = (
+                "关注/减仓",
+                "warning",
+                f"{'、'.join(neg_signals)}, 短期转弱, 建议适当减仓或设好止损",
+            )
         else:
             action, level, advice = "持有", "info", "技术信号与趋势正常, 可按计划继续持有"
 

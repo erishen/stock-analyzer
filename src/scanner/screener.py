@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 OPS = (">", "<", ">=", "<=", "=", "!=")
 
 # 不允许作为条件的标识列
-_ID_COLS = {"id",  "code", "date", "created_at"}
+_ID_COLS = {"id", "code", "date", "created_at"}
 
 
 def _normalize_code(c: str) -> str:
@@ -28,7 +28,7 @@ def _normalize_code(c: str) -> str:
     c = c.lower().strip()
     for p in ("sh", "sz", "bj", "sse.", "szse.", "bse."):
         if c.startswith(p):
-            return c[len(p):]
+            return c[len(p) :]
     return c
 
 
@@ -72,14 +72,8 @@ def _asset_fields() -> dict[str, str]:
 
 def list_fields(db_path: Path) -> list[dict[str, str]]:
     """返回可选字段列表 [{field, label, group}], 供前端下拉使用。"""
-    base = [
-        {"field": f, "label": l, "group": "技术"}
-        for f, l in _field_labels(db_path).items()
-    ]
-    asset = [
-        {"field": f, "label": l, "group": "资产"}
-        for f, l in ASSET_FIELDS.items()
-    ]
+    base = [{"field": f, "label": l, "group": "技术"} for f, l in _field_labels(db_path).items()]
+    asset = [{"field": f, "label": l, "group": "资产"} for f, l in ASSET_FIELDS.items()]
     return base + asset
 
 

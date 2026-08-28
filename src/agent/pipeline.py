@@ -17,7 +17,7 @@ from . import schema as sa_schema
 
 logger = logging.getLogger(__name__)
 
-MAX_ATTEMPTS = 3   # SQL 生成/执行自纠错轮数
+MAX_ATTEMPTS = 3  # SQL 生成/执行自纠错轮数
 MAX_ANSWER_TRIES = 3  # 作答独立重试
 MAX_ROWS = sqlsafety.MAX_LIMIT  # 与 sqlsafety 校验上限保持一致
 
@@ -50,7 +50,7 @@ def _generate_sql(
     for h in history[-6:]:
         if h.get("role") in ("user", "assistant"):
             prompt += f"\n{h['role']}: {h.get('content', '')}"
-    prompt += f"\n\n问题: {question}\n\n只输出 JSON: {{\"sql\": \"...\", \"reasoning\": \"...\"}}"
+    prompt += f'\n\n问题: {question}\n\n只输出 JSON: {{"sql": "...", "reasoning": "..."}}'
     msgs.append({"role": "user", "content": prompt})
     try:
         plan = llm.chat_json(msgs)
@@ -83,13 +83,15 @@ def _finalize(
     history: list[dict],
 ) -> dict:
     msgs = llm.messages()
-    msgs.append({"role": "system",
-                 "content": "你是严谨的A股分析助手, 基于真实查询结果用中文作答。"
-                            "回答要具体、有结论, 不编造数据。若结果包含列可用于可视化, 给出 chart 建议。"
-                            "最后结合本次结果给出 2-3 个用户可以继续追问的问题(followups)。"})
-    user = (
-        f"问题: {question}\n\n执行的 SQL:\n{sql}\n\n查询结果(列: {', '.join(columns)}):\n"
+    msgs.append(
+        {
+            "role": "system",
+            "content": "你是严谨的A股分析助手, 基于真实查询结果用中文作答。"
+            "回答要具体、有结论, 不编造数据。若结果包含列可用于可视化, 给出 chart 建议。"
+            "最后结合本次结果给出 2-3 个用户可以继续追问的问题(followups)。",
+        }
     )
+    user = f"问题: {question}\n\n执行的 SQL:\n{sql}\n\n查询结果(列: {', '.join(columns)}):\n"
     for i, r in enumerate(rows[:40]):
         user += f"{i + 1}. {r}\n"
     if len(rows) > 40:
@@ -97,10 +99,10 @@ def _finalize(
     user += (
         "\n请用中文回答: 先给结论, 再说依据和关键数字。"
         "若数据适合做图, 额外给出 chart 对象 "
-        "(格式: {\"type\": \"bar|line|pie\", \"title\": \"...\", \"x\": \"列名\", \"y\": [\"列名\"]}), "
-        "不适合则给 {\"type\": \"none\"}。\n"
+        '(格式: {"type": "bar|line|pie", "title": "...", "x": "列名", "y": ["列名"]}), '
+        '不适合则给 {"type": "none"}。\n'
         "另请给出 questions: 针对本次结果的 2-3 条简短中文追问(不是重复问题, 引导用户深入分析/对比/看细节)。\n"
-        "只输出 JSON: {\"answer\": \"...\", \"chart\": {...}, \"questions\": [\"追问1\", \"追问2\", \"追问3\"]}"
+        '只输出 JSON: {"answer": "...", "chart": {...}, "questions": ["追问1", "追问2", "追问3"]}'
     )
     msgs.append({"role": "user", "content": user})
     try:
@@ -199,13 +201,15 @@ def run_question(
                         data["rows"] = enriched
                         if "name" not in data["columns"]:
                             data["columns"] = ["name"] + data["columns"]
-            events.append({
-                "name": "text2sql",
-                "attempt": attempt,
-                "sql": last_sql,
-                "reasoning": plan.get("reasoning", ""),
-                "row_count": data["row_count"],
-            })
+            events.append(
+                {
+                    "name": "text2sql",
+                    "attempt": attempt,
+                    "sql": last_sql,
+                    "reasoning": plan.get("reasoning", ""),
+                    "row_count": data["row_count"],
+                }
+            )
             answer_err: str | None = None
             for _ in range(MAX_ANSWER_TRIES):
                 try:

@@ -171,8 +171,14 @@ class SignalDetector:
         return signals
 
     def _detect_macd_signals(
-        self, df: pd.DataFrame, code: str, date: str, price: float,
-        change_percent: float, latest: dict, prev: dict,
+        self,
+        df: pd.DataFrame,
+        code: str,
+        date: str,
+        price: float,
+        change_percent: float,
+        latest: dict,
+        prev: dict,
     ) -> list[Signal]:
         """检测 MACD 信号"""
         signals = []
@@ -215,8 +221,14 @@ class SignalDetector:
         return signals
 
     def _detect_kdj_signals(
-        self, df: pd.DataFrame, code: str, date: str, price: float,
-        change_percent: float, latest: dict, prev: dict,
+        self,
+        df: pd.DataFrame,
+        code: str,
+        date: str,
+        price: float,
+        change_percent: float,
+        latest: dict,
+        prev: dict,
     ) -> list[Signal]:
         """检测 KDJ 信号"""
         signals = []
@@ -259,8 +271,14 @@ class SignalDetector:
         return signals
 
     def _detect_ma_signals(
-        self, df: pd.DataFrame, code: str, date: str, price: float,
-        change_percent: float, latest: dict, prev: dict,
+        self,
+        df: pd.DataFrame,
+        code: str,
+        date: str,
+        price: float,
+        change_percent: float,
+        latest: dict,
+        prev: dict,
     ) -> list[Signal]:
         """检测均线信号"""
         signals = []
@@ -299,8 +317,14 @@ class SignalDetector:
         return signals
 
     def _detect_rsi_signals(
-        self, df: pd.DataFrame, code: str, date: str, price: float,
-        change_percent: float, latest: dict, prev: dict,
+        self,
+        df: pd.DataFrame,
+        code: str,
+        date: str,
+        price: float,
+        change_percent: float,
+        latest: dict,
+        prev: dict,
     ) -> list[Signal]:
         """检测 RSI 信号"""
         signals = []
@@ -337,8 +361,14 @@ class SignalDetector:
         return signals
 
     def _detect_boll_signals(
-        self, df: pd.DataFrame, code: str, date: str, price: float,
-        change_percent: float, latest: dict, prev: dict,
+        self,
+        df: pd.DataFrame,
+        code: str,
+        date: str,
+        price: float,
+        change_percent: float,
+        latest: dict,
+        prev: dict,
     ) -> list[Signal]:
         """检测布林带信号"""
         signals = []
@@ -386,8 +416,14 @@ class SignalDetector:
         return signals
 
     def _detect_volume_signals(
-        self, df: pd.DataFrame, code: str, date: str, price: float,
-        change_percent: float, latest: dict, prev: dict,
+        self,
+        df: pd.DataFrame,
+        code: str,
+        date: str,
+        price: float,
+        change_percent: float,
+        latest: dict,
+        prev: dict,
     ) -> list[Signal]:
         """检测成交量信号"""
         signals = []
@@ -418,8 +454,14 @@ class SignalDetector:
         return signals
 
     def _detect_trend_signals(
-        self, df: pd.DataFrame, code: str, date: str, price: float,
-        change_percent: float, latest: dict, prev: dict,
+        self,
+        df: pd.DataFrame,
+        code: str,
+        date: str,
+        price: float,
+        change_percent: float,
+        latest: dict,
+        prev: dict,
     ) -> list[Signal]:
         """检测趋势信号"""
         signals = []
@@ -456,8 +498,14 @@ class SignalDetector:
         return signals
 
     def _detect_williams_signals(
-        self, df: pd.DataFrame, code: str, date: str, price: float,
-        change_percent: float, latest: dict, prev: dict,
+        self,
+        df: pd.DataFrame,
+        code: str,
+        date: str,
+        price: float,
+        change_percent: float,
+        latest: dict,
+        prev: dict,
     ) -> list[Signal]:
         """检测威廉指标信号"""
         signals = []
@@ -598,8 +646,14 @@ class SignalDetector:
         return signals
 
     def _detect_pattern_signals(
-        self, df: pd.DataFrame, code: str, date: str, price: float,
-        change_percent: float, latest: dict, prev: dict,
+        self,
+        df: pd.DataFrame,
+        code: str,
+        date: str,
+        price: float,
+        change_percent: float,
+        latest: dict,
+        prev: dict,
     ) -> list[Signal]:
         """检测 K 线形态信号"""
         signals = []
@@ -728,8 +782,14 @@ class SignalDetector:
         return signals
 
     def _detect_multi_period_signals(
-        self, df: pd.DataFrame, code: str, date: str, price: float,
-        change_percent: float, latest: dict, prev: dict,
+        self,
+        df: pd.DataFrame,
+        code: str,
+        date: str,
+        price: float,
+        change_percent: float,
+        latest: dict,
+        prev: dict,
     ) -> list[Signal]:
         """检测多周期共振信号"""
         signals = []
@@ -799,8 +859,14 @@ class SignalDetector:
         return signals
 
     def _detect_price_volume_signals(
-        self, df: pd.DataFrame, code: str, date: str, price: float,
-        change_percent: float, latest: dict, prev: dict,
+        self,
+        df: pd.DataFrame,
+        code: str,
+        date: str,
+        price: float,
+        change_percent: float,
+        latest: dict,
+        prev: dict,
     ) -> list[Signal]:
         """检测量价关系信号"""
         signals = []
@@ -1118,26 +1184,39 @@ class MarketScanner:
         # 一次性批量预取最近 60 天所需字段, 避免每只单独 SQL roundtrip
         # detect 用到的列集合 (扫描只依赖最近一天的状态 + 少量历史序列)
         fetch_cols = [
-            "code", "date", "open", "close", "high", "low", "volume",
-            "change_percent", "turnover_rate",
-            "ma5", "ma10", "ma20", "ma60",
-            "macd", "macd_signal", "macd_hist",
-            "kdj_k", "kdj_d", "kdj_j",
-            "boll_upper", "boll_lower", "boll_position",
+            "code",
+            "date",
+            "open",
+            "close",
+            "high",
+            "low",
+            "volume",
+            "change_percent",
+            "turnover_rate",
+            "ma5",
+            "ma10",
+            "ma20",
+            "ma60",
+            "macd",
+            "macd_signal",
+            "macd_hist",
+            "kdj_k",
+            "kdj_d",
+            "kdj_j",
+            "boll_upper",
+            "boll_lower",
+            "boll_position",
             "rsi",
         ]
         base_df = pd.read_sql_query(
             f"""
-            SELECT {', '.join(fetch_cols)} FROM stock_analysis
+            SELECT {", ".join(fetch_cols)} FROM stock_analysis
             WHERE date >= (SELECT date(MAX(date), '-70 days') FROM stock_analysis)
             ORDER BY code, date
             """,
             self.conn,
         )
-        data_map = {
-            code: g.sort_values("date").reset_index(drop=True)
-            for code, g in base_df.groupby("code")
-        }
+        data_map = {code: g.sort_values("date").reset_index(drop=True) for code, g in base_df.groupby("code")}
 
         name_cache: dict[str, str] = {}
         completed = 0
