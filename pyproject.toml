@@ -48,10 +48,20 @@ ml = [
 stock-analyzer = "src.main:main"
 
 [tool.ruff]
-extend = "../../pyproject.toml"
+line-length = 120
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "N", "UP", "B", "SIM", "PERF", "RUF"]
+ignore = ["S101", "RUF001", "RUF002", "RUF003", "PERF203", "PERF401", "RUF012", "SIM117", "E501", "E402", "N806", "N803", "E741", "B008", "SIM115", "UP041", "UP042"]
 
 [tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S", "B", "RUF012"]
 "src/main.py" = ["F401"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
 
 [tool.pyright]
 pythonVersion = "3.11"
