@@ -12,7 +12,6 @@ import sqlite3
 from functools import lru_cache
 from pathlib import Path
 
-
 # 演示库把真实标的脱敏为 DemoXX 占位名, 但用户/LLM 仍习惯用真实名(如"茅台""贵州茅台")提问。
 # 这里提供「真实名(含常见简称) -> 演示库代码」的别名表, 让自然语言查询能命中演示数据,
 # 而展示名仍保持 DemoXX 脱敏风格(不改 seed 数据)。键为脱敏占位名, 值为该占位名对应的真实名别名列表。

@@ -34,7 +34,7 @@ class TestEnsureDir:
         assert result.name == "c"
 
     def test_existing_dir(self):
-        result = ensure_dir(self.temp_dir)
+        ensure_dir(self.temp_dir)
         assert os.path.isdir(self.temp_dir)
 
 

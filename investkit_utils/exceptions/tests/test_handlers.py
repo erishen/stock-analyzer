@@ -1,3 +1,5 @@
+import pytest
+
 from investkit_utils.exceptions.base import (
     AuthenticationError,
     AuthorizationError,
@@ -9,8 +11,6 @@ from investkit_utils.exceptions.base import (
     ValidationError,
 )
 from investkit_utils.exceptions.handlers import handle_exception, raise_for_status
-
-import pytest
 
 
 class TestHandleException:

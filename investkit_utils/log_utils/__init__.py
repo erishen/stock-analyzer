@@ -10,12 +10,12 @@ InvestKit 统一日志模块
     logger.info("操作成功", extra={"user_id": "123", "action": "login"})
 """
 
+from investkit_utils.config.models import LoggingConfig
 from investkit_utils.log_utils.config import (
     LogFormat,
     LoggingFormat,
     LogLevel,
 )
-from investkit_utils.config.models import LoggingConfig
 from investkit_utils.log_utils.context import (
     get_correlation_id,
     set_correlation_id,

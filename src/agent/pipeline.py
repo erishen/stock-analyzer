@@ -11,9 +11,9 @@ import re
 import sqlite3
 from typing import Any
 
+from . import fallback as agent_fallback
 from . import llm, sqlsafety
 from . import schema as sa_schema
-from . import fallback as agent_fallback
 
 logger = logging.getLogger(__name__)
 

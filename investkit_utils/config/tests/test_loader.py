@@ -2,8 +2,6 @@ import os
 import tempfile
 from pathlib import Path
 
-import pytest
-
 from investkit_utils.config.loader import (
     ConfigLoader,
     clear_config_cache,
@@ -12,7 +10,6 @@ from investkit_utils.config.loader import (
     set_config_path,
 )
 from investkit_utils.config.models import (
-    AppConfig,
     CacheConfig,
     CacheType,
     Config,
@@ -22,7 +19,6 @@ from investkit_utils.config.models import (
     LLMConfig,
     LLMProvider,
     LoggingConfig,
-    LoggingFormat,
 )
 
 

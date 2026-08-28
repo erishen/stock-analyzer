@@ -4,7 +4,6 @@
 """
 
 import importlib.util
-import os
 import sqlite3
 from pathlib import Path
 

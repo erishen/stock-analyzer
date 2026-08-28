@@ -68,8 +68,7 @@ def test_load_name_code_missing_file(tmp_path):
     assert c2n == {} and n2c == {}
 
 
-import sqlite3 as _sqlite3  # noqa: E402
-from pathlib import Path as _Path  # noqa: E402
+import sqlite3 as _sqlite3
 
 
 @pytest.fixture()

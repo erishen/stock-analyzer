@@ -1,3 +1,8 @@
+from dataclasses import dataclass
+from datetime import date, datetime
+from decimal import Decimal
+from enum import Enum
+
 from investkit_utils.utils.data_utils import (
     ToDictMixin,
     batch_process,
@@ -12,10 +17,6 @@ from investkit_utils.utils.data_utils import (
     unflatten_dict,
     unique_list,
 )
-from dataclasses import dataclass
-from datetime import date, datetime
-from decimal import Decimal
-from enum import Enum
 
 
 class Color(Enum):

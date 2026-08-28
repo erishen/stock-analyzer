@@ -6,15 +6,15 @@ Demo 模式数据生成脚本
 
 import datetime
 import math
-import random
-import sqlite3
-from pathlib import Path
 
 # 落库路径解析规则(与 Web 服务端共用 investkit_utils.db.paths 的解析口径,
 # 确保构建期 seed 写入的位置 == 运行时 Web 读取的位置, 否则 Render 上会"库不存在"):
 #   1. 显式设置 STOCK_ANALYSIS_DB_PATH -> 写到该路径(线上 Render 用它指向 demo 库);
 #   2. 未设置 -> 默认写 stock_analysis_demo.db(绝不碰 stock_analysis.db 正式全市场数据)。
 import os
+import random
+import sqlite3
+from pathlib import Path
 
 _DATA_DIR = Path(__file__).parent.parent / "data"
 

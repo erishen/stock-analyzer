@@ -1,8 +1,6 @@
 import asyncio
-import time
 
 from investkit_utils.cache.decorators import (
-    _CACHE_MISS,
     _make_cache_key,
     cache_result,
     cached,
