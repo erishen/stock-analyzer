@@ -3,6 +3,15 @@ Tests for Web API Module.
 Web API 模块测试
 """
 
+import os
+import sqlite3
+import tempfile
+from datetime import date, timedelta
+from pathlib import Path
+from unittest.mock import patch
+
+import pytest
+
 from src.web.api import app, get_default_html
 from src.web.schemas import (
     BacktestRequest,
@@ -15,6 +24,44 @@ from src.web.schemas import (
     SignalItem,
     StatsResponse,
 )
+
+# 与 src/etl/pipeline.py 中 stock_analysis 全量建表 DDL 保持一致。
+# 该测试不依赖未入库的 4.8GB 真实 data/stock_analysis.db, 自带 seed 库。
+_STOCK_ANALYSIS_SCHEMA = """
+CREATE TABLE IF NOT EXISTS stock_analysis (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    code TEXT NOT NULL,
+    date TEXT NOT NULL,
+    open REAL,
+    close REAL,
+    high REAL,
+    low REAL,
+    volume REAL,
+    amount REAL,
+    amplitude REAL,
+    change_percent REAL,
+    change_amount REAL,
+    turnover_rate REAL,
+    ma5 REAL, ma10 REAL, ma20 REAL, ma60 REAL,
+    close_ma5_ratio REAL, close_ma10_ratio REAL, close_ma20_ratio REAL, close_ma60_ratio REAL,
+    ema12 REAL, ema26 REAL,
+    macd REAL, macd_signal REAL, macd_hist REAL, macd_cross INTEGER,
+    rsi REAL, rsi_oversold INTEGER, rsi_overbought INTEGER,
+    boll_mid REAL, boll_std REAL, boll_upper REAL, boll_lower REAL, boll_width REAL, boll_position REAL,
+    kdj_rsv REAL, kdj_k REAL, kdj_d REAL, kdj_j REAL, kdj_cross INTEGER,
+    atr REAL, atr_ratio REAL,
+    obv REAL, obv_ma10 REAL, obv_signal INTEGER,
+    williams_r REAL, williams_oversold INTEGER, williams_overbought INTEGER,
+    momentum_5d REAL, momentum_10d REAL, momentum_20d REAL,
+    roc_10 REAL, roc_20 REAL,
+    pct_change REAL,
+    volatility_5d REAL, volatility_10d REAL, volatility_20d REAL, volatility_ratio REAL,
+    high_low_ratio REAL, close_open_ratio REAL,
+    upper_shadow REAL, lower_shadow REAL, body_size REAL,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(code, date)
+);
+"""
 
 
 class TestBacktestRequest:
@@ -244,23 +291,82 @@ class TestFastAPIApp:
 
 
 class TestStockDetailEndpoint:
-    """测试股票详情接口 /api/stock/{code} (回归: 列索引错位曾导致 tuple index out of range)"""
+    """测试股票详情接口 /api/stock/{code} (回归: 列索引错位曾导致 tuple index out of range)
+
+    不依赖未入库的 4.8GB 真实 data/stock_analysis.db; 自带最小 seed 库,
+    并通过 patch src.web.api.db_path 指向临时库, 与 test_api.py 的临时库做法一致。
+    """
+
+    @staticmethod
+    def _build_seed_db() -> Path:
+        """构建最小自包含 seed DB: stock_analysis 全量表 + sh600887 若干交易日数据。"""
+        fd, name = tempfile.mkstemp(suffix=".db")
+        os.close(fd)
+        db_path = Path(name)
+        conn = sqlite3.connect(str(db_path))
+        conn.executescript(_STOCK_ANALYSIS_SCHEMA)
+        rows = []
+        base = date(2023, 1, 1)
+        for i in range(300):
+            d = (base + timedelta(days=i)).isoformat()
+            close = 10.0 + i * 0.01
+            rows.append(
+                (
+                    "sh600887",
+                    d,
+                    10.0,
+                    close,
+                    close + 0.5,
+                    close - 0.5,
+                    1_000_000,
+                    10_500_000,
+                    0.5,
+                    20.0,
+                    20.0,
+                    20.0,
+                    20.0,  # ma5/ma10/ma20/ma60
+                    0.1,
+                    0.02,
+                    55.0,  # macd/macd_hist/rsi
+                    20.0,
+                    20.0,
+                    20.0,  # kdj_k/kdj_d/kdj_j
+                    11.0,
+                    10.0,
+                    9.0,  # boll_upper/mid/lower
+                    1.5,  # atr
+                )
+            )
+        conn.executemany(
+            """
+            INSERT INTO stock_analysis
+                (code, date, open, close, high, low, volume, amount, change_percent,
+                 ma5, ma10, ma20, ma60, macd, macd_hist, rsi,
+                 kdj_k, kdj_d, kdj_j, boll_upper, boll_mid, boll_lower, atr)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+            """,
+            rows,
+        )
+        conn.commit()
+        conn.close()
+        return db_path
+
+    @pytest.fixture
+    def seed_db(self):
+        db_path = self._build_seed_db()
+        yield db_path
+        db_path.unlink(missing_ok=True)
 
     def _client(self):
         from starlette.testclient import TestClient
 
         return TestClient(app)
 
-    def test_stock_detail_success(self):
+    def test_stock_detail_success(self, seed_db):
         """已知存在的 seed 股票应返回 success=true 且字段齐全, 不再越界崩溃"""
-        import os
-
-        os.environ.setdefault(
-            "STOCK_ANALYSIS_DB_PATH",
-            os.path.join(os.path.dirname(__file__), "..", "data", "stock_analysis.db"),
-        )
-        client = self._client()
-        resp = client.get("/api/stock/sh600887?limit=120&days=2500")
+        with patch("src.web.api.db_path", seed_db):
+            client = self._client()
+            resp = client.get("/api/stock/sh600887?limit=120&days=2500")
         assert resp.status_code == 200
         body = resp.json()
         assert body["success"] is True, body.get("error")
@@ -275,16 +381,11 @@ class TestStockDetailEndpoint:
             assert k["close"] is not None
             assert k["ma5"] is not None
 
-    def test_stock_detail_unknown_code(self):
+    def test_stock_detail_unknown_code(self, seed_db):
         """不存在的股票应优雅返回 success=false, 不抛 500"""
-        import os
-
-        os.environ.setdefault(
-            "STOCK_ANALYSIS_DB_PATH",
-            os.path.join(os.path.dirname(__file__), "..", "data", "stock_analysis.db"),
-        )
-        client = self._client()
-        resp = client.get("/api/stock/sh000000?limit=120&days=2500")
+        with patch("src.web.api.db_path", seed_db):
+            client = self._client()
+            resp = client.get("/api/stock/sh000000?limit=120&days=2500")
         assert resp.status_code == 200
         body = resp.json()
         assert body["success"] is False
