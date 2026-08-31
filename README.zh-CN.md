@@ -126,6 +126,9 @@ make web-public       # 构建并在 0.0.0.0 提供服务
 make test             # 运行完整 pytest 测试套件
 ```
 
+## 相关文章
+- [51个指标 × 5000只股票：全市场技术扫描的工程实践](https://erishen.cn/stock_analyzer/)
+
 ## License
 
 MIT

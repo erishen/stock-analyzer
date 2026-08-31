@@ -143,6 +143,9 @@ make web-public       # build + serve on 0.0.0.0
 make test             # run the full pytest suite
 ```
 
+## Related Articles
+- [51 Indicators × 5000 Stocks: Engineering Practices for Full-Market Technical Scanning](https://erishen.cn/stock_analyzer-en/)
+
 ## License
 
 MIT
