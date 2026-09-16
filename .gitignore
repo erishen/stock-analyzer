@@ -43,6 +43,12 @@ data/*.demo_backup_*
 data/stock_klines.db
 data/stock_info_cache.json
 
+# Scan outputs (~4 MB each) produced by ad-hoc runs that pass an explicit
+# --output path; the Makefile writes them to the ignored output/reports/ instead
+/scan_result.json
+/scans.json
+data/scans.json
+
 # Runtime user data (privacy: LLM keys, paper-trading holdings, caches)
 # These are generated locally and MUST NOT be committed - git add . would otherwise leak them
 data/llm_settings.json
