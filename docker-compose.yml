@@ -1,0 +1,65 @@
+# ============================================================
+# Stock Analyzer — docker compose（本地运行）
+# 用法: cd apps/stock-analyzer && docker compose up -d --build
+# 数据共享: ./data（stock_analysis.db / stock_klines.db / asset_snapshot.db
+#          及 cache、stock_info_cache.json 等）与宿主实时共享
+# ============================================================
+
+services:
+  stock-analyzer:
+    build:
+      context: ../..          # invest-kit 仓库根（uv workspace 解析需要）
+      dockerfile: apps/stock-analyzer/Dockerfile
+    image: stock-analyzer:latest
+    container_name: stock-analyzer
+
+    # 密钥/LLM 配置从 .env 注入（DB 路径在 environment 中覆盖为容器内路径）
+    env_file:
+      - .env
+    environment:
+      - TZ=Asia/Shanghai
+      - STOCK_ANALYSIS_DB_PATH=/app/apps/stock-analyzer/data/stock_analysis.db
+      - STOCK_KLINES_DB_PATH=/app/apps/stock-analyzer/data/stock_klines.db
+      - INVESTKIT_DB_PATH=/app/apps/stock-analyzer/data
+      # 容器内不含 data_tools（抓取+ETL 不随仓库分发），关闭页面的拉取按钮
+      - WEB_ENABLE_UPDATE=0
+      # Docker 端口映射下请求源 IP 非 loopback（bridge 网关），鉴权会误判为"非本机"。
+      # 本机私有部署：清空 WEB_CHAT_TOKEN + 开启公开模式 + SETTINGS_REMOTE_ALLOW，
+      # 使 AI 选股/设置免手动 token（LLM_API_KEY 仍生效，走真实 LLM 回答）。
+      # 端口已绑 127.0.0.1（见 ports），局域网不可达，风险可控。
+      - WEB_CHAT_TOKEN=
+      - AGENT_CHAT_PUBLIC=1
+      - SETTINGS_REMOTE_ALLOW=1
+      # .env 的 LLM_BASE_URL 指向宿主 localhost:19070（本地 LLM 网关），容器内须改用
+      # host.docker.internal 才能访问宿主服务；宿主 make dev 仍用 .env 原值，不受影响。
+      - LLM_BASE_URL=http://host.docker.internal:19070/v1
+      # uv sync 的 editable 安装只映射顶层 src 包，代码里的裸导入(from data/web/agent/config…)
+      # 需要 src 在 sys.path 上才能解析；宿主 make dev 走 python -m 天然包含，容器 entry point 不会。
+      - PYTHONPATH=/app/apps/stock-analyzer/src
+
+    # 数据与宿主共享（三个 DB + cache + stock_info_cache.json）
+    volumes:
+      - ./data:/app/apps/stock-analyzer/data
+      - ./output:/app/apps/stock-analyzer/output
+      - ./logs:/app/apps/stock-analyzer/logs
+
+    # 宿主端口映射（仅绑定本机回环，防局域网访问；可用环境变量覆盖: STOCK_ANALYZER_PORT=18002 docker compose up -d）
+    ports:
+      - "127.0.0.1:${STOCK_ANALYZER_PORT:-18001}:8001"
+
+    deploy:
+      resources:
+        limits:
+          cpus: '4'
+          memory: 4G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+    restart: unless-stopped
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
