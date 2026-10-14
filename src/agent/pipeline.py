@@ -214,6 +214,8 @@ def run_question(
             for _ in range(MAX_ANSWER_TRIES):
                 try:
                     fin = _finalize(question, last_sql, data["columns"], data["rows"], history)
+                    # 演示库(seed_demo)的股票名被脱敏为 DemoXX 前缀, 真实库没有 → 前端据此显示"演示数据"提示
+                    is_demo = any(str(r.get("name", "")).startswith("Demo") for r in data["rows"])
                     return {
                         "success": True,
                         "sql": last_sql,
@@ -222,6 +224,7 @@ def run_question(
                         "rows": data["rows"],
                         "row_count": data["row_count"],
                         "truncated": data["truncated"],
+                        "is_demo": is_demo,
                         "answer": fin["answer"],
                         "chart": fin["chart"],
                         "followups": fin.get("followups", []),

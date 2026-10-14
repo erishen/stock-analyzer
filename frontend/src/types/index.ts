@@ -405,6 +405,7 @@ export interface AgentChatResult {
   rows?: Record<string, unknown>[]
   row_count?: number
   truncated?: boolean
+  is_demo?: boolean
   answer?: string
   chart?: AgentChart | null
   followups?: string[]
