@@ -1,4 +1,4 @@
-.PHONY: help install deps sync-env fetch fetch-sample etl scan visualize analyze accuracy score monitor trade-report export market-timing compare sector sector-validate portfolio portfolio-sharpe web dev web-dev web-build web-public backtest backtest-momentum backtest-reversion backtest-trend backtest-multifactor backtest-optimized backtest-viz backtest-full backtest-benchmark optimize optimize-momentum optimize-reversion db-optimize stats test test-cov lint format clean
+.PHONY: help install deps sync-env fetch fetch-sample etl scan visualize analyze accuracy score monitor trade-report export market-timing compare sector sector-validate portfolio portfolio-sharpe web dev web-dev web-build web-public backtest backtest-momentum backtest-reversion backtest-trend backtest-multifactor backtest-optimized backtest-viz backtest-full backtest-benchmark optimize optimize-momentum optimize-reversion db-optimize stats test test-cov lint format clean docker-build docker-up docker-down docker-logs docker-restart docker-ps daily-update push-report
 
 help:
 	@echo "Stock Analyzer - 股票数据分析工具"
@@ -34,6 +34,15 @@ help:
 	@echo "  web-dev     启动 Web 界面 (开发模式，热更新)"
 	@echo "  web-build   构建 React 前端"
 	@echo "  web-public  启动 Web 界面 (公开访问)"
+	@echo "  docker-build    构建 Docker 镜像"
+	@echo "  docker-up       启动容器 (数据与宿主共享, 端口 18001; 可用 PORT=xxx 覆盖)"
+	@echo "  docker-down     停止并移除容器"
+	@echo "  docker-logs     实时查看容器日志"
+	@echo "  docker-restart  重启容器"
+	@echo "  docker-ps       查看容器状态"
+	@echo "  daily-update    每日增量更新 (含钉钉推送; 补数用 daily-update-backfill)"
+	@echo "  daily-update-backfill  补数更新 (所有落后股票, 含钉钉推送)"
+	@echo "  push-report     推送最新更新报告到钉钉群"
 	@echo "  backtest    策略回测 (默认)"
 	@echo "  backtest-momentum   动量策略回测"
 	@echo "  backtest-reversion  均值回归策略回测"
@@ -101,8 +110,20 @@ etl:
 	uv run python -m src.main etl
 
 daily-update:
-	@echo "每日增量更新: 活跃股票增量拉取 -> 增量 ETL -> 信号扫描"
-	uv run python data_tools/daily_update.py
+	@echo "每日增量更新: 活跃股票增量拉取 -> 增量 ETL -> 信号扫描 -> 钉钉推送"
+	uv run python data_tools/daily_update.py --notify
+
+daily-update-backfill:
+	@echo "补数更新: 所有落后股票 -> 增量 ETL -> 信号扫描 -> 钉钉推送"
+	uv run python data_tools/daily_update.py --backfill --notify
+
+push-report:
+	@echo "推送最新 daily_update 报告到钉钉群"
+	uv run python data_tools/push_report.py
+
+check-stale:
+	@echo "定时更新健康自检: 报告停更 >3 天推钉钉告警 (--days 可调)"
+	uv run python data_tools/check_stale.py
 
 etl-codes:
 	@read -p "输入股票代码(逗号分隔): " codes; \
@@ -258,6 +279,27 @@ web-public:
 	uv sync --extra web
 	cd frontend && pnpm install && pnpm run build
 	uv run python -m src.main web --host 0.0.0.0
+
+# ---------- Docker（数据目录 data/ 与宿主共享） ----------
+
+docker-build:
+	docker compose build
+
+docker-up:
+	@STOCK_ANALYZER_PORT=$(PORT) docker compose up -d --build
+	@echo "✅ 容器已启动: http://localhost:$${STOCK_ANALYZER_PORT:-18001} (数据目录 data/ 与宿主共享)"
+
+docker-down:
+	docker compose down
+
+docker-logs:
+	docker compose logs -f
+
+docker-restart:
+	docker compose restart
+
+docker-ps:
+	docker compose ps
 
 stats:
 	uv run python -m src.main stats

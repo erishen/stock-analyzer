@@ -7,6 +7,7 @@ Stock Data Fetcher for Stock Analyzer.
 
 import json
 import logging
+import os
 import re
 import sqlite3
 import sys
@@ -18,6 +19,20 @@ from typing import Any
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 import requests
+
+# akshare 内部请求无超时, 远端挂起(TLS 无响应)时会永久阻塞, 让调用方
+# (daily_update.py / update_task.py 等) 卡死在拉取阶段。
+# 给 requests 全局默认超时, 挂起请求快速失败 -> 上层降级/重试。
+# 显式传了 timeout 的调用不受影响(setdefault)。
+_orig_session_request = requests.Session.request
+
+
+def _request_with_timeout(self, method, url, **kwargs):
+    kwargs.setdefault("timeout", 15)
+    return _orig_session_request(self, method, url, **kwargs)
+
+
+requests.Session.request = _request_with_timeout
 
 from config import get_stock_klines_db_path
 
@@ -176,45 +191,22 @@ class StockDataFetcher:
         if code.startswith(("43", "83", "87", "92")):
             return self._fetch_bj_sina(code, start_date, end_date)
 
-        # 东财源连续失败达到阈值后熔断，本次运行剩余请求直接走腾讯源
-        if self._em_failures >= 10:
-            return self._fetch_from_tencent(code, start_date, end_date)
-
-        try:
-            df = self.akshare.stock_zh_a_hist(
-                symbol=code,
-                period="daily",
-                start_date=start_date or "20200101",
-                end_date=end_date or datetime.now().strftime("%Y%m%d"),
-                adjust=adjust,
-            )
-
-            if df is None or df.empty:
+        if self._resolve_source() == "tencent":
+            # 默认腾讯源: 东财被 TLS 指纹拦截频繁, 腾讯更快; 腾讯失败再试东财(字段全)
+            records = self._fetch_from_tencent(code, start_date, end_date)
+            if records:
+                return records
+            try:
+                return self._fetch_from_eastmoney(code, start_date, end_date, adjust)
+            except Exception as e:
+                logger.error(f"腾讯+东财源获取 {code} 均失败: {type(e).__name__}: {e}")
                 return []
 
-            self._em_failures = 0
-
-            records = []
-            for _, row in df.iterrows():
-                records.append(
-                    {
-                        "code": code,
-                        "date": row.get("日期", "").strftime("%Y-%m-%d")
-                        if hasattr(row.get("日期"), "strftime")
-                        else str(row.get("日期", "")),
-                        "open": float(row.get("开盘", 0)),
-                        "close": float(row.get("收盘", 0)),
-                        "high": float(row.get("最高", 0)),
-                        "low": float(row.get("最低", 0)),
-                        "volume": float(row.get("成交量", 0)),
-                        "amount": float(row.get("成交额", 0)),
-                        "amplitude": float(row.get("振幅", 0)),
-                        "change_percent": float(row.get("涨跌幅", 0)),
-                        "change_amount": float(row.get("涨跌额", 0)),
-                        "turnover_rate": float(row.get("换手率", 0)),
-                    }
-                )
-            return records
+        # eastmoney/auto: 东财优先, 失败降级腾讯 (连续失败熔断)
+        if self._em_failures >= 10:
+            return self._fetch_from_tencent(code, start_date, end_date)
+        try:
+            return self._fetch_from_eastmoney(code, start_date, end_date, adjust)
         except (requests.RequestException, ValueError) as e:
             # 东财源失败(如 TLS 指纹拦截)，降级到腾讯源重试
             self._em_failures += 1
@@ -226,6 +218,56 @@ class StockDataFetcher:
         except Exception as e:
             logger.error(f"获取 {code} K线数据失败: {e}")
             return []
+
+    @staticmethod
+    def _resolve_source() -> str:
+        """数据源选择: 环境变量 STOCK_FETCH_SOURCE (tencent/eastmoney/auto, 默认 tencent)。
+
+        tencent  : 腾讯源优先, 失败降级东财 (东财被 TLS 拦截频繁, 腾讯更快; 默认)
+        eastmoney: 东财优先, 失败降级腾讯, 连续失败 10 次熔断 (字段最全, 含成交额/换手率)
+        auto     : 同 eastmoney (自适应)
+        """
+        v = os.environ.get("STOCK_FETCH_SOURCE", "tencent").strip().lower()
+        return v if v in ("tencent", "eastmoney", "auto") else "tencent"
+
+    def _fetch_from_eastmoney(
+        self, code: str, start_date: str | None, end_date: str | None, adjust: str
+    ) -> list[dict]:
+        """东财源 K 线 (stock_zh_a_hist): 字段最全, 含成交额/振幅/涨跌幅/换手率。"""
+        df = self.akshare.stock_zh_a_hist(
+            symbol=code,
+            period="daily",
+            start_date=start_date or "20200101",
+            end_date=end_date or datetime.now().strftime("%Y%m%d"),
+            adjust=adjust,
+        )
+
+        if df is None or df.empty:
+            return []
+
+        self._em_failures = 0
+
+        records = []
+        for _, row in df.iterrows():
+            records.append(
+                {
+                    "code": code,
+                    "date": row.get("日期", "").strftime("%Y-%m-%d")
+                    if hasattr(row.get("日期"), "strftime")
+                    else str(row.get("日期", "")),
+                    "open": float(row.get("开盘", 0)),
+                    "close": float(row.get("收盘", 0)),
+                    "high": float(row.get("最高", 0)),
+                    "low": float(row.get("最低", 0)),
+                    "volume": float(row.get("成交量", 0)),
+                    "amount": float(row.get("成交额", 0)),
+                    "amplitude": float(row.get("振幅", 0)),
+                    "change_percent": float(row.get("涨跌幅", 0)),
+                    "change_amount": float(row.get("涨跌额", 0)),
+                    "turnover_rate": float(row.get("换手率", 0)),
+                }
+            )
+        return records
 
     def _fetch_bj_sina(self, code: str, start_date: str | None, end_date: str | None) -> list[dict]:
         """北交所新浪源 (腾讯 K 线接口无北交所数据, 东财被 TLS 拦截)
