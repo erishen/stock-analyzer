@@ -12,6 +12,7 @@ import time
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager, suppress
+from datetime import datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -72,6 +73,14 @@ async def lifespan(app: FastAPI):
     logger.info("\n📊 Stock Analyzer Web Server")
     logger.info(f"   数据库: {db_path}")
     logger.error(f"   状态: {'✅ 已连接' if db_path.exists() else '❌ 不存在'}")
+    # 清残留更新状态文件: 上次任务被强杀(kill/重启容器)会留下 running 僵尸态,
+    # 阻塞下一次触发。容器 /tmp 不随 restart 清空, 须在 Web 启动时主动清理。
+    try:
+        Path(
+            os.environ.get("STOCK_UPDATE_STATUS_FILE", "/tmp/stock_analyzer_update_status.json")
+        ).unlink(missing_ok=True)
+    except OSError:
+        pass
     yield
     logger.info("\n👋 服务器关闭")
 
@@ -1012,6 +1021,63 @@ def _import_asset_fetch():
         return None
 
 
+def _spawn_update_task() -> dict:
+    """用独立子进程执行更新任务 (而非 Web 进程内线程)。
+
+    macOS Docker Desktop 的 bind mount(FUSE) 文件缓存不会随外部写入失效:
+    Web 长驻进程持有的旧页缓存会让更新任务误判"指标全缺"而全量重算 5506 只。
+    独立子进程的新缓存能读到最新数据(已实测), 且容器内子进程写→Web 读同侧一致。
+    """
+    import subprocess
+
+    ut = _load_update_task()
+    cur = ut.load_status()
+    if cur.get("status") == "running":
+        # 僵尸态判定: 上次进程被强杀未收尾时状态文件停在 running; mtime 超过
+        # 5 分钟且无真实任务(子进程早已退出)视为僵尸, 允许重置重启。
+        try:
+            stale = time.time() - ut.STATUS_FILE.stat().st_mtime > 300
+        except OSError:
+            stale = True
+        if not stale:
+            return {"success": False, "message": "更新任务已在运行中", "status": cur}
+    # 先重置状态并落盘 (running), 避免子进程尚未写盘时 API 读到旧状态
+    ut._set(
+        status="running", stage="prepare", total=0, current=0,
+        fetched_rows=0, failed=0, skipped=0, no_new=0, etl_loaded=0,
+        message="准备中...", started_at=datetime.now().isoformat(),
+        finished_at="", error="",
+    )
+    script = PROJECT_ROOT / "data_tools" / "update_task.py"
+    env = os.environ.copy()
+    env["STOCK_UPDATE_STATUS_FILE"] = str(ut.STATUS_FILE)
+    try:
+        subprocess.Popen(
+            [sys.executable, str(script)], env=env, cwd=str(PROJECT_ROOT),
+        )
+    except Exception as e:  # pragma: no cover
+        ut._set(
+            status="error", stage="done", error=f"{type(e).__name__}: {e}",
+            finished_at=datetime.now().isoformat(),
+        )
+        return {"success": False, "message": f"启动更新失败: {e}", "status": ut.load_status()}
+    return {"success": True, "message": "更新任务已启动", "status": ut.load_status()}
+
+
+def _update_host() -> str:
+    """宿主更新服务地址 (STOCK_UPDATE_HOST): 配置后按钮转发宿主执行。
+    容器内跑更新受 Docker FUSE 缓存限制不可靠(见 _spawn_update_task 注释),
+    宿主执行 + HTTP 状态回传是最稳路径。"""
+    return os.environ.get("STOCK_UPDATE_HOST", "").strip()
+
+
+def _forward_update(path: str, method: str = "get", timeout: int = 10) -> dict:
+    import requests
+
+    r = requests.request(method, f"{_update_host()}{path}", timeout=timeout)
+    return r.json()
+
+
 @app.get("/api/enabled")
 async def get_enabled_features():
     """功能开关 (供前端决定是否展示数据更新入口)"""
@@ -1020,24 +1086,38 @@ async def get_enabled_features():
 
 @app.post("/api/update")
 async def start_data_update():
-    """触发数据更新 (后台线程: 增量拉取 K 线 + 增量 ETL)
+    """触发数据更新。
 
-    仅在 WEB_ENABLE_UPDATE=1 时可用; 关闭时拒绝。
+    优先转发宿主更新服务(STOCK_UPDATE_HOST); 未配置时退回容器内子进程(仅
+    macOS Docker FUSE 缓存不可靠的已知问题下不建议使用)。
     """
     if not _update_enabled():
         return JSONResponse(
             content={"success": False, "message": "数据更新功能未开启 (WEB_ENABLE_UPDATE)"},
             status_code=403,
         )
-    return JSONResponse(content=_load_update_task().start_update_task())
+    if _update_host():
+        try:
+            return JSONResponse(content=_forward_update("/update", method="post"))
+        except Exception as e:
+            return JSONResponse(
+                content={"success": False, "message": f"宿主更新服务不可达: {e}"},
+                status_code=502,
+            )
+    return JSONResponse(content=_spawn_update_task())
 
 
 @app.get("/api/update/status")
 async def get_update_status():
-    """查询数据更新任务进度 (仅开启时可用)"""
+    """查询数据更新任务进度 (优先转发宿主服务, 仅开启时可用)"""
     if not _update_enabled():
         return JSONResponse(content={"status": "disabled", "message": "数据更新功能未开启 (WEB_ENABLE_UPDATE)"})
-    return JSONResponse(content=_load_update_task().get_status())
+    if _update_host():
+        try:
+            return JSONResponse(content=_forward_update("/status"))
+        except Exception as e:
+            return JSONResponse(content={"status": "error", "message": f"宿主更新服务不可达: {e}"})
+    return JSONResponse(content=_load_update_task().load_status())
 
 
 @app.get("/api/stocks")

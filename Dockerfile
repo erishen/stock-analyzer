@@ -43,6 +43,9 @@ COPY libs/investkit_utils/ ./libs/investkit_utils/
 COPY apps/stock-analyzer/pyproject.toml ./apps/stock-analyzer/
 COPY apps/stock-analyzer/src/ ./apps/stock-analyzer/src/
 COPY apps/stock-analyzer/scripts/ ./apps/stock-analyzer/scripts/
+# data_tools（拉取/ETL 后台任务，供 WEB_ENABLE_UPDATE=1 时页面「拉取最新数据」按钮调用；
+# 仅进本地镜像，仍不随公开 GitHub 仓库分发）
+COPY apps/stock-analyzer/data_tools/ ./apps/stock-analyzer/data_tools/
 
 WORKDIR /app/apps/stock-analyzer
 RUN uv sync --extra web --no-dev --no-cache

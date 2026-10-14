@@ -21,8 +21,14 @@ services:
       - STOCK_ANALYSIS_DB_PATH=/app/apps/stock-analyzer/data/stock_analysis.db
       - STOCK_KLINES_DB_PATH=/app/apps/stock-analyzer/data/stock_klines.db
       - INVESTKIT_DB_PATH=/app/apps/stock-analyzer/data
-      # 容器内不含 data_tools（抓取+ETL 不随仓库分发），关闭页面的拉取按钮
-      - WEB_ENABLE_UPDATE=0
+      # 容器内已随镜像带入 data_tools（仅本地镜像，不随公开仓库分发），
+      # 开启后页面「股票」tab 出现「拉取最新数据」按钮（后台增量拉取 + ETL，进度可见）。
+      # 数据目录与宿主共享。页面「拉取最新数据」按钮: 点击后转发宿主更新服务
+      # (web_trigger_server.py, 127.0.0.1:19090) 由宿主执行 daily_update——
+      # macOS Docker 的 FUSE 缓存使容器内更新不可靠(会误判全量重算), 宿主执行
+      # + HTTP 状态回传最稳; 更新完成宿主自动重启容器读到最新。
+      - WEB_ENABLE_UPDATE=1
+      - STOCK_UPDATE_HOST=http://host.docker.internal:19090
       # Docker 端口映射下请求源 IP 非 loopback（bridge 网关），鉴权会误判为"非本机"。
       # 本机私有部署：清空 WEB_CHAT_TOKEN + 开启公开模式 + SETTINGS_REMOTE_ALLOW，
       # 使 AI 选股/设置免手动 token（LLM_API_KEY 仍生效，走真实 LLM 回答）。
@@ -30,6 +36,11 @@ services:
       - WEB_CHAT_TOKEN=
       - AGENT_CHAT_PUBLIC=1
       - SETTINGS_REMOTE_ALLOW=1
+      # 行情数据源出网代理: 本机 Docker 直连腾讯/东财常被 TLS 拦截(SSL EOF), 走宿主 Clash
+      # 代理(默认端口 7897)即通。无代理的环境可把 STOCK_PROXY_PORT 置空/删除这两行。
+      - HTTP_PROXY=http://host.docker.internal:${STOCK_PROXY_PORT:-7897}
+      - HTTPS_PROXY=http://host.docker.internal:${STOCK_PROXY_PORT:-7897}
+      - NO_PROXY=localhost,127.0.0.1,host.docker.internal
       # .env 的 LLM_BASE_URL 指向宿主 localhost:19070（本地 LLM 网关），容器内须改用
       # host.docker.internal 才能访问宿主服务；宿主 make dev 仍用 .env 原值，不受影响。
       - LLM_BASE_URL=http://host.docker.internal:19070/v1

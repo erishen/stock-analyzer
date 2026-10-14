@@ -120,7 +120,7 @@ export const StocksPanel: FC = () => {
       setUpdateStatus(res.status)
       if (res.status.status === 'running') {
         stopPolling()
-        pollRef.current = window.setInterval(pollStatus, 3000)
+        pollRef.current = window.setInterval(pollStatus, 5000)
       }
     } catch (e) {
       setError((e as Error).message)
@@ -137,7 +137,7 @@ export const StocksPanel: FC = () => {
       return api.getUpdateStatus().then((s) => {
         setUpdateStatus(s)
         if (s.status === 'running') {
-          pollRef.current = window.setInterval(pollStatus, 3000)
+          pollRef.current = window.setInterval(pollStatus, 5000)
         }
       })
     }).catch(() => {})
