@@ -85,6 +85,13 @@ export async function fetchAPI<T>(endpoint: string, options: RequestInit = {}): 
 export const api = {
   getStats: () => fetchAPI<Stats>('/stats'),
 
+  getIndicators: () =>
+    fetchAPI<{
+      success: boolean
+      indicators: Record<string, { formula: string; meaning: string; signal: string }>
+      core_keys: string[]
+    }>('/indicators'),
+
   scanSignals: (params: {
     signal_type?: string
     min_score?: number

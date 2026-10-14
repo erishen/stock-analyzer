@@ -1,4 +1,5 @@
-import { FC, useMemo, useState } from 'react'
+import { FC, useEffect, useMemo, useState } from 'react'
+import { api } from '@/services/api'
 
 interface DictEntry {
   term: string
@@ -6,7 +7,7 @@ interface DictEntry {
   desc: string
 }
 
-const CATS = ['全部', '基础概念', '交易规则', '技术指标', '大盘行情', '持仓策略', '组合风控']
+const CATS = ['全部', '指标数学', '基础概念', '交易规则', '技术指标', '大盘行情', '持仓策略', '组合风控']
 
 const DICT: DictEntry[] = [
   // ---- 基础概念 ----
@@ -76,15 +77,36 @@ const DICT: DictEntry[] = [
 export const DictionaryPanel: FC = () => {
   const [search, setSearch] = useState('')
   const [cat, setCat] = useState('全部')
+  const [mathItems, setMathItems] = useState<DictEntry[] | null>(null)
+
+  // 指标数学词典: 与 AI 选股 Agent 同源(后端 /api/indicators, 见 src/agent/math_glossary.py)
+  useEffect(() => {
+    api
+      .getIndicators()
+      .then((res) => {
+        const items = Object.entries(res.indicators || {}).map(([key, v]) => ({
+          term: key,
+          cat: '指标数学',
+          desc: `公式: ${v.formula}\n人话: ${v.meaning}\n判读: ${v.signal}`,
+        }))
+        setMathItems(items)
+      })
+      .catch(() => setMathItems(null)) // API 不可用(老版本后端)时静默降级, 只显示内置通俗词典
+  }, [])
+
+  const base = useMemo(
+    () => (mathItems ? [...mathItems, ...DICT] : DICT),
+    [mathItems],
+  )
 
   const filtered = useMemo(() => {
     const kw = search.trim().toLowerCase()
-    return DICT.filter((d) => {
+    return base.filter((d) => {
       if (cat !== '全部' && d.cat !== cat) return false
       if (!kw) return true
       return d.term.toLowerCase().includes(kw) || d.desc.toLowerCase().includes(kw)
     })
-  }, [search, cat])
+  }, [search, cat, base])
 
   const grouped = useMemo(() => {
     if (search.trim()) {
@@ -101,7 +123,7 @@ export const DictionaryPanel: FC = () => {
   return (
     <div className="bg-white rounded-lg p-5 shadow-sm">
       <h2 className="text-xl font-semibold mb-1">📖 术语字典</h2>
-      <p className="text-gray-500 text-sm mb-4">股市常用术语的通俗解释，支持搜索与分类浏览</p>
+      <p className="text-gray-500 text-sm mb-4">股市术语通俗解释 + 指标数学词典（公式/含义/判读），支持搜索与分类浏览</p>
 
       <div className="flex flex-col sm:flex-row gap-3 mb-5">
         <input
@@ -138,7 +160,7 @@ export const DictionaryPanel: FC = () => {
             {g.items.map((d) => (
               <div key={d.term} className="border border-gray-100 rounded-lg p-3 hover:shadow-sm transition">
                 <div className="font-medium text-sm mb-1">{d.term}</div>
-                <p className="text-sm text-gray-500 leading-relaxed">{d.desc}</p>
+                <p className="text-sm text-gray-500 leading-relaxed whitespace-pre-line">{d.desc}</p>
               </div>
             ))}
           </div>

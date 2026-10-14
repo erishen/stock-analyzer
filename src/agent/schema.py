@@ -263,6 +263,11 @@ def describe_schema(project_root: str, db_path: str) -> str:
             used += 1
     lines.append(f"(共列出 {used} 个已注释指标字段)")
     lines.append("")
+    lines.append("指标数学速查(怎么算的/怎么解读, 回答'为什么/含义'类问题时引用):")
+    from . import math_glossary
+
+    lines.append(math_glossary.glossary_text())
+    lines.append("")
     lines.append("查询建议:")
     lines.append(
         "  - code 用单引号且带市场前缀, 例如 WHERE code='sh600519' (注意: 表内 code 列存的是带 sh/sz/bj 前缀的完整代码)"

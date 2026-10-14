@@ -150,6 +150,18 @@ async def index():
 _stats_cache: dict = {"data": None, "ts": 0.0}
 
 
+@app.get("/api/indicators")
+async def get_indicators():
+    """指标数学词典: 51 个技术指标的数学定义 + 人话含义 + 信号判读。
+
+    与 AI 选股 Agent 提示词同源(见 src/agent/math_glossary.py),
+    前端「术语字典」页面据此渲染「指标数学」分类。
+    """
+    from src.agent.math_glossary import INDICATOR_MATH, SCHEMA_GLOSSARY_KEYS
+
+    return {"success": True, "indicators": INDICATOR_MATH, "core_keys": SCHEMA_GLOSSARY_KEYS}
+
+
 @app.get("/api/stats")
 async def get_stats():
     """获取数据统计"""
