@@ -266,7 +266,9 @@ def describe_schema(project_root: str, db_path: str) -> str:
     lines.append("指标数学速查(怎么算的/怎么解读, 回答'为什么/含义'类问题时引用):")
     from . import math_glossary
 
-    lines.append(math_glossary.glossary_text())
+    # 只注入表内真实存在的列: 演示库/瘦表可能缺字段, 避免速查段提到不存在的列误导 LLM。
+    glossary_keys = [c for c in math_glossary.SCHEMA_GLOSSARY_KEYS if c in cols]
+    lines.append(math_glossary.glossary_text(glossary_keys))
     lines.append("")
     lines.append("查询建议:")
     lines.append(
