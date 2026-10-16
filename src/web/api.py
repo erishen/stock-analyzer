@@ -23,6 +23,7 @@ from fastapi.staticfiles import StaticFiles
 
 from config import get_stock_analysis_db_path
 
+from . import notify_hook
 from .schemas import (
     AgentChatRequest,
     BacktestRequest,
@@ -34,6 +35,7 @@ from .schemas import (
     OptimizeResponse,
     PaperAddRequest,
     PaperAutoRequest,
+    PaperClearRequest,
     PaperCloseRequest,
     PortfolioRequest,
     PortfolioResponse,
@@ -267,6 +269,49 @@ async def paper_close_position(req: PaperCloseRequest):
     """模拟卖出"""
     pf = get_paper(db_path)
     return JSONResponse(content=pf.close_position(req.code, req.sell_price, req.sell_date, req.shares))
+
+
+def _notify_clear(result: dict) -> None:
+    """把一键清仓结果渲染成 Markdown 推到钉钉群 (尽力而为, 失败只记日志)。"""
+    try:
+        if not notify_hook.configured():
+            return
+        details = result.get("details") or []
+        skipped = result.get("skipped") or []
+        date = datetime.now().strftime("%Y-%m-%d")
+        lines = [f"**🧹 模拟仓一键清仓 {date}**", ""]
+        if details:
+            lines.append(f"**卖出 {len(details)} 只**")
+            for d in details:
+                lines.append(
+                    f"- {d.get('name', '')} {d.get('code', '')} @ {d.get('sell_price', '')}"
+                    f" → 回款 {float(d.get('proceeds') or 0):,.2f}"
+                )
+        if skipped:
+            lines.append("")
+            lines.append(f"**⚠️ 跳过 {len(skipped)} 只（无最新行情/停牌）**")
+            for s in skipped:
+                lines.append(f"- {s.get('name', '')} {s.get('code', '')} · {s.get('reason', '')}")
+        lines.append("")
+        lines.append(
+            f"合计回款 {float(result.get('total_proceeds') or 0):,.2f} | {result.get('message', '')}"
+        )
+        ok, msg = notify_hook.send_markdown("\n".join(lines), title="模拟仓一键清仓")
+        if not ok:
+            logger.warning("钉钉推送失败: %s", msg)
+    except Exception as e:
+        logger.warning("钉钉推送异常: %s", e)
+
+
+@app.post("/api/paper/clear")
+async def paper_clear_all(req: PaperClearRequest):
+    """一键清仓: 按最新收盘价卖出全部持仓, 并撤销待成交订单"""
+    pf = get_paper(db_path)
+    result = pf.close_all(req.sell_date)
+    # 可选: 推送到钉钉群 (无 data_tools/webhook 时静默跳过, 不影响返回)
+    if result.get("success") and (result.get("closed_count") or 0) > 0:
+        await asyncio.to_thread(_notify_clear, result)
+    return JSONResponse(content=result)
 
 
 @app.post("/api/paper/auto")

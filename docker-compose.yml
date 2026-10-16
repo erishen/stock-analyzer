@@ -12,6 +12,9 @@ services:
       dockerfile: apps/stock-analyzer/Dockerfile
     image: stock-analyzer:latest
     container_name: stock-analyzer
+    # 用 init(PID1) 回收子进程: 否则 uv/uvicorn 派生的子进程会变僵尸,
+    # 导致 `docker compose up --build` 重建容器时 "zombie and can not be killed" 失败。
+    init: true
 
     # 密钥/LLM 配置从 .env 注入（DB 路径在 environment 中覆盖为容器内路径）
     env_file:
@@ -51,6 +54,12 @@ services:
     # 数据与宿主共享（三个 DB + cache + stock_info_cache.json）
     volumes:
       - ./data:/app/apps/stock-analyzer/data
+      # 两个 ETL 大库单独以只读挂载：容器永不写它们 → 杜绝经 FUSE 并发写导致 SQLite
+      # 损坏（配合 journal_mode=DELETE，无 -wal/-shm 跨端不一致）。宿主是唯一写者。
+      # 其余 data 内容（paper_portfolio.json / stock_info_cache.json / asset_snapshot.db
+      # / cache）仍需可读写，故保留上面的目录挂载。
+      - ./data/stock_analysis.db:/app/apps/stock-analyzer/data/stock_analysis.db:ro
+      - ./data/stock_klines.db:/app/apps/stock-analyzer/data/stock_klines.db:ro
       - ./output:/app/apps/stock-analyzer/output
       - ./logs:/app/apps/stock-analyzer/logs
 

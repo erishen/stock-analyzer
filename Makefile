@@ -1,4 +1,4 @@
-.PHONY: help install deps sync-env fetch fetch-sample etl scan visualize analyze accuracy score monitor trade-report export market-timing compare sector sector-validate portfolio portfolio-sharpe web dev web-dev web-build web-public backtest backtest-momentum backtest-reversion backtest-trend backtest-multifactor backtest-optimized backtest-viz backtest-full backtest-benchmark optimize optimize-momentum optimize-reversion db-optimize stats test test-cov lint format clean docker-build docker-up docker-down docker-logs docker-restart docker-ps daily-update daily-update-backfill backfill-etl data-refresh data-refresh-backfill push-report check-stale
+.PHONY: help install deps sync-env fetch fetch-sample etl scan visualize analyze accuracy score monitor trade-report export market-timing compare sector sector-validate portfolio portfolio-sharpe web dev web-dev web-build web-public backtest backtest-momentum backtest-reversion backtest-trend backtest-multifactor backtest-optimized backtest-viz backtest-full backtest-benchmark optimize optimize-momentum optimize-reversion db-optimize stats test test-cov lint format clean docker-build docker-up docker-down docker-logs docker-restart docker-ps daily-update daily-update-backfill backfill-etl data-refresh data-refresh-backfill push-report push-paper check-stale
 
 help:
 	@echo "Stock Analyzer - 股票数据分析工具"
@@ -45,6 +45,7 @@ help:
 	@echo "  backfill-etl    宿主补算指标缺口 (klines 有数据但 analysis 未算的股票)"
 	@echo "  data-refresh    一键刷新: 宿主更新 + 重启容器 (容器长驻进程缓存旧数据, 须重启才能读到最新)"
 	@echo "  push-report     推送最新更新报告到钉钉群"
+	@echo "  push-paper      推送最新模拟仓自动交易摘要到钉钉群"
 	@echo "  backtest    策略回测 (默认)"
 	@echo "  backtest-momentum   动量策略回测"
 	@echo "  backtest-reversion  均值回归策略回测"
@@ -123,15 +124,19 @@ backfill-etl:
 	@echo "宿主补算指标缺口: klines 有数据但 analysis 未算的股票 (macOS Docker 下容器内 ETL 不稳定, 统一宿主执行)"
 	uv run python data_tools/backfill_etl_today.py
 
-data-refresh: daily-update docker-restart
-	@echo "✅ 宿主更新完成, 容器已重启 (新进程缓存读到最新数据)"
+data-refresh: daily-update
+	@echo "✅ 宿主更新完成"
+data-refresh-backfill: daily-update-backfill
+	@echo "✅ 宿主补数更新完成"
 
-data-refresh-backfill: daily-update-backfill docker-restart
-	@echo "✅ 宿主补数更新完成, 容器已重启"
 
 push-report:
 	@echo "推送最新 daily_update 报告到钉钉群"
 	uv run python data_tools/push_report.py
+
+push-paper:
+	@echo "推送最新模拟仓自动交易摘要到钉钉群"
+	uv run python data_tools/push_paper.py
 
 check-stale:
 	@echo "定时更新健康自检: 报告停更 >3 天推钉钉告警 (--days 可调)"

@@ -159,6 +159,10 @@ class PaperAutoTrader:
                 "success": True,
                 "date": d,
                 "dry_run": dry_run,
+                "strategy": self.config.strategy_type,
+                "strategy_label": _STRATEGY_LABELS.get(
+                    self.config.strategy_type, self.config.strategy_type
+                ),
                 "executed": executed,
                 "new_orders": new_orders,
                 "positions": len(pf.data["positions"]),

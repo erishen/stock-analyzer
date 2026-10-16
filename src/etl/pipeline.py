@@ -377,11 +377,10 @@ class DataLoader:
     def connect(self):
         """连接数据库"""
         self.conn = sqlite3.connect(str(self.db_path))
-        # WAL 模式下用 NORMAL 同步级别: 减少 fsync 频率。
-        # 容器内分析库位于 Docker bind mount(FUSE) 上, FULL 同步大事务提交易触发
-        # disk I/O error; NORMAL 是 SQLite 官方对 WAL 的推荐配置, 宿主/容器一致生效。
+        # DELETE 模式需 FULL 同步方可避免掉电导致的轻微损坏风险。
+        # ETL 现由宿主执行(非 FUSE mount), 故改为 FULL。
         with contextlib.suppress(sqlite3.Error):
-            self.conn.execute("PRAGMA synchronous=NORMAL")
+            self.conn.execute("PRAGMA synchronous=FULL")
         self._create_tables()
 
     def close(self):

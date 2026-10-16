@@ -21,6 +21,8 @@ const ALL_TABS = ['agent', 'stocks', 'scan', 'paper', 'market', 'backtest', 'por
 const App: FC = () => {
   const [activeTab, setActiveTab] = useState<string>(() => {
     const saved = typeof localStorage !== 'undefined' ? localStorage.getItem(STORAGE_KEY) : null
+    const hash = typeof window !== 'undefined' ? window.location.hash.replace(/^#\/?/, '') : ''
+    if (hash && ALL_TABS.includes(hash)) return hash
     return saved && ALL_TABS.includes(saved) ? saved : 'agent'
   })
   // 已访问过的 Tab 集合: 首次进入才挂载并触发加载, 之后保持挂载不丢数据。
@@ -30,6 +32,26 @@ const App: FC = () => {
   const [stats, setStats] = useState<Stats | null>(null)
 
   useEffect(() => {
+    const onHashChange = () => {
+      const hash = typeof window !== 'undefined' ? window.location.hash.replace(/^#\/?/, '') : ''
+      if (hash && ALL_TABS.includes(hash) && hash !== activeTab) {
+        setActiveTab(hash)
+        if (typeof localStorage !== 'undefined') {
+          localStorage.setItem(STORAGE_KEY, hash)
+        }
+        setVisited((prev) => {
+          if (prev.has(hash)) return prev
+          const next = new Set(prev)
+          next.add(hash)
+          return next
+        })
+      }
+    }
+    window.addEventListener('hashchange', onHashChange)
+    return () => window.removeEventListener('hashchange', onHashChange)
+  }, [activeTab])
+
+  useEffect(() => {
     loadStats()
   }, [])
 
@@ -37,6 +59,9 @@ const App: FC = () => {
     setActiveTab(id)
     if (typeof localStorage !== 'undefined') {
       localStorage.setItem(STORAGE_KEY, id)
+    }
+    if (typeof window !== 'undefined') {
+      window.location.hash = id
     }
     setVisited((prev) => {
       if (prev.has(id)) return prev

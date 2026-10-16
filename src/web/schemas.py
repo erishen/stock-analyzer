@@ -164,6 +164,13 @@ class PaperAutoRequest:
 
 
 @dataclass
+class PaperClearRequest:
+    """模拟仓一键清仓请求"""
+
+    sell_date: str | None = None
+
+
+@dataclass
 class AgentChatRequest:
     """Agent 对话请求: 携带历史消息回传给生成模型"""
 

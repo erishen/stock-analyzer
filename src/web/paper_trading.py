@@ -27,6 +27,25 @@ class PaperPortfolio:
         self.store_path = Path(store_path)
         self.persist = True  # False 时所有写操作仅作用于内存 (dry-run 用)
         self.data = self._load()
+        self._loaded_mtime = self._file_mtime()
+
+    def _file_mtime(self) -> int:
+        """存储文件 mtime(ns); 不存在返回 0。用于检测宿主端的外部修改。"""
+        try:
+            return self.store_path.stat().st_mtime_ns
+        except OSError:
+            return 0
+
+    def reload_if_changed(self) -> bool:
+        """若存储文件被外部(宿主端定时任务)改写, 则重新加载 —— 让常驻 Web 进程
+        无需重启即可读到最新的持仓/待成交状态。返回是否发生了重载。
+        """
+        m = self._file_mtime()
+        if m and m != self._loaded_mtime:
+            self.data = self._load()
+            self._loaded_mtime = m
+            return True
+        return False
 
     # ---------- 持久化 ----------
     def _load(self) -> dict[str, Any]:
@@ -96,6 +115,7 @@ class PaperPortfolio:
         with tmp.open("w", encoding="utf-8") as f:
             json.dump(self.data, f, ensure_ascii=False, indent=2)
         tmp.replace(self.store_path)
+        self._loaded_mtime = self._file_mtime()
 
     # ---------- 股票信息 ----------
     def _name(self, code: str) -> str:
@@ -230,6 +250,72 @@ class PaperPortfolio:
         return {
             "success": True,
             "message": f"已卖出 {pos['name']}({code}) {sell_shares:g} 股 @ {sell_price:g} (成本 {sell_commission + sell_stamp_tax:.2f}, 净利 {profit:.2f})",
+        }
+
+    def close_all(self, sell_date: str | None = None, reason: str = "一键清仓") -> dict[str, Any]:
+        """一键清仓: 按最新收盘价卖出全部持仓, 并撤销所有待成交订单。
+
+        无最新行情(停牌/退市)的持仓跳过并在 skipped 中报告, 不会因此中断其余清仓。
+        """
+        codes = list(self.data["positions"].keys())
+        had_pending = len(self.data.get("pending", []))
+        if not codes and not had_pending:
+            return {
+                "success": True,
+                "message": "当前无持仓",
+                "closed_count": 0,
+                "total_proceeds": 0.0,
+                "details": [],
+                "skipped": [],
+            }
+
+        details: list[dict[str, Any]] = []
+        skipped: list[dict[str, Any]] = []
+        total_proceeds = 0.0
+
+        for code in codes:
+            pos = self.data["positions"].get(code)
+            if not pos:
+                continue
+            name = pos.get("name", code)
+            cur, _ = self._latest_rows(code)
+            close = None
+            if cur and cur.get("close") is not None:
+                try:
+                    close = float(cur["close"])
+                except (TypeError, ValueError):
+                    close = None
+            if not close or close <= 0:
+                skipped.append({"code": code, "name": name, "reason": "无最新行情(停牌/退市)"})
+                continue
+
+            before_cash = self.get_cash()
+            res = self.close_position(code, close, sell_date=sell_date, reason=reason)
+            if res.get("success"):
+                proceeds = self.get_cash() - before_cash
+                total_proceeds += proceeds
+                details.append(
+                    {"code": code, "name": name, "sell_price": round(close, 2), "proceeds": round(proceeds, 2)}
+                )
+            else:
+                skipped.append({"code": code, "name": name, "reason": res.get("message", "卖出失败")})
+
+        # 撤销待成交订单 (避免自动交易下一轮又买回来)
+        self.data["pending"] = []
+        self._save()
+
+        msg = f"已清仓 {len(details)} 只"
+        if skipped:
+            msg += f", {len(skipped)} 只跳过(无行情)"
+        if had_pending:
+            msg += f", 撤销 {had_pending} 笔待成交"
+        return {
+            "success": True,
+            "message": msg,
+            "closed_count": len(details),
+            "total_proceeds": round(total_proceeds, 2),
+            "details": details,
+            "skipped": skipped,
         }
 
     # ---------- 单只持仓诊断 ----------
@@ -405,6 +491,14 @@ class PaperPortfolio:
         # 卖出历史倒序
         closed = sorted(self.data["closed"], key=lambda x: x.get("sell_date", ""), reverse=True)[-100:]
 
+        # 待成交订单补名称 (订单本身只存 code, 前端需要展示名称)
+        pending = []
+        for o in self.data.get("pending", []):
+            o = dict(o)
+            if not o.get("name"):
+                o["name"] = self._name(o.get("code", ""))
+            pending.append(o)
+
         cash = self.get_cash()
         initial_capital = float(self.data.get("initial_capital", 100000.0))
         total_asset = cash + total_value
@@ -430,7 +524,7 @@ class PaperPortfolio:
             },
             "positions": positions,
             "closed": closed,
-            "pending": self.data.get("pending", []),
+            "pending": pending,
         }
 
 
@@ -445,4 +539,7 @@ def get_paper(db_path: str | Path) -> PaperPortfolio:
 
         store_path = Path(PROJECT_ROOT) / "data" / "paper_portfolio.json"
         paper_portfolio = PaperPortfolio(db_path, store_path)
+    else:
+        # 宿主端定时任务(paper-auto)写入后, 常驻进程据此热重载, 无需重启容器
+        paper_portfolio.reload_if_changed()
     return paper_portfolio

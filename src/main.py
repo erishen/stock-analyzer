@@ -864,6 +864,17 @@ def run_paper_auto(args):
     if args.dry_run:
         logger.info("   (dry-run: 未落盘)")
 
+    if args.output:
+        import json
+
+        output_path = Path(args.output)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(
+            json.dumps(result, ensure_ascii=False, indent=2, default=str),
+            encoding="utf-8",
+        )
+        logger.info(f"   结果已写入: {output_path}")
+
 
 def run_optimize(args):
     """运行参数优化"""
@@ -1347,6 +1358,7 @@ def main():
     paper_auto_parser.add_argument("--date", type=str, default=None, help="信号日 (YYYY-MM-DD), 默认最新交易日")
     paper_auto_parser.add_argument("--reset", action="store_true", help="先重置模拟仓再运行")
     paper_auto_parser.add_argument("--dry-run", action="store_true", help="只计算不落盘")
+    paper_auto_parser.add_argument("--output", type=str, help="把本轮结果 JSON 写入指定路径")
 
     args = parser.parse_args()
 

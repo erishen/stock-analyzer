@@ -46,6 +46,7 @@ class StockInfoFetcher:
         self._akshare = None
         self._cache: dict[str, StockInfo] = {}
         self._load_cache()
+        self._loaded_mtime = self._file_mtime()
 
     @property
     def akshare(self):
@@ -171,6 +172,20 @@ class StockInfoFetcher:
             result[code] = info.name if info.name else code
         return result
 
+    def _file_mtime(self) -> int:
+        try:
+            return self.cache_file.stat().st_mtime_ns
+        except OSError:
+            return 0
+
+    def reload_if_changed(self) -> bool:
+        m = self._file_mtime()
+        if m and m != self._loaded_mtime:
+            self._cache = {}
+            self._load_cache()
+            self._loaded_mtime = m
+            return True
+        return False
     def get_cached_name(self, code: str) -> str:
         """仅从本地缓存取名称 (不触发网络请求), 未命中返回空串"""
         info = self._cache.get(code)
@@ -191,6 +206,8 @@ def get_stock_info_fetcher() -> StockInfoFetcher:
     global _stock_info_fetcher
     if _stock_info_fetcher is None:
         _stock_info_fetcher = StockInfoFetcher()
+    else:
+        _stock_info_fetcher.reload_if_changed()
     return _stock_info_fetcher
 
 
