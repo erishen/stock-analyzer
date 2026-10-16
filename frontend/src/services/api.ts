@@ -1,4 +1,4 @@
-import type { Stats, ScanResult, ScreenerFieldsResult, AssetSnapshotResult, AssetRefreshResult, ScreenerResult, ScreenerCondition, BacktestResult, OptimizeTask, PortfolioResult, SectorResult, MarketTimingResult, MarketHistory, StocksPageResult, StockDetail, UpdateStatus, UpdateStartResult, PaperResult, PaperAutoResult, AgentChatResult, LLMSettings } from '@/types'
+import type { Stats, ScanResult, ScreenerFieldsResult, AssetSnapshotResult, AssetRefreshResult, ScreenerResult, ScreenerCondition, BacktestResult, OptimizeTask, PortfolioResult, SectorResult, MarketTimingResult, MarketHistory, StocksPageResult, StockDetail, UpdateStatus, UpdateStartResult, PaperResult, PaperAutoResult, PaperClearResult, AgentChatResult, LLMSettings } from '@/types'
 
 const API_BASE = '/api'
 
@@ -225,6 +225,12 @@ export const api = {
     method: 'POST',
     body: JSON.stringify(params),
   }),
+
+  clearPaperPositions: (params: { sell_date?: string } = {}) =>
+    fetchAPI<PaperClearResult>('/paper/clear', {
+      method: 'POST',
+      body: JSON.stringify(params),
+    }),
 
   startUpdate: () => fetchAPI<UpdateStartResult>('/update', { method: 'POST' }),
 

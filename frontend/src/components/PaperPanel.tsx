@@ -54,6 +54,10 @@ export const PaperPanel: FC = () => {
   const [sellPrice, setSellPrice] = useState('')
   const [sellDate, setSellDate] = useState(today())
 
+  // 一键清仓确认
+  const [confirmClear, setConfirmClear] = useState(false)
+  const [clearing, setClearing] = useState(false)
+
   // 个股详情弹窗
   const [detailCode, setDetailCode] = useState<string | null>(null)
 
@@ -123,6 +127,22 @@ export const PaperPanel: FC = () => {
       await load()
     } catch (e) {
       setError((e as Error).message)
+    }
+  }
+
+  const handleClearAll = async () => {
+    setError('')
+    setClearing(true)
+    try {
+      const r = await api.clearPaperPositions({ sell_date: today() })
+      if (!r.success) { setError(r.message || '清仓失败'); return }
+      showFlash(r.message)
+      setConfirmClear(false)
+      await load()
+    } catch (e) {
+      setError((e as Error).message)
+    } finally {
+      setClearing(false)
     }
   }
 
@@ -255,7 +275,10 @@ export const PaperPanel: FC = () => {
               <tbody>
                 {result.pending.map((o, i) => (
                   <tr key={i} className="border-b border-gray-100">
-                    <td className="p-2 font-medium">{o.code}</td>
+                    <td className="p-2 font-medium">
+                      {o.code}
+                      {o.name && o.name !== o.code && <div className="text-xs text-gray-400">{o.name}</div>}
+                    </td>
                     <td className="p-2">
                       <span className={`px-2 py-0.5 rounded text-xs font-medium ${o.side === 'buy' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
                         {o.side === 'buy' ? '买入' : '卖出'}
@@ -319,9 +342,19 @@ export const PaperPanel: FC = () => {
         <div className="mb-6">
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-semibold">当前持仓</h3>
-            <button onClick={() => load()} className="text-xs text-violet-600 hover:underline">
-              刷新行情
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setConfirmClear(true)}
+                disabled={clearing || result.positions.length === 0}
+                title={result.positions.length === 0 ? '当前无持仓' : '按最新收盘价卖出全部持仓'}
+                className="px-3 py-1 rounded text-xs bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                一键清仓
+              </button>
+              <button onClick={() => load()} className="text-xs text-violet-600 hover:underline">
+                刷新行情
+              </button>
+            </div>
           </div>
 
           {result.positions.length === 0 ? (
@@ -374,6 +407,26 @@ export const PaperPanel: FC = () => {
               </table>
             </div>
           )}
+        </div>
+      )}
+
+      {/* 一键清仓确认弹窗 */}
+      {confirmClear && (
+        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50" onClick={() => setConfirmClear(false)}>
+          <div className="bg-white rounded-lg p-5 w-80 shadow-lg" onClick={(e) => e.stopPropagation()}>
+            <h3 className="font-semibold mb-3">确认一键清仓？</h3>
+            <div className="text-sm text-gray-600 mb-4">
+              将按<strong>最新收盘价</strong>卖出全部 {result?.positions.length ?? 0} 只持仓，并撤销所有待成交订单。
+              计入佣金与印花税，卖出后资金回到现金余额。此操作不可撤销。
+            </div>
+            <div className="flex gap-2 justify-end">
+              <button onClick={() => setConfirmClear(false)} className="px-3 py-1.5 rounded bg-gray-200 text-gray-700">取消</button>
+              <button onClick={handleClearAll} disabled={clearing}
+                className="px-3 py-1.5 rounded bg-red-600 text-white hover:bg-red-700 disabled:opacity-50">
+                {clearing ? '清仓中...' : '确认清仓'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

@@ -348,6 +348,7 @@ export interface PaperClosedRecord {
 
 export interface PaperPendingOrder {
   code: string
+  name?: string
   side: 'buy' | 'sell'
   signal_date: string
   reason: string
@@ -386,6 +387,15 @@ export interface PaperAutoResult {
   executed: { code: string; side: string; status: string; reason?: string; message?: string }[]
   new_orders: PaperPendingOrder[]
   summary: PaperResult['summary']
+}
+
+export interface PaperClearResult {
+  success: boolean
+  message: string
+  closed_count: number
+  total_proceeds: number
+  details: { code: string; name: string; sell_price: number; proceeds: number }[]
+  skipped: { code: string; name?: string; reason: string }[]
 }
 
 export interface MarketHistory {
