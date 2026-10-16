@@ -818,6 +818,53 @@ def run_web(args):
     run_server(host=args.host, port=args.port)
 
 
+def run_paper_auto(args):
+    """策略驱动模拟仓自动交易 (生成信号 / 次日开盘成交 / 止损止盈)"""
+    from web.paper_auto_trader import AutoTraderConfig, PaperAutoTrader
+
+    logger.info("\n" + "=" * 60)
+    logger.info("🤖 模拟仓自动交易")
+    logger.info("=" * 60)
+
+    db_path = Path(args.db) if args.db else get_stock_analysis_db_path()
+    if not db_path.exists():
+        logger.error(f"❌ 数据库不存在: {db_path}")
+        return
+
+    cfg = AutoTraderConfig(
+        strategy_type=args.strategy,
+        max_positions=args.max_positions,
+        position_pct=args.position_pct,
+        initial_capital=args.capital,
+    )
+    store_path = DATA_DIR / "paper_portfolio.json"
+    trader = PaperAutoTrader(db_path, store_path, cfg)
+
+    if args.reset:
+        logger.info(trader.reset(cfg.initial_capital)["message"])
+        # reset 后本轮仅生成信号, 不成交
+
+    result = trader.run(as_of_date=args.date, dry_run=args.dry_run)
+    if not result.get("success"):
+        logger.error(f"❌ 自动交易失败: {result.get('error')}")
+        return
+
+    logger.info(f"   信号日: {result['date']}")
+    logger.info(f"   成交: {len([e for e in result['executed'] if e.get('status') == 'filled'])} 笔")
+    for e in result["executed"]:
+        logger.info(f"     [{e['side']}] {e['code']} {e['status']} {e.get('message', e.get('reason', ''))}")
+    logger.info(f"   新订单: {len(result['new_orders'])} 笔")
+    for o in result["new_orders"]:
+        logger.info(f"     [{o['side']}] {o['code']} @ {result['date']} {o.get('reason', '')}")
+    s = result["summary"]
+    logger.info(
+        f"   持仓 {s['position_count']} 只 | 现金 {s['cash']:.2f} | 总资产 {s['total_asset']:.2f}"
+        f" | 累计收益 {s['total_return_pct']:.2f}%"
+    )
+    if args.dry_run:
+        logger.info("   (dry-run: 未落盘)")
+
+
 def run_optimize(args):
     """运行参数优化"""
     import json
@@ -1285,6 +1332,22 @@ def main():
     risk_attr_parser.add_argument("--db", type=str, help="数据库路径")
     risk_attr_parser.add_argument("--output", type=str, help="输出文件路径")
 
+    paper_auto_parser = subparsers.add_parser("paper-auto", help="模拟仓自动交易 (策略信号 -> 模拟建仓/平仓)")
+    paper_auto_parser.add_argument("--db", type=str, help="数据库路径")
+    paper_auto_parser.add_argument(
+        "--strategy",
+        type=str,
+        default="momentum",
+        choices=["momentum", "mean_reversion", "trend_following", "multi_factor"],
+        help="选股策略",
+    )
+    paper_auto_parser.add_argument("--max-positions", type=int, default=10, help="最大持仓数")
+    paper_auto_parser.add_argument("--position-pct", type=float, default=0.10, help="单只仓位占比")
+    paper_auto_parser.add_argument("--capital", type=float, default=100000.0, help="初始资金")
+    paper_auto_parser.add_argument("--date", type=str, default=None, help="信号日 (YYYY-MM-DD), 默认最新交易日")
+    paper_auto_parser.add_argument("--reset", action="store_true", help="先重置模拟仓再运行")
+    paper_auto_parser.add_argument("--dry-run", action="store_true", help="只计算不落盘")
+
     args = parser.parse_args()
 
     if args.command == "interactive":
@@ -1341,6 +1404,8 @@ def main():
         run_portfolio_opt(args)
     elif args.command == "risk-attribution":
         run_risk_attribution(args)
+    elif args.command == "paper-auto":
+        run_paper_auto(args)
     else:
         parser.print_help()
 

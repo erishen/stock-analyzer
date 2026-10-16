@@ -3,6 +3,7 @@ FastAPI Application for Stock Analyzer.
 FastAPI 应用
 """
 
+import asyncio
 import logging
 import os
 import sqlite3
@@ -32,6 +33,7 @@ from .schemas import (
     OptimizeRequest,
     OptimizeResponse,
     PaperAddRequest,
+    PaperAutoRequest,
     PaperCloseRequest,
     PortfolioRequest,
     PortfolioResponse,
@@ -245,10 +247,18 @@ async def paper_status():
 
 @app.post("/api/paper/position")
 async def paper_add_position(req: PaperAddRequest):
-    """模拟建仓"""
+    """模拟建仓 (消耗现金余额, 计入佣金)"""
     pf = get_paper(db_path)
     return JSONResponse(
-        content=pf.add_position(req.code, req.buy_price, req.shares, req.buy_date, req.stop_loss, req.take_profit)
+        content=pf.add_position(
+            req.code,
+            req.buy_price,
+            req.shares,
+            req.buy_date,
+            req.stop_loss,
+            req.take_profit,
+            deduct_cash=True,
+        )
     )
 
 
@@ -257,6 +267,30 @@ async def paper_close_position(req: PaperCloseRequest):
     """模拟卖出"""
     pf = get_paper(db_path)
     return JSONResponse(content=pf.close_position(req.code, req.sell_price, req.sell_date, req.shares))
+
+
+@app.post("/api/paper/auto")
+async def paper_auto_run(req: PaperAutoRequest):
+    """策略驱动的模拟仓自动交易: 生成信号 -> 次日开盘成交 -> 止损/止盈/到期卖出"""
+    if not db_path.exists():
+        return JSONResponse(content={"success": False, "error": "数据库不存在"})
+    try:
+        from .paper_auto_trader import AutoTraderConfig, PaperAutoTrader
+
+        cfg = AutoTraderConfig(
+            strategy_type=req.strategy,
+            max_positions=req.max_positions,
+            position_pct=req.position_pct,
+            initial_capital=req.initial_capital,
+        )
+        trader = PaperAutoTrader(db_path, DATA_DIR / "paper_portfolio.json", cfg)
+        if req.reset:
+            trader.reset(cfg.initial_capital)
+        result = await asyncio.to_thread(trader.run, req.date, req.dry_run)
+        return JSONResponse(content=result)
+    except Exception as e:  # pragma: no cover
+        logger.exception("模拟仓自动交易失败")
+        return JSONResponse(content={"success": False, "error": str(e)})
 
 
 @app.post("/api/agent/chat")

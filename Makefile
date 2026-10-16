@@ -235,6 +235,14 @@ portfolio-sharpe:
 portfolio-risk-parity:
 	uv run python -m src.main portfolio --weight-method risk_parity --holding 5 --output output/reports/portfolio_risk_parity.json
 
+paper-auto:
+	@echo "模拟仓自动交易: 策略信号 -> 次日开盘建仓 -> 止损/止盈/到期平仓"
+	uv run python -m src.main paper-auto
+
+paper-auto-dry:
+	@echo "模拟仓自动交易 (dry-run, 不落盘)"
+	uv run python -m src.main paper-auto --dry-run
+
 web:
 	uv sync --extra web
 	cd frontend && pnpm install && pnpm run build

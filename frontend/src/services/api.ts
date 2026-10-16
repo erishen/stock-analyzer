@@ -1,4 +1,4 @@
-import type { Stats, ScanResult, ScreenerFieldsResult, AssetSnapshotResult, AssetRefreshResult, ScreenerResult, ScreenerCondition, BacktestResult, OptimizeTask, PortfolioResult, SectorResult, MarketTimingResult, MarketHistory, StocksPageResult, StockDetail, UpdateStatus, UpdateStartResult, PaperResult, AgentChatResult, LLMSettings } from '@/types'
+import type { Stats, ScanResult, ScreenerFieldsResult, AssetSnapshotResult, AssetRefreshResult, ScreenerResult, ScreenerCondition, BacktestResult, OptimizeTask, PortfolioResult, SectorResult, MarketTimingResult, MarketHistory, StocksPageResult, StockDetail, UpdateStatus, UpdateStartResult, PaperResult, PaperAutoResult, AgentChatResult, LLMSettings } from '@/types'
 
 const API_BASE = '/api'
 
@@ -210,6 +210,18 @@ export const api = {
     sell_date?: string
     shares?: number
   }) => fetchAPI<{ success: boolean; message: string }>('/paper/close', {
+    method: 'POST',
+    body: JSON.stringify(params),
+  }),
+
+  runPaperAuto: (params: {
+    strategy?: string
+    max_positions?: number
+    position_pct?: number
+    initial_capital?: number
+    date?: string
+    dry_run?: boolean
+  }) => fetchAPI<PaperAutoResult>('/paper/auto', {
     method: 'POST',
     body: JSON.stringify(params),
   }),

@@ -151,6 +151,19 @@ class PaperCloseRequest:
 
 
 @dataclass
+class PaperAutoRequest:
+    """模拟仓自动交易请求"""
+
+    strategy: str = "momentum"
+    max_positions: int = 10
+    position_pct: float = 0.10
+    initial_capital: float = 100000.0
+    date: str | None = None
+    reset: bool = False
+    dry_run: bool = False
+
+
+@dataclass
 class AgentChatRequest:
     """Agent 对话请求: 携带历史消息回传给生成模型"""
 

@@ -25,6 +25,7 @@ class PaperPortfolio:
     def __init__(self, db_path: str | Path, store_path: str | Path):
         self.db_path = Path(db_path)
         self.store_path = Path(store_path)
+        self.persist = True  # False 时所有写操作仅作用于内存 (dry-run 用)
         self.data = self._load()
 
     # ---------- 持久化 ----------
@@ -33,6 +34,9 @@ class PaperPortfolio:
             "updated_at": "",
             "positions": {},  # code -> dict
             "closed": [],  # 卖出历史
+            "cash": None,  # 现金余额(None=首次懒加载时按 initial_capital 初始化)
+            "initial_capital": 100000.0,
+            "pending": [],  # 待成交订单 (paper_auto_trader 使用)
         }
         if self.store_path.exists():
             try:
@@ -41,12 +45,51 @@ class PaperPortfolio:
                 if isinstance(data, dict):
                     data.setdefault("positions", {})
                     data.setdefault("closed", [])
+                    data.setdefault("cash", None)
+                    data.setdefault("initial_capital", 100000.0)
+                    data.setdefault("pending", [])
                     return data
             except Exception as e:
                 logger.warning(f"模拟仓文件损坏, 重新初始化: {e}")
         return default
 
+    # ---------- 现金 / 待成交订单 (给自动交易用) ----------
+    def get_cash(self) -> float:
+        if self.data.get("cash") is None:
+            self.data["cash"] = float(self.data.get("initial_capital", 100000.0))
+        return float(self.data["cash"])
+
+    def update_cash(self, delta: float) -> None:
+        self.data["cash"] = self.get_cash() + float(delta)
+        self._save()
+
+    def set_initial_capital(self, amount: float) -> None:
+        self.data["initial_capital"] = float(amount)
+        if self.data.get("cash") is None:
+            self.data["cash"] = float(amount)
+        self._save()
+
+    def get_pending(self) -> list[dict[str, Any]]:
+        return list(self.data.get("pending", []))
+
+    def save_pending(self, orders: list[dict[str, Any]]) -> None:
+        self.data["pending"] = orders
+        self._save()
+
+    def reset(self, initial_capital: float = 100000.0) -> None:
+        self.data = {
+            "updated_at": "",
+            "positions": {},
+            "closed": [],
+            "cash": float(initial_capital),
+            "initial_capital": float(initial_capital),
+            "pending": [],
+        }
+        self._save()
+
     def _save(self):
+        if not self.persist:
+            return
         self.data["updated_at"] = datetime.now().isoformat(timespec="seconds")
         self.store_path.parent.mkdir(parents=True, exist_ok=True)
         tmp = self.store_path.with_suffix(".json.tmp")
@@ -94,6 +137,10 @@ class PaperPortfolio:
         buy_date: str | None = None,
         stop_loss: float = 0.08,
         take_profit: float = 0.20,
+        commission_rate: float = 0.0003,
+        min_commission: float = 5.0,
+        deduct_cash: bool = False,
+        reason: str = "",
     ) -> dict[str, Any]:
         if not code or buy_price <= 0 or shares <= 0:
             return {"success": False, "message": "股票代码、买入价、股数必须大于0"}
@@ -102,6 +149,11 @@ class PaperPortfolio:
         if stop_loss <= 0 or take_profit <= 0:
             return {"success": False, "message": "止损/止盈比例必须大于0"}
 
+        buy_amount = float(buy_price) * float(shares)
+        buy_commission = max(buy_amount * commission_rate, min_commission)
+        if deduct_cash and self.get_cash() < buy_amount + buy_commission:
+            return {"success": False, "message": f"现金不足: 需 {buy_amount + buy_commission:.2f}, 仅 {self.get_cash():.2f}"}
+
         self.data["positions"][code] = {
             "name": self._name(code),
             "buy_date": buy_date or date.today().isoformat(),
@@ -109,9 +161,16 @@ class PaperPortfolio:
             "shares": float(shares),
             "stop_loss": float(stop_loss),
             "take_profit": float(take_profit),
+            "buy_cost": round(buy_commission, 2),
+            "reason": reason,
         }
+        if deduct_cash:
+            self.data["cash"] = self.get_cash() - (buy_amount + buy_commission)
         self._save()
-        return {"success": True, "message": f"已建仓 {self._name(code)}({code}) {shares:g} 股 @ {buy_price:g}"}
+        return {
+            "success": True,
+            "message": f"已建仓 {self._name(code)}({code}) {shares:g} 股 @ {buy_price:g} (成本 {buy_commission:.2f})",
+        }
 
     def close_position(
         self,
@@ -119,6 +178,10 @@ class PaperPortfolio:
         sell_price: float,
         sell_date: str | None = None,
         shares: float | None = None,
+        commission_rate: float = 0.0003,
+        stamp_tax_rate: float = 0.001,
+        min_commission: float = 5.0,
+        reason: str = "",
     ) -> dict[str, Any]:
         pos = self.data["positions"].get(code)
         if not pos:
@@ -130,7 +193,14 @@ class PaperPortfolio:
         sell_shares = held if shares is None else min(shares, held)
 
         buy_price = pos["buy_price"]
-        profit_pct = (sell_price - buy_price) / buy_price
+        sell_amount = float(sell_price) * sell_shares
+        sell_commission = max(sell_amount * commission_rate, min_commission)
+        sell_stamp_tax = sell_amount * stamp_tax_rate
+        buy_cost = pos.get("buy_cost", 0.0) * (sell_shares / held) if held else 0.0
+        total_cost = buy_cost + sell_commission + sell_stamp_tax
+        profit = (float(sell_price) - buy_price) * sell_shares - total_cost
+        profit_pct = (float(sell_price) - buy_price) / buy_price
+
         self.data["closed"].append(
             {
                 "code": code,
@@ -140,10 +210,15 @@ class PaperPortfolio:
                 "buy_price": buy_price,
                 "sell_price": float(sell_price),
                 "shares": sell_shares,
-                "profit": (float(sell_price) - buy_price) * sell_shares,
+                "profit": round(profit, 2),
                 "profit_pct": profit_pct,
+                "buy_cost": round(buy_cost, 2),
+                "sell_cost": round(sell_commission + sell_stamp_tax, 2),
+                "total_cost": round(total_cost, 2),
+                "reason": reason,
             }
         )
+        self.data["cash"] = self.get_cash() + (sell_amount - sell_commission - sell_stamp_tax)
 
         remaining = held - sell_shares
         if remaining <= 1e-9:
@@ -152,7 +227,10 @@ class PaperPortfolio:
             pos["shares"] = remaining
 
         self._save()
-        return {"success": True, "message": f"已卖出 {pos['name']}({code}) {sell_shares:g} 股 @ {sell_price:g}"}
+        return {
+            "success": True,
+            "message": f"已卖出 {pos['name']}({code}) {sell_shares:g} 股 @ {sell_price:g} (成本 {sell_commission + sell_stamp_tax:.2f}, 净利 {profit:.2f})",
+        }
 
     # ---------- 单只持仓诊断 ----------
     def _holding_diagnosis(self, code: str, pos: dict[str, Any]) -> dict[str, Any]:
@@ -327,6 +405,11 @@ class PaperPortfolio:
         # 卖出历史倒序
         closed = sorted(self.data["closed"], key=lambda x: x.get("sell_date", ""), reverse=True)[-100:]
 
+        cash = self.get_cash()
+        initial_capital = float(self.data.get("initial_capital", 100000.0))
+        total_asset = cash + total_value
+        total_return_pct = (total_asset - initial_capital) / initial_capital * 100 if initial_capital else 0
+
         return {
             "success": True,
             "updated_at": self.data.get("updated_at", ""),
@@ -339,9 +422,15 @@ class PaperPortfolio:
                 "total_pnl_pct": round(total_pnl_pct, 2),
                 "max_weight": round(max_weight * 100, 2),
                 "danger_count": danger_count,
+                "cash": round(cash, 2),
+                "initial_capital": round(initial_capital, 2),
+                "total_asset": round(total_asset, 2),
+                "total_return_pct": round(total_return_pct, 2),
+                "pending_count": len(self.data.get("pending", [])),
             },
             "positions": positions,
             "closed": closed,
+            "pending": self.data.get("pending", []),
         }
 
 

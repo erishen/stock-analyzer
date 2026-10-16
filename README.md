@@ -137,6 +137,7 @@ Database schema (table structures) is documented in [docs/DATABASE_SCHEMA.md](do
 make etl              # incremental ETL (computes indicators)
 make scan             # full-market signal scan
 make backtest / optimize / compare / sector / portfolio   # strategy work
+make paper-auto       # strategy-driven paper trading: signals → next-day-open fills, stops/take-profit
 make dev              # backend :8001 + frontend :3000 with hot reload, Ctrl+C stops both
 make web-build        # build frontend into src/web/static (served by FastAPI)
 make web-public       # build + serve on 0.0.0.0

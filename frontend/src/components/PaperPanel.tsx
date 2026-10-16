@@ -35,6 +35,12 @@ export const PaperPanel: FC = () => {
   const [flash, setFlash] = useState('')
   const [result, setResult] = useState<PaperResult | null>(null)
 
+  // 自动交易
+  const [autoStrategy, setAutoStrategy] = useState('momentum')
+  const [autoMax, setAutoMax] = useState('10')
+  const [autoPct, setAutoPct] = useState('10')
+  const [autoRunning, setAutoRunning] = useState(false)
+
   // 建仓表单
   const [code, setCode] = useState('')
   const [buyPrice, setBuyPrice] = useState('')
@@ -120,6 +126,29 @@ export const PaperPanel: FC = () => {
     }
   }
 
+  const handleAuto = async (dryRun: boolean) => {
+    setError('')
+    setAutoRunning(true)
+    try {
+      const r = await api.runPaperAuto({
+        strategy: autoStrategy,
+        max_positions: Number(autoMax),
+        position_pct: Number(autoPct) / 100,
+        dry_run: dryRun,
+      })
+      if (!r.success) { setError(r.error || '自动交易失败'); return }
+      const filled = r.executed.filter((x) => x.status === 'filled').length
+      showFlash(
+        `${dryRun ? '[预演] ' : ''}信号日 ${r.as_of_date}: 成交 ${filled} 笔, 新增待成交 ${r.new_orders.length} 笔`,
+      )
+      if (!dryRun) await load()
+    } catch (e) {
+      setError((e as Error).message)
+    } finally {
+      setAutoRunning(false)
+    }
+  }
+
   const s = result?.summary
 
   return (
@@ -131,11 +160,12 @@ export const PaperPanel: FC = () => {
 
       <IndicatorGuide
         items={[
+          { term: '自动交易', desc: '选择量化策略，自动按信号建仓（次日开盘价成交），并自动止损/止盈/到期平仓；「预演」只计算不落盘' },
           { term: '买入价+股数', desc: '记录你的建仓成本，用于计算盈亏额与收益率' },
           { term: '止损/止盈', desc: '给每只股票定离场线：跌破止损线建议止损；达到止盈线建议锁定收益（红涨绿跌）' },
           { term: '诊断级别', desc: '红色=止损或偏空(建议离场)、橙色=转弱(建议关注/减仓)、绿色=达到止盈(锁定)、蓝色=正常持有' },
+          { term: '总资产/累计收益率', desc: '总资产=现金+持仓市值；累计收益率以初始资金为基准，含交易成本' },
           { term: '大盘环境', desc: '顶部引用「大盘择时」的仓位建议，大环境转弱时整体降仓' },
-          { term: '集中度', desc: '单只股票市值占总市值比例，越高风险越集中，建议分散' },
         ]}
       />
 
@@ -149,20 +179,95 @@ export const PaperPanel: FC = () => {
 
       {/* 组合概览 */}
       {s && (
-        <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-5">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4 mb-5">
           {[
+            { label: '总资产', value: fmt(s.total_asset, 0) },
+            { label: '现金', value: fmt(s.cash, 0) },
             { label: '持仓数', value: `${s.position_count} 只` },
-            { label: '总成本', value: fmt(s.total_cost, 0) },
-            { label: '总市值', value: fmt(s.total_value, 0) },
-            { label: '总盈亏额', value: `${s.total_pnl >= 0 ? '+' : ''}${fmt(s.total_pnl, 0)}`, color: pnlCls(s.total_pnl) },
-            { label: '总盈亏率', value: `${s.total_pnl_pct >= 0 ? '+' : ''}${fmt(s.total_pnl_pct)}%`, color: pnlCls(s.total_pnl_pct) },
+            { label: '持仓市值', value: fmt(s.total_value, 0) },
+            { label: '累计收益率', value: `${s.total_return_pct >= 0 ? '+' : ''}${fmt(s.total_return_pct)}%`, color: pnlCls(s.total_return_pct) },
+            { label: '持仓盈亏率', value: `${s.total_pnl_pct >= 0 ? '+' : ''}${fmt(s.total_pnl_pct)}%`, color: pnlCls(s.total_pnl_pct) },
             { label: '单票最大占比', value: `${fmt(s.max_weight)}%`, color: s.max_weight > 30 ? 'text-amber-600' : '' },
+            { label: '待成交', value: `${s.pending_count} 笔`, color: s.pending_count > 0 ? 'text-blue-600' : '' },
           ].map((item, i) => (
             <div key={i} className="text-center p-3 bg-gray-50 rounded-lg">
               <div className="text-xs text-gray-500 mb-1">{item.label}</div>
               <div className={`text-lg font-semibold ${item.color || ''}`}>{item.value}</div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* 自动交易 */}
+      <div className="mb-5 p-4 rounded-md bg-violet-50 border border-violet-100">
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="font-semibold text-violet-800">🤖 自动交易（量化策略）</h3>
+          <span className="text-xs text-gray-500">信号日收盘生成订单 → 下一交易日开盘成交</span>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 items-end">
+          <div className="flex flex-col">
+            <label className="text-xs text-gray-500 mb-1">策略</label>
+            <select value={autoStrategy} onChange={(e) => setAutoStrategy(e.target.value)}
+              className="p-2 border border-gray-200 rounded-md bg-white">
+              <option value="momentum">动量</option>
+              <option value="mean_reversion">均值回归</option>
+              <option value="trend_following">趋势跟踪</option>
+              <option value="multi_factor">多因子</option>
+            </select>
+          </div>
+          <div className="flex flex-col">
+            <label className="text-xs text-gray-500 mb-1">最大持仓数</label>
+            <input type="number" value={autoMax} onChange={(e) => setAutoMax(e.target.value)}
+              className="p-2 border border-gray-200 rounded-md bg-white" />
+          </div>
+          <div className="flex flex-col">
+            <label className="text-xs text-gray-500 mb-1">单仓占比%</label>
+            <input type="number" value={autoPct} onChange={(e) => setAutoPct(e.target.value)}
+              className="p-2 border border-gray-200 rounded-md bg-white" />
+          </div>
+          <button onClick={() => handleAuto(true)} disabled={autoRunning}
+            className="px-4 py-2 bg-white border border-violet-300 text-violet-700 rounded-md hover:bg-violet-100 disabled:opacity-50 h-[42px]">
+            预演
+          </button>
+          <button onClick={() => handleAuto(false)} disabled={autoRunning}
+            className="px-4 py-2 bg-violet-600 text-white rounded-md hover:bg-violet-700 disabled:opacity-50 h-[42px]">
+            {autoRunning ? '执行中...' : '执行'}
+          </button>
+        </div>
+        <p className="text-xs text-gray-400 mt-2">
+          按策略信号建仓；持仓触及止损/止盈或持有到期自动平仓。含佣金(万三/最低5元)与印花税(千一, 卖出)。
+        </p>
+      </div>
+
+      {/* 待成交订单 */}
+      {result && result.pending.length > 0 && (
+        <div className="mb-6">
+          <h3 className="font-semibold mb-3">待成交订单 ({result.pending.length})</h3>
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse text-sm">
+              <thead>
+                <tr className="bg-gray-50">
+                  {['代码', '方向', '信号日', '触发原因'].map((h) => (
+                    <th key={h} className="p-2 text-left text-xs font-semibold text-gray-500 whitespace-nowrap">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {result.pending.map((o, i) => (
+                  <tr key={i} className="border-b border-gray-100">
+                    <td className="p-2 font-medium">{o.code}</td>
+                    <td className="p-2">
+                      <span className={`px-2 py-0.5 rounded text-xs font-medium ${o.side === 'buy' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
+                        {o.side === 'buy' ? '买入' : '卖出'}
+                      </span>
+                    </td>
+                    <td className="p-2 whitespace-nowrap">{o.signal_date}</td>
+                    <td className="p-2 text-gray-600">{o.reason}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 

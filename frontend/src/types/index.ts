@@ -346,6 +346,14 @@ export interface PaperClosedRecord {
   profit_pct: number
 }
 
+export interface PaperPendingOrder {
+  code: string
+  side: 'buy' | 'sell'
+  signal_date: string
+  reason: string
+  position_value?: number
+}
+
 export interface PaperResult {
   success: boolean
   updated_at: string
@@ -358,9 +366,26 @@ export interface PaperResult {
     total_pnl_pct: number
     max_weight: number
     danger_count: number
+    cash: number
+    initial_capital: number
+    total_asset: number
+    total_return_pct: number
+    pending_count: number
   }
   positions: PaperPosition[]
   closed: PaperClosedRecord[]
+  pending: PaperPendingOrder[]
+}
+
+export interface PaperAutoResult {
+  success: boolean
+  message?: string
+  error?: string
+  as_of_date: string
+  dry_run: boolean
+  executed: { code: string; side: string; status: string; reason?: string; message?: string }[]
+  new_orders: PaperPendingOrder[]
+  summary: PaperResult['summary']
 }
 
 export interface MarketHistory {

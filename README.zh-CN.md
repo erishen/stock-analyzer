@@ -120,6 +120,7 @@ stock-analyzer/
 make etl              # 增量 ETL (计算指标)
 make scan             # 全市场信号扫描
 make backtest / optimize / compare / sector / portfolio   # 策略相关
+make paper-auto       # 策略驱动模拟仓自动交易: 信号 → 次日开盘成交, 自动止损/止盈
 make dev              # 后端 :8001 + 前端 :3000，热更新，Ctrl+C 同时停止
 make web-build        # 构建前端到 src/web/static (由 FastAPI 托管)
 make web-public       # 构建并在 0.0.0.0 提供服务
