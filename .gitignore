@@ -56,6 +56,13 @@ data/paper_portfolio.json
 data/cache/
 data/asset_snapshot.db
 
+# Anything else under data/ that local tooling derives: DB backups (gb-scale),
+# ad-hoc .bak snapshots, etc. Ignore the whole dir except the few tracked seeds.
+data/backups/
+data/*.bak
+data/*.bak_*
+
+
 # Local-only data tooling (fetch/backfill/cron helpers) — NEVER pushed to GitHub
 data_tools/
 
