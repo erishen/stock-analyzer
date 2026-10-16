@@ -741,6 +741,19 @@ class BacktestEngine:
             return fetcher.batch_get_names(codes)
         return {}
 
+    def _get_limit_pct(self, code: str) -> float:
+        """根据代码判断涨跌停幅度（A股常用）"""
+        c = str(code).lower()
+        # 北交所 bjxxxxxx
+        if c.startswith("bj"):
+            return 0.30
+        # 科创板/创业板 20%
+        if c.startswith(("sz300", "sh688", "sz688", "300", "688")) or \
+           (len(c) >= 6 and c[-6:].startswith(("300", "688"))):
+            return 0.20
+        # 主板 10%
+        return 0.10
+
     def run_backtest(
         self,
         strategy: MomentumStrategy | MeanReversionStrategy,
@@ -749,6 +762,11 @@ class BacktestEngine:
         commission_rate: float = 0.0003,
         stamp_tax_rate: float = 0.001,
         min_commission: float = 5.0,
+        slippage_rate: float = 0.0005,
+        max_participation: float = 0.10,
+        enable_limit: bool = True,
+        enable_slippage: bool = True,
+        enable_volume_cap: bool = True,
         start_date: str | None = None,
         end_date: str | None = None,
     ) -> BacktestResult:
@@ -799,6 +817,12 @@ class BacktestEngine:
         logger.info(f"   回测区间: {dates[0]} ~ {dates[-1]}")
         logger.info(f"   佣金费率: {commission_rate * 100:.3f}% (最低{min_commission}元)")
         logger.info(f"   印花税率: {stamp_tax_rate * 100:.2f}% (仅卖出)")
+        if enable_slippage:
+            logger.info(f"   滑点: {slippage_rate * 100:.3f}%")
+        if enable_volume_cap:
+            logger.info(f"   成交量上限: {max_participation * 100:.1f}%")
+        if enable_limit:
+            logger.info("   涨跌停限制: 开启")
 
         stop_loss = getattr(strategy, "stop_loss", 0.0)
         take_profit = getattr(strategy, "take_profit", 0.0)
@@ -833,28 +857,58 @@ class BacktestEngine:
 
                 if should_exit or trade.holding_days >= holding_days:
                     exit_price = current_price
-                    trade.exit_date = date
-                    trade.exit_price = exit_price
-                    if exit_reason:
-                        trade.signal = f"{trade.signal} ({exit_reason})"
-
-                    sell_amount = exit_price * trade.shares
-                    sell_commission = calc_commission(sell_amount)
-                    sell_stamp_tax = sell_amount * stamp_tax_rate
-                    sell_cost = sell_commission + sell_stamp_tax
-
-                    trade.commission += sell_commission
-                    trade.stamp_tax = sell_stamp_tax
-                    trade.total_cost += sell_cost
-                    total_commission += sell_commission
-                    total_stamp_tax += sell_stamp_tax
-
-                    trade.profit = (exit_price - trade.entry_price) * trade.shares - trade.total_cost
-                    trade.profit_percent = trade.profit / (trade.entry_price * trade.shares)
-
-                    capital += sell_amount - sell_cost
-                    trades.append(trade)
-                    del holdings[code]
+                    # 涨跌停限制: 若跌停, 暂不卖出
+                    if enable_limit:
+                        limit_pct = self._get_limit_pct(code)
+                        # 估算涨跌幅
+                        try:
+                            if pos > 0 and code in all_data:
+                                prev_pos = pos - 1
+                                prev_close = float(all_data[code]["close"][prev_pos]) if prev_pos >= 0 else exit_price
+                                chg = (exit_price - prev_close) / prev_close if prev_close > 0 else 0
+                            else:
+                                chg = 0
+                        except Exception:
+                            chg = 0
+                        if chg <= -limit_pct + 1e-4:
+                            # 跌停，暂不止盈止损强制卖出
+                            should_exit = False
+                            exit_reason = ""
+                    if should_exit:
+                        exec_price = exit_price
+                        if enable_slippage:
+                            exec_price = exec_price * (1 - slippage_rate)
+                        sell_shares = trade.shares
+                        if enable_volume_cap and code in all_data:
+                            try:
+                                vol = float(all_data[code]["volume"][pos])
+                                max_shares = int(vol * max_participation)
+                                if max_shares < sell_shares and max_shares > 0:
+                                    sell_shares = max_shares
+                            except Exception:
+                                pass
+                        if sell_shares <= 0:
+                            should_exit = False
+                        if should_exit:
+                            trade.exit_date = date
+                            trade.exit_price = exec_price
+                            if exit_reason:
+                                trade.signal = f"{trade.signal} ({exit_reason})"
+                            sell_amount = exec_price * sell_shares
+                            sell_commission = calc_commission(sell_amount)
+                            sell_stamp_tax = sell_amount * stamp_tax_rate
+                            sell_cost = sell_commission + sell_stamp_tax
+                            trade.commission += sell_commission
+                            trade.stamp_tax = sell_stamp_tax
+                            trade.total_cost += sell_cost
+                            total_commission += sell_commission
+                            total_stamp_tax += sell_stamp_tax
+                            trade.profit = (exec_price - trade.entry_price) * sell_shares - (sell_commission + sell_stamp_tax) if False else (exec_price - trade.entry_price) * sell_shares - (trade.total_cost - (trade.commission - sell_commission) + sell_commission + sell_stamp_tax - (trade.stamp_tax - sell_stamp_tax) and 0)  # simple: recompute
+                            trade.profit = (exec_price - trade.entry_price) * sell_shares - (sell_commission + sell_stamp_tax)
+                            trade.profit_percent = trade.profit / (trade.entry_price * trade.shares)
+                            capital += sell_amount - sell_cost
+                            trades.append(trade)
+                            del holdings[code]
 
             if i % holding_days == 0:
                 selected = strategy.select_stocks(
@@ -871,27 +925,49 @@ class BacktestEngine:
                         continue
 
                     entry_price = float(df["close"][pos])
+                    # 涨跌停限制：涨停无法买入
+                    can_buy = True
+                    if enable_limit:
+                        limit_pct = self._get_limit_pct(code)
+                        try:
+                            if pos > 0:
+                                prev_close = float(df["close"][pos - 1])
+                                chg = (entry_price - prev_close) / prev_close if prev_close > 0 else 0
+                                if chg >= limit_pct - 1e-4:
+                                    can_buy = False
+                            # else ignore
+                        except Exception:
+                            pass
+                    if not can_buy:
+                        continue
+                    exec_price = entry_price
+                    if enable_slippage:
+                        exec_price = exec_price * (1 + slippage_rate)
                     position_value = capital * position_size
-                    shares = int(position_value / entry_price)
-
+                    shares = int(position_value / exec_price)
+                    if enable_volume_cap:
+                        try:
+                            vol = float(df["volume"][pos])
+                            max_shares = int(vol * max_participation)
+                            if max_shares < shares:
+                                shares = max_shares
+                        except Exception:
+                            pass
                     if shares <= 0:
                         continue
-
-                    buy_amount = entry_price * shares
+                    buy_amount = exec_price * shares
                     buy_commission = calc_commission(buy_amount)
-
                     trade = Trade(
                         code=code,
                         name=get_stock_name(code),
                         entry_date=date,
-                        entry_price=entry_price,
+                        entry_price=exec_price,
                         shares=shares,
                         signal=f"{signal_value:.4f}",
                         commission=buy_commission,
                         total_cost=buy_commission,
                     )
                     total_commission += buy_commission
-
                     holdings[code] = trade
                     capital -= buy_amount + buy_commission
 
@@ -917,21 +993,22 @@ class BacktestEngine:
                 df = all_data[trade.code]
                 if len(df["close"]) > 0:
                     last_price = float(df["close"][-1])
-                    trade.exit_price = last_price
+                    exec_price = last_price
+                    if enable_slippage:
+                        exec_price = exec_price * (1 - slippage_rate)
+                    sell_shares = trade.shares
+                    trade.exit_price = exec_price
                     trade.exit_date = str(df["dates"][-1])[:10]
-
-                    sell_amount = last_price * trade.shares
+                    sell_amount = exec_price * sell_shares
                     sell_commission = max(sell_amount * commission_rate, min_commission)
                     sell_stamp_tax = sell_amount * stamp_tax_rate
                     sell_cost = sell_commission + sell_stamp_tax
-
                     trade.commission += sell_commission
                     trade.stamp_tax = sell_stamp_tax
                     trade.total_cost += sell_cost
                     total_commission += sell_commission
                     total_stamp_tax += sell_stamp_tax
-
-                    trade.profit = (last_price - trade.entry_price) * trade.shares - trade.total_cost
+                    trade.profit = (exec_price - trade.entry_price) * sell_shares - trade.total_cost
                     trade.profit_percent = trade.profit / (trade.entry_price * trade.shares)
                     capital += sell_amount - sell_cost
             trades.append(trade)
@@ -1058,8 +1135,14 @@ def run_backtest(
     use_ma_cross: bool = False,
     market_filter: bool = False,
     market_filter_threshold: float = 0.0,
+    slippage_rate: float = 0.0005,
+    max_participation: float = 0.10,
+    enable_limit: bool = True,
+    enable_slippage: bool = True,
+    enable_volume_cap: bool = True,
     start_date: str | None = None,
     end_date: str | None = None,
+    **kwargs,
 ) -> BacktestResult:
     """
     运行回测的便捷函数
@@ -1142,7 +1225,16 @@ def run_backtest(
 
         return engine.run_backtest(
             strategy,
-            initial_capital,
+            initial_capital=initial_capital,
+            position_size=0.1,
+            commission_rate=0.0003,
+            stamp_tax_rate=0.001,
+            min_commission=5.0,
+            slippage_rate=slippage_rate,
+            max_participation=max_participation,
+            enable_limit=enable_limit,
+            enable_slippage=enable_slippage,
+            enable_volume_cap=enable_volume_cap,
             start_date=start_date,
             end_date=end_date,
         )

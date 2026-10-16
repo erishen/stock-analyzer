@@ -23,6 +23,11 @@ class BacktestRequest:
     start_date: str | None = None
     end_date: str | None = None
     refresh: bool = False
+    slippage_rate: float = 0.0005
+    max_participation: float = 0.10
+    enable_limit: bool = True
+    enable_slippage: bool = True
+    enable_volume_cap: bool = True
 
 
 @dataclass

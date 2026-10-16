@@ -531,6 +531,17 @@ def run_backtest(request: BacktestRequest):
             exclude_st=request.exclude_st,
             start_date=request.start_date,
             end_date=request.end_date,
+            **{
+                k: getattr(request, k)
+                for k in (
+                    "slippage_rate",
+                    "max_participation",
+                    "enable_limit",
+                    "enable_slippage",
+                    "enable_volume_cap",
+                )
+                if hasattr(request, k)
+            },
         )
 
         trades = []
