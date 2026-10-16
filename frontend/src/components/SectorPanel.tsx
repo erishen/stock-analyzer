@@ -14,6 +14,11 @@ export const SectorPanel: FC = () => {
     setError('')
     try {
       const data = await api.getSector(refresh)
+      if (!data.success) {
+        setResult(null)
+        setError(data.error || '行业分析失败')
+        return
+      }
       setResult(data)
     } catch (e) {
       setError((e as Error).message)

@@ -75,12 +75,10 @@ async def lifespan(app: FastAPI):
     logger.error(f"   状态: {'✅ 已连接' if db_path.exists() else '❌ 不存在'}")
     # 清残留更新状态文件: 上次任务被强杀(kill/重启容器)会留下 running 僵尸态,
     # 阻塞下一次触发。容器 /tmp 不随 restart 清空, 须在 Web 启动时主动清理。
-    try:
+    with suppress(OSError):
         Path(
             os.environ.get("STOCK_UPDATE_STATUS_FILE", "/tmp/stock_analyzer_update_status.json")
         ).unlink(missing_ok=True)
-    except OSError:
-        pass
     yield
     logger.info("\n👋 服务器关闭")
 
@@ -743,6 +741,8 @@ def run_portfolio(request: PortfolioRequest):
             strategies=strategies,
             weight_method=request.weight_method,
             initial_capital=request.initial_capital,
+            start_date=request.start_date,
+            end_date=request.end_date,
         )
 
         strategy_results = []
@@ -780,6 +780,8 @@ def run_portfolio(request: PortfolioRequest):
             "weight_method": request.weight_method,
             "holding_days": request.holding_days,
             "initial_capital": request.initial_capital,
+            "start_date": request.start_date,
+            "end_date": request.end_date,
         }
         data = run_cached("portfolio", params, _compute, force_refresh=request.refresh)
         return JSONResponse(content=data)

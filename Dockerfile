@@ -42,6 +42,9 @@ COPY pyproject.toml uv.lock ./
 COPY libs/investkit_utils/ ./libs/investkit_utils/
 COPY apps/stock-analyzer/pyproject.toml ./apps/stock-analyzer/
 COPY apps/stock-analyzer/src/ ./apps/stock-analyzer/src/
+# investkit_utils 已内联进 stock-analyzer（见 pyproject packages.find include = ["investkit_utils*"]），
+# 单仓部署必需；缺此层会导致容器内 import investkit_utils 失败（sector/market-timing 等接口 500）。
+COPY apps/stock-analyzer/investkit_utils/ ./apps/stock-analyzer/investkit_utils/
 COPY apps/stock-analyzer/scripts/ ./apps/stock-analyzer/scripts/
 # data_tools（拉取/ETL 后台任务，供 WEB_ENABLE_UPDATE=1 时页面「拉取最新数据」按钮调用；
 # 仅进本地镜像，仍不随公开 GitHub 仓库分发）

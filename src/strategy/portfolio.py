@@ -247,6 +247,8 @@ class MultiStrategyPortfolio:
         db_path: Path,
         initial_capital: float = 100000.0,
         position_size: float = 0.1,
+        start_date: str | None = None,
+        end_date: str | None = None,
     ) -> PortfolioResult:
         """
         运行组合回测
@@ -255,6 +257,8 @@ class MultiStrategyPortfolio:
             db_path: 数据库路径
             initial_capital: 初始资金
             position_size: 单只股票仓位
+            start_date: 回测起始日期 (YYYY-MM-DD, 默认全历史最早)
+            end_date: 回测结束日期 (YYYY-MM-DD, 默认全历史最新)
 
         Returns:
             组合回测结果
@@ -280,7 +284,10 @@ class MultiStrategyPortfolio:
                 strategy_class = self.STRATEGY_MAP[config.strategy_type]
                 strategy = strategy_class(**config.params)
 
-                result = engine.run_backtest(strategy, initial_capital, position_size)
+                result = engine.run_backtest(
+                    strategy, initial_capital, position_size,
+                    start_date=start_date, end_date=end_date,
+                )
                 strategy_results.append(result)
 
                 returns = []
@@ -435,6 +442,8 @@ def run_portfolio_backtest(
     strategies: list[dict] | None = None,
     weight_method: str = "equal",
     initial_capital: float = 100000.0,
+    start_date: str | None = None,
+    end_date: str | None = None,
 ) -> PortfolioResult:
     """
     运行组合回测的便捷函数
@@ -444,6 +453,8 @@ def run_portfolio_backtest(
         strategies: 策略配置列表
         weight_method: 权重方法
         initial_capital: 初始资金
+        start_date: 回测起始日期 (YYYY-MM-DD, 默认全历史最早)
+        end_date: 回测结束日期 (YYYY-MM-DD, 默认全历史最新)
 
     Returns:
         组合回测结果
@@ -475,7 +486,9 @@ def run_portfolio_backtest(
                 **s.get("params", {}),
             )
 
-    result = portfolio.run_backtest(db_path, initial_capital)
+    result = portfolio.run_backtest(
+        db_path, initial_capital, start_date=start_date, end_date=end_date,
+    )
     print_portfolio_result(result)
 
     return result

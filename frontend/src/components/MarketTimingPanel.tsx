@@ -14,6 +14,11 @@ export const MarketTimingPanel: FC = () => {
     setError('')
     try {
       const data = await api.getMarketTiming(refresh)
+      if (!data.success) {
+        setResult(null)
+        setError(data.error || '大盘择时分析失败')
+        return
+      }
       setResult(data)
     } catch (e) {
       setError((e as Error).message)

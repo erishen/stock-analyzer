@@ -50,6 +50,11 @@ export const ScanPanel: FC = () => {
         limit: limit,
         refresh: refresh,
       })
+      if (!data.success) {
+        setResult(null)
+        setError(data.error || '信号扫描失败')
+        return
+      }
       setResult(data)
     } catch (e) {
       setError((e as Error).message)

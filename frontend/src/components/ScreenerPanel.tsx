@@ -202,6 +202,11 @@ export const ScreenerPanel: FC = () => {
         sort_field: sField,
         sort_dir: sDir,
       })
+      if (!data.success) {
+        setResult(null)
+        setError(data.error || '规则筛选失败')
+        return
+      }
       setResult(data)
       setPage(targetPage)
     } catch (e) {

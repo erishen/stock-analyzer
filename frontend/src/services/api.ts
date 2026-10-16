@@ -151,6 +151,8 @@ export const api = {
     weight_method: string
     holding_days: number
     initial_capital: number
+    start_date?: string
+    end_date?: string
     refresh?: boolean
   }) => fetchAPI<PortfolioResult>('/portfolio', {
     method: 'POST',

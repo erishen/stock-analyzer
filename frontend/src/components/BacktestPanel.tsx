@@ -12,6 +12,14 @@ const strategies = [
   { value: 'multi_factor', label: '多因子策略' },
 ]
 
+// 默认回测区间起点: 最近 3 年 (默认全历史 1991→今 结果失真且极慢)
+const defaultStartDate = (maxDate: string): string => {
+  if (!maxDate) return ''
+  const d = new Date(maxDate)
+  d.setFullYear(d.getFullYear() - 3)
+  return d.toISOString().slice(0, 10)
+}
+
 export const BacktestPanel: FC = () => {
   // 参数持久化: 统一存 localStorage['backtest_params'] (JSON), 刷新/重挂载后恢复上次选择
   const loadParam = () => {
@@ -65,6 +73,11 @@ export const BacktestPanel: FC = () => {
         end_date: end || undefined,
         refresh: refresh,
       })
+      if (!data.success) {
+        setResult(null)
+        setError(data.error || '回测失败')
+        return
+      }
       setResult(data)
     } catch (e) {
       setError((e as Error).message)
@@ -127,7 +140,8 @@ export const BacktestPanel: FC = () => {
     }
   }
 
-  // 挂载时: 有已保存日期则直接首算; 否则拉取数据范围填充默认值再回测
+  // 挂载时: 有已保存日期则直接首算; 否则以最近 3 年为默认区间再回测
+  // (默认全历史 1991→今 会失真且极慢, 故默认取最近 3 年; 用户仍可手动改日期)
   useEffect(() => {
     let cancelled = false
     ;(async () => {
@@ -137,8 +151,8 @@ export const BacktestPanel: FC = () => {
         try {
           const data = await api.getStats()
           if (data?.success) {
-            start = data.min_date || ''
             end = data.max_date || ''
+            start = defaultStartDate(end)
             if (!cancelled) {
               setStartDate(start)
               setEndDate(end)

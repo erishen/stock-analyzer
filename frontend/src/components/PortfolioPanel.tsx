@@ -33,6 +33,23 @@ const stratKey = (n: string): string => {
   return m[n] ?? n.toLowerCase()
 }
 
+// 默认回测区间起点: 最近 3 年 (默认全历史 1991→今 结果失真且极慢)
+const defaultStartDate = (maxDate: string): string => {
+  if (!maxDate) return ''
+  const d = new Date(maxDate)
+  d.setFullYear(d.getFullYear() - 3)
+  return d.toISOString().slice(0, 10)
+}
+
+const loadSavedDates = (): { start: string; end: string } => {
+  try {
+    const p = JSON.parse(localStorage.getItem('portfolio_params') || '{}')
+    return { start: String(p.start_date ?? ''), end: String(p.end_date ?? '') }
+  } catch {
+    return { start: '', end: '' }
+  }
+}
+
 export const PortfolioPanel: FC = () => {
   const [weightMethod, setWeightMethod] = useState('equal')
   const [holdingDays, setHoldingDays] = useState(5)
@@ -45,8 +62,14 @@ export const PortfolioPanel: FC = () => {
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<PortfolioResult | null>(null)
   const [error, setError] = useState('')
+  const [startDate, setStartDate] = useState(() => loadSavedDates().start)
+  const [endDate, setEndDate] = useState(() => loadSavedDates().end)
 
-  const handleAnalyze = async (refresh = false) => {
+  const persistDates = (s: string, e: string) => {
+    localStorage.setItem('portfolio_params', JSON.stringify({ start_date: s, end_date: e }))
+  }
+
+  const handleAnalyze = async (refresh = false, startOverride?: string, endOverride?: string) => {
     const selectedStrategies = Object.entries(strategies)
       .filter(([, v]) => v)
       .map(([k]) => k)
@@ -56,6 +79,9 @@ export const PortfolioPanel: FC = () => {
       return
     }
 
+    const start = startOverride ?? startDate
+    const end = endOverride ?? endDate
+
     setLoading(true)
     setError('')
     try {
@@ -64,8 +90,15 @@ export const PortfolioPanel: FC = () => {
         weight_method: weightMethod,
         holding_days: holdingDays,
         initial_capital: capital,
+        start_date: start || undefined,
+        end_date: end || undefined,
         refresh: refresh,
       })
+      if (!data.success) {
+        setResult(null)
+        setError(data.error || '组合分析失败')
+        return
+      }
       setResult(data)
     } catch (e) {
       setError((e as Error).message)
@@ -74,9 +107,32 @@ export const PortfolioPanel: FC = () => {
     }
   }
 
-  // 挂载时自动加载缓存结果 (面板常驻, 首算可能耗时, 之后瞬显)
+  // 挂载时: 有已保存日期则按之分析; 否则默认最近 3 年 (面板常驻, 首算可能耗时, 之后瞬显)
   useEffect(() => {
-    handleAnalyze(false)
+    let cancelled = false
+    ;(async () => {
+      let start = startDate
+      let end = endDate
+      if (!start && !end) {
+        try {
+          const data = await api.getStats()
+          if (data?.success) {
+            end = data.max_date || ''
+            start = defaultStartDate(end)
+            if (!cancelled) {
+              setStartDate(start)
+              setEndDate(end)
+            }
+          }
+        } catch {
+          // 拉取失败时保持空, 回退全历史
+        }
+      }
+      if (!cancelled) await handleAnalyze(false, start, end)
+    })()
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   const getWeightChartOption = () => {
@@ -147,6 +203,33 @@ export const PortfolioPanel: FC = () => {
             type="number"
             value={capital}
             onChange={(e) => setCapital(Number(e.target.value))}
+            className="p-2 border border-gray-200 rounded-md"
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+        <div className="flex flex-col">
+          <label className="text-xs text-gray-500 mb-1">开始日期</label>
+          <input
+            type="date"
+            value={startDate}
+            onChange={(e) => {
+              setStartDate(e.target.value)
+              persistDates(e.target.value, endDate)
+            }}
+            className="p-2 border border-gray-200 rounded-md"
+          />
+        </div>
+        <div className="flex flex-col">
+          <label className="text-xs text-gray-500 mb-1">结束日期</label>
+          <input
+            type="date"
+            value={endDate}
+            onChange={(e) => {
+              setEndDate(e.target.value)
+              persistDates(startDate, e.target.value)
+            }}
             className="p-2 border border-gray-200 rounded-md"
           />
         </div>

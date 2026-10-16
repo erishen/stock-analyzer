@@ -80,6 +80,11 @@ export const StocksPanel: FC = () => {
         sort_by: sb,
         sort_order: so,
       })
+      if (!data.success) {
+        setResult(null)
+        setError(data.error || '加载股票列表失败')
+        return
+      }
       setResult(data)
       setPage(p)
     } catch (e) {

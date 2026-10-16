@@ -337,6 +337,8 @@ class PortfolioRequest:
     weight_method: str = "equal"
     holding_days: int = 5
     initial_capital: float = 100000.0
+    start_date: str | None = None
+    end_date: str | None = None
     refresh: bool = False
 
 
