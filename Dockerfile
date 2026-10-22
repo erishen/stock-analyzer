@@ -6,7 +6,7 @@
 # ============================================================
 
 # ---------- Stage 1: 前端构建（产物进 src/web/static，FastAPI 直接托管） ----------
-FROM node:22-slim AS frontend
+FROM node:24-slim AS frontend
 
 ARG PNPM_REGISTRY=https://registry.npmmirror.com
 
