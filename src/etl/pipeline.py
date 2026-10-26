@@ -164,6 +164,7 @@ class DataTransformer:
         df = self._convert_types(df)
         df = self._sort_by_date(df)
         df = self._fix_change_percent(df)
+        df = self._fix_derived_fields(df)
         df = self._fix_amount(df)
 
         if self.config.calculate_indicators:
@@ -172,15 +173,47 @@ class DataTransformer:
         return df
 
     def _fix_change_percent(self, df: pd.DataFrame) -> pd.DataFrame:
-        """补算涨跌幅
+        """行级补算涨跌幅
 
         部分数据源（如腾讯源降级获取）不提供涨跌幅字段，落库为 0。
-        此时基于收盘价序列重新计算。
+        旧版只在「整批全 0」时补算 —— 增量 ETL 窗口里历史行常已有真实值，
+        条件不成立，最新一行的 0 被原样保留（实测全市场 ~27% 的票受影响）。
+        改为逐行修补: 本行 ==0 且前一行有收盘价时, 用 close.pct_change 重算;
+        源提供的真实值一律不动。
         """
         if "change_percent" not in df.columns or "close" not in df.columns:
             return df
-        if (df["change_percent"] == 0).all():
-            df["change_percent"] = (df["close"].pct_change() * 100).fillna(0)
+        calc = (df["close"].pct_change() * 100).round(4)
+        prev = df["close"].shift(1)
+        bad = df["change_percent"].isna() | (df["change_percent"] == 0)
+        mask = bad & prev.notna()
+        if mask.any():
+            df.loc[mask, "change_percent"] = calc[mask]
+        return df
+
+    def _fix_derived_fields(self, df: pd.DataFrame) -> pd.DataFrame:
+        """行级补算涨跌额 / 振幅
+
+        腾讯源只提供 OHLC+量, 不提供 change_amount(涨跌额) / amplitude(振幅),
+        落库为 0 且旧版 ETL 从未修补(实测全历史 ~79% 为 0):
+        - change_amount = close - 昨收 (首行无昨收, 保持 0)
+        - amplitude     = (high - low) / 昨收 * 100 (首行保持 0)
+        东财源提供的真实值一律不动, 只填哨兵 0。
+        """
+        if "close" not in df.columns:
+            return df
+        prev_close = df["close"].shift(1)
+        if "change_amount" in df.columns:
+            bad = df["change_amount"].isna() | (df["change_amount"] == 0)
+            mask = bad & prev_close.notna()
+            if mask.any():
+                df.loc[mask, "change_amount"] = ((df["close"] - prev_close)[mask]).round(2)
+        if "amplitude" in df.columns and {"high", "low"}.issubset(df.columns):
+            bad = df["amplitude"].isna() | (df["amplitude"] == 0)
+            mask = bad & prev_close.notna()
+            if mask.any():
+                calc = ((df["high"] - df["low"]) / prev_close * 100)
+                df.loc[mask, "amplitude"] = calc[mask].round(2)
         return df
 
     def _fix_amount(self, df: pd.DataFrame) -> pd.DataFrame:
