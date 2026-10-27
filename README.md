@@ -74,7 +74,7 @@ LLM_API_KEY=your-key
 LLM_MODEL=gpt-4o-mini
 ```
 
-Precedence: runtime settings tab → project-root `.env` → environment variables.
+Precedence: runtime settings tab → project-root `.env` → `work/electron/datapulse/.env` (shared fallback, absent in public clones — no-op) → environment variables.
 
 ### Security
 

@@ -74,7 +74,7 @@ LLM_API_KEY=your-key
 LLM_MODEL=gpt-4o-mini
 ```
 
-配置优先级：运行时设置 Tab → 项目根 `.env` → 环境变量。
+配置优先级：运行时设置 Tab → 项目根 `.env` → `work/electron/datapulse/.env`（共享兜底，公开克隆中不存在则自动忽略）→ 环境变量。
 
 ### 安全机制
 
