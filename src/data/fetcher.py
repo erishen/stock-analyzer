@@ -356,11 +356,31 @@ class StockDataFetcher:
             return []
 
     def save_klines(self, records: list[dict]):
-        """保存 K 线数据"""
+        """保存 K 线数据
+
+        源头合法性护栏: 丢弃任一 OHLC 价格 <= 0 的行 (历史脏数据形态:
+        O=H=L=C 全为同值负数/零数, 量正常 = 源端缺失哨兵/缩放 bug)。
+        A 股真实成交价恒 > 0, 故 close<=0 的行必为坏数据。
+        """
         if not self._conn:
             self.connect()
 
+        valid = []
         for record in records:
+            try:
+                prices = (record["open"], record["close"], record["high"], record["low"])
+                if any((p is None or p != p or p <= 0) for p in prices):
+                    continue  # NaN / None / 非正价 → 丢弃
+            except (KeyError, TypeError):
+                continue
+            valid.append(record)
+
+        if not valid:
+            if records:
+                logger.warning(f"K线全部行价格非法(OHLC<=0), 丢弃 {len(records)} 条")
+            return
+
+        for record in valid:
             self._conn.execute(
                 """
                 INSERT OR REPLACE INTO stock_klines

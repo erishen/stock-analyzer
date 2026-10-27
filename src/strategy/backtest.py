@@ -670,6 +670,12 @@ class BacktestEngine:
             ORDER BY code, date
         """
         df = pd.read_sql_query(query, self.conn)
+        # 纵深防御: 价格合法性 (close 必须 > 0)。历史脏数据形态 O=H=L=C 同值负数/零数,
+        # 已在源头(fetcher)+ETL 拦截, 此处兜底防"库里已存在的旧脏行"污染动量/止损/权益计算。
+        bad = df["close"].isna() | (df["close"] <= 0)
+        if bad.any():
+            logger.warning(f"回测数据加载过滤 {int(bad.sum())} 行非法价格(close<=0/NaN)")
+            df = df[~bad]
         df["date"] = pd.to_datetime(df["date"])
 
         all_data: dict[str, dict[str, np.ndarray]] = {}

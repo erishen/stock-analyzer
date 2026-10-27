@@ -240,6 +240,11 @@ class DataTransformer:
             if col in df.columns:
                 df[col] = df[col].replace([np.inf, -np.inf], np.nan)
         df = df.dropna(subset=["close"])
+        # 价格合法性护栏 (幂等): A 股真实成交价恒 > 0。close<=0 的行是源端坏数据
+        # (历史形态: O=H=L=C 全为同值负数/零数 + 量正常, 全市场共 62,921 行,
+        # 集中在 60 只票 1991-2020 早年段), 直接丢弃, 不再落库污染回测。
+        if df["close"].notna().any():
+            df = df[df["close"] > 0]
         return df
 
     def _convert_types(self, df: pd.DataFrame) -> pd.DataFrame:
