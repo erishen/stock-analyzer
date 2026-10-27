@@ -25,6 +25,15 @@ from config import get_stock_analysis_db_path
 from constants import is_excluded_stock
 from data import get_stock_info_fetcher, get_stock_name
 
+# 风控限制: PositionLimit (risk_control 无反向依赖, 可安全导入; 直接按模块路径加载时回退局部导入)
+try:
+    from strategy.risk_control import PositionLimit
+except ImportError:  # pragma: no cover
+    try:
+        from .risk_control import PositionLimit
+    except ImportError:
+        PositionLimit = None  # type: ignore
+
 logger = logging.getLogger(__name__)
 
 # 预计算指标的统一窗口 (动量回看 & 波动率滚动窗口), 与各策略默认参数一致
@@ -62,6 +71,7 @@ class Trade:
     exit_date: str = ""
     exit_price: float = 0.0
     shares: int = 0
+    original_shares: int = 0  # 入场原始股数; 成交量截断部分成交后 shares 递减, 盈亏分母始终用 original_shares
     profit: float = 0.0
     profit_percent: float = 0.0
     holding_days: int = 0
@@ -769,6 +779,7 @@ class BacktestEngine:
         enable_volume_cap: bool = True,
         start_date: str | None = None,
         end_date: str | None = None,
+        position_limit: "PositionLimit | None" = None,
     ) -> BacktestResult:
         """
         运行回测
@@ -782,6 +793,9 @@ class BacktestEngine:
             min_commission: 最低佣金 (默认5元)
             start_date: 回测起始日期 (YYYY-MM-DD, 默认全历史最早)
             end_date: 回测结束日期 (YYYY-MM-DD, 默认全历史最新)
+            position_limit: 风控持仓限制 (risk_control.PositionLimit)。None=不限制(默认, 向后兼容)。
+                生效字段: max_positions(同时持仓上限) + max_single_position_pct(单票仓位上限,
+                与 position_size 取较小者)。用 create_position_limit(...) 构造。
 
         Returns:
             回测结果
@@ -824,6 +838,17 @@ class BacktestEngine:
         if enable_limit:
             logger.info("   涨跌停限制: 开启")
 
+        # 风控持仓限制 (PositionLimit): 默认 None=不限制, 保持与历史回测结果兼容
+        max_positions: int | None = getattr(position_limit, "max_positions", None) if position_limit else None
+        max_single_pct: float | None = getattr(position_limit, "max_single_position_pct", None) if position_limit else None
+        # 生效单票仓位: 设了风控上限时取 min(仓位比例, 上限), 否则维持原 position_size
+        eff_pos_pct = min(position_size, max_single_pct) if max_single_pct else position_size
+        if position_limit:
+            logger.info(
+                f"   风控限制: 持仓上限 {max_positions} 只, 单票上限 "
+                f"{(max_single_pct * 100 if max_single_pct else 0):.1f}% (单票仓位压至 {eff_pos_pct * 100:.1f}%)"
+            )
+
         stop_loss = getattr(strategy, "stop_loss", 0.0)
         take_profit = getattr(strategy, "take_profit", 0.0)
         if stop_loss > 0:
@@ -834,6 +859,10 @@ class BacktestEngine:
         for i, date in enumerate(dates):
             for code, trade in list(holdings.items()):
                 if code not in all_data:
+                    continue
+                # T+1 显式护栏: 入场当日禁止卖出(A股 T+1 规则)。当前「先卖检→后买入」
+                # 的循环顺序已结构性保证此点, 护栏用于防未来结构调整时误出 T+0 卖出。
+                if trade.entry_date == date:
                     continue
 
                 df = all_data[code]
@@ -890,6 +919,7 @@ class BacktestEngine:
                         if sell_shares <= 0:
                             should_exit = False
                         if should_exit:
+                            total_shares = trade.shares  # 卖出前该 Trade 剩余股数
                             trade.exit_date = date
                             trade.exit_price = exec_price
                             if exit_reason:
@@ -899,16 +929,22 @@ class BacktestEngine:
                             sell_stamp_tax = sell_amount * stamp_tax_rate
                             sell_cost = sell_commission + sell_stamp_tax
                             trade.commission += sell_commission
-                            trade.stamp_tax = sell_stamp_tax
+                            trade.stamp_tax += sell_stamp_tax
                             trade.total_cost += sell_cost
                             total_commission += sell_commission
                             total_stamp_tax += sell_stamp_tax
-                            trade.profit = (exec_price - trade.entry_price) * sell_shares - (sell_commission + sell_stamp_tax) if False else (exec_price - trade.entry_price) * sell_shares - (trade.total_cost - (trade.commission - sell_commission) + sell_commission + sell_stamp_tax - (trade.stamp_tax - sell_stamp_tax) and 0)  # simple: recompute
-                            trade.profit = (exec_price - trade.entry_price) * sell_shares - (sell_commission + sell_stamp_tax)
-                            trade.profit_percent = trade.profit / (trade.entry_price * trade.shares)
+                            # 实现盈亏(按本次实际成交 sell_shares 计, 部分成交日跨日累加到同一 Trade)
+                            trade.profit += (exec_price - trade.entry_price) * sell_shares - (sell_commission + sell_stamp_tax)
                             capital += sell_amount - sell_cost
-                            trades.append(trade)
-                            del holdings[code]
+                            if sell_shares < total_shares:
+                                # 成交量截断: 仅成交 sell_shares, 剩余股保留在 holdings 顺延次日继续卖, 不再凭空蒸发
+                                trade.shares = total_shares - sell_shares
+                            else:
+                                # 分母用入场原始股数(部分成交累加后 profit 已含全部实现盈亏)
+                                orig = trade.original_shares or total_shares
+                                trade.profit_percent = trade.profit / (trade.entry_price * orig) if orig else 0.0
+                                trades.append(trade)
+                                del holdings[code]
 
             if i % holding_days == 0:
                 selected = strategy.select_stocks(
@@ -918,6 +954,9 @@ class BacktestEngine:
                 for code, signal_value in selected:
                     if code in holdings or code not in all_data:
                         continue
+                    # 风控: 持仓数量上限 (PositionLimit.max_positions)。达到上限则跳过本轮新买入。
+                    if max_positions is not None and len(holdings) >= max_positions:
+                        break
 
                     df = all_data[code]
                     pos = self._row_pos(df, date)
@@ -943,7 +982,7 @@ class BacktestEngine:
                     exec_price = entry_price
                     if enable_slippage:
                         exec_price = exec_price * (1 + slippage_rate)
-                    position_value = capital * position_size
+                    position_value = capital * eff_pos_pct
                     shares = int(position_value / exec_price)
                     if enable_volume_cap:
                         try:
@@ -963,6 +1002,7 @@ class BacktestEngine:
                         entry_date=date,
                         entry_price=exec_price,
                         shares=shares,
+                        original_shares=shares,
                         signal=f"{signal_value:.4f}",
                         commission=buy_commission,
                         total_cost=buy_commission,
@@ -1004,12 +1044,14 @@ class BacktestEngine:
                     sell_stamp_tax = sell_amount * stamp_tax_rate
                     sell_cost = sell_commission + sell_stamp_tax
                     trade.commission += sell_commission
-                    trade.stamp_tax = sell_stamp_tax
+                    trade.stamp_tax += sell_stamp_tax
                     trade.total_cost += sell_cost
                     total_commission += sell_commission
                     total_stamp_tax += sell_stamp_tax
-                    trade.profit = (exec_price - trade.entry_price) * sell_shares - trade.total_cost
-                    trade.profit_percent = trade.profit / (trade.entry_price * trade.shares)
+                    # 累加到已实现盈亏(前面部分成交日可能已累加过部分), 分母用原始股数
+                    trade.profit += (exec_price - trade.entry_price) * sell_shares - (sell_commission + sell_stamp_tax)
+                    orig = trade.original_shares or sell_shares
+                    trade.profit_percent = trade.profit / (trade.entry_price * orig) if orig else 0.0
                     capital += sell_amount - sell_cost
             trades.append(trade)
 
