@@ -147,6 +147,12 @@ make test             # run the full pytest suite
 ## Related Articles
 - [51 Indicators × 5000 Stocks: Engineering Practices for Full-Market Technical Scanning](https://erishen.cn/stock_analyzer-en/)
 
+## Disclaimer
+
+- This project is a **quantitative-research / paper-trading tool**. It does not execute real money; all backtest results, signals, and simulated-portfolio P&L are for research only and **do not constitute investment advice**. Use at your own risk.
+- Market data is sourced from public feeds (akshare / Tencent / EastMoney), for research purposes only; data belongs to their respective owners.
+- Backtests are built on historical data and are subject to overfitting and survivorship bias; past performance does not guarantee future results.
+
 ## License
 
 MIT

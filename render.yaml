@@ -12,3 +12,6 @@ services:
         value: /opt/render/project/src/data/stock_analysis_demo.db
       - key: AGENT_CHAT_PUBLIC
         value: "1"
+      # 公网 demo 写护栏: 禁掉 paper 模拟仓写接口(建仓/平仓/清仓/自动交易), 防免费实例被刷算力
+      - key: PAPER_WRITE_DISABLED
+        value: "1"

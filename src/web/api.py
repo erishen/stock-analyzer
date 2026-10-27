@@ -247,9 +247,23 @@ async def paper_status():
     return JSONResponse(content=pf.get_diagnosis())
 
 
+def _paper_write_guard() -> None:
+    """模拟仓写接口护栏: PAPER_WRITE_DISABLED=1 时禁掉建仓/平仓/清仓/自动交易。
+
+    用于公网 demo (render.yaml): 合成库 + 免费实例, 禁写防止被第三方刷算力。
+    本地/私有部署不设该变量, 行为不变。读接口 /api/paper 不受影响。
+    """
+    if os.environ.get("PAPER_WRITE_DISABLED", "").strip() == "1":
+        raise HTTPException(
+            status_code=403,
+            detail="模拟仓写接口已在演示环境禁用 (PAPER_WRITE_DISABLED=1)",
+        )
+
+
 @app.post("/api/paper/position")
 async def paper_add_position(req: PaperAddRequest):
     """模拟建仓 (消耗现金余额, 计入佣金)"""
+    _paper_write_guard()
     pf = get_paper(db_path)
     return JSONResponse(
         content=pf.add_position(
@@ -267,6 +281,7 @@ async def paper_add_position(req: PaperAddRequest):
 @app.post("/api/paper/close")
 async def paper_close_position(req: PaperCloseRequest):
     """模拟卖出"""
+    _paper_write_guard()
     pf = get_paper(db_path)
     return JSONResponse(content=pf.close_position(req.code, req.sell_price, req.sell_date, req.shares))
 
@@ -306,6 +321,7 @@ def _notify_clear(result: dict) -> None:
 @app.post("/api/paper/clear")
 async def paper_clear_all(req: PaperClearRequest):
     """一键清仓: 按最新收盘价卖出全部持仓, 并撤销待成交订单"""
+    _paper_write_guard()
     pf = get_paper(db_path)
     result = pf.close_all(req.sell_date)
     # 可选: 推送到钉钉群 (无 data_tools/webhook 时静默跳过, 不影响返回)
@@ -317,6 +333,7 @@ async def paper_clear_all(req: PaperClearRequest):
 @app.post("/api/paper/auto")
 async def paper_auto_run(req: PaperAutoRequest):
     """策略驱动的模拟仓自动交易: 生成信号 -> 次日开盘成交 -> 止损/止盈/到期卖出"""
+    _paper_write_guard()
     if not db_path.exists():
         return JSONResponse(content={"success": False, "error": "数据库不存在"})
     try:
