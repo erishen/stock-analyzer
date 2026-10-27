@@ -1,7 +1,7 @@
-"""LLM 客户端: 复用 DataPulse 的 OpenAI 兼容配置, 直接调用 chat completions。
+"""LLM 客户端: 调用任意 OpenAI 兼容端点 (chat completions)。
 
 不引入额外依赖(用标准库 urllib), 支持 DeepSeek / 火山引擎 / OpenAI 等任意
-OpenAI 兼容端点。配置优先取 datapulse/.env, 其次当前环境变量。
+OpenAI 兼容端点。配置读取顺序: 运行时设置 Tab → 项目根 .env → 环境变量。
 """
 
 from __future__ import annotations
@@ -17,8 +17,6 @@ logger = logging.getLogger(__name__)
 
 # stock-analyzer 根目录 (src/agent/llm.py -> src/agent -> src -> <root>)
 _SA_ROOT = Path(__file__).resolve().parent.parent.parent
-# DataPulse 项目(.env 所在)位于 invest-kit/work/harness/datapulse
-_DATAPULSE_ENV = _SA_ROOT.parent.parent / "work" / "harness" / "datapulse" / ".env"
 
 SYSTEM_PROMPT = (
     "你是一名严谨的 A股 量化数据分析师。你能读懂 SQLite 里的股票日频行情与技术指标表, "
@@ -79,10 +77,8 @@ def clear_override() -> None:
 
 
 def get_llm_config() -> dict[str, str]:
-    """LLM 配置 (运行时覆盖 > stock-analyzer .env > datapulse .env > 环境变量)。"""
-    sa_env = _parse_env(_SA_ROOT / ".env")
-    dp_env = _parse_env(_DATAPULSE_ENV)
-    env = {**dp_env, **sa_env}  # stock-analyzer 优先
+    """LLM 配置 (运行时覆盖 > 项目根 .env > 环境变量)。"""
+    env = _parse_env(_SA_ROOT / ".env")
     cfg = {
         "base_url": env.get("LLM_BASE_URL", "https://api.openai.com/v1").rstrip("/"),
         "api_key": env.get("LLM_API_KEY", ""),
@@ -104,7 +100,10 @@ def get_llm_config() -> dict[str, str]:
 def require_llm_config() -> dict[str, str]:
     cfg = get_llm_config()
     if not cfg["api_key"]:
-        raise RuntimeError("未找到 LLM_API_KEY: 请在工作区 work/harness/datapulse/.env 里配置 LLM 凭证")
+        raise RuntimeError(
+            "未找到 LLM_API_KEY: 请在项目根 .env 里配置 LLM 凭证 "
+            f"(参考 {_SA_ROOT / '.env.example'}, 或用环境变量 LLM_API_KEY)"
+        )
     return cfg
 
 

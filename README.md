@@ -74,7 +74,7 @@ LLM_API_KEY=your-key
 LLM_MODEL=gpt-4o-mini
 ```
 
-Precedence: runtime settings tab → `stock-analyzer/.env` → `invest-kit/work/harness/datapulse/.env` → environment variables.
+Precedence: runtime settings tab → project-root `.env` → environment variables.
 
 ### Security
 

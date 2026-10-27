@@ -359,7 +359,7 @@ async def paper_auto_run(req: PaperAutoRequest):
 async def agent_chat(req: AgentChatRequest, _: None = Depends(_chat_auth_required)):
     """Agent 对话: 自然语言 -> 只读 SQL 查库 -> 中文作答 + 可选图表
 
-    复刻 datapulse 的 Text2SQL 方法; 问及持仓时自动注入模拟仓快照作为上下文。
+    两阶段 Text2SQL 方法(生成 + 自纠错, 见 src/agent/pipeline.py); 问及持仓时自动注入模拟仓快照作为上下文。
     本机访问免鉴权; 非本机访问需 Authorization: Bearer WEB_CHAT_TOKEN。
     """
     if not db_path.exists():
