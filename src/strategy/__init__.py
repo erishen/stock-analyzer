@@ -51,6 +51,7 @@ from .optimization import (
     optimize_mean_reversion_strategy,
     optimize_momentum_strategy,
     run_optimization,
+    scan_risk_sensitivity,
 )
 from .portfolio import (
     MultiStrategyPortfolio,
@@ -173,6 +174,7 @@ __all__ = [
     "run_grid_backtest",
     "run_market_timing",
     "run_optimization",
+    "scan_risk_sensitivity",
     "run_pair_backtest",
     "run_portfolio_backtest",
     "run_sector_analysis",

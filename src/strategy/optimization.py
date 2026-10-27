@@ -17,6 +17,7 @@ from .backtest import (
     MeanReversionStrategy,
     MomentumStrategy,
 )
+from .risk_control import create_position_limit
 
 logger = logging.getLogger(__name__)
 
@@ -263,6 +264,129 @@ def optimize_mean_reversion_strategy(
         all_results=all_results,
         total_combinations=total,
     )
+
+
+def scan_risk_sensitivity(
+    db_path: Path | None = None,
+    strategy: MomentumStrategy | MeanReversionStrategy | None = None,
+    strategy_type: str = "momentum",
+    max_positions_values: tuple[int, int] = (3, 10),
+    single_position_values: tuple[float, float] = (0.10, 0.30),
+    position_size: float = 0.1,
+    initial_capital: float = 100000.0,
+    start_date: str | None = None,
+    end_date: str | None = None,
+    progress_callback: Callable | None = None,
+) -> dict[str, Any]:
+    """
+    风控敏感度扫描 (Risk-Sensitivity Scan)。
+
+    与 optimize_*_strategy 的「策略参数网格」互补: 这里固定策略参数,
+    只扫 PositionLimit 的两个风控维度 (max_positions × max_single_position_pct),
+    用于回答「给定这版策略, 加风控上限后 收益/回撤/夏普 怎么变」。
+
+    每格返回 BacktestResult 的关键指标 + 基准格 (不设任何风控, position_limit=None)。
+
+    Args:
+        strategy: 固定参数的策略实例; None 时按 strategy_type 用默认参数构造
+        max_positions_values: 同时持仓数上下界 (闭区间, 每 1 步进)
+        single_position_values: 单票仓位上限上下界 (闭区间, 步长 0.05)
+        position_size: 基础单票仓位 (风控上限生效时取 min(该值, 上限))
+
+    Returns:
+        dict: {
+            "benchmark": {...无风控基准},
+            "grid": [ {max_positions, max_single_position_pct, total_return, sharpe_ratio,
+                       max_drawdown, win_rate, total_trades} ... ],
+            "best_by_sharpe": {...}, "best_by_return": {...},
+        }
+    """
+    db_path = db_path or get_stock_analysis_db_path()
+
+    if strategy is None:
+        if strategy_type == "momentum":
+            strategy = MomentumStrategy(exclude_st=True)
+        elif strategy_type == "mean_reversion":
+            strategy = MeanReversionStrategy(exclude_st=True)
+        else:
+            raise ValueError(f"未知策略类型: {strategy_type}")
+
+    pos_values = list(range(max_positions_values[0], max_positions_values[1] + 1))
+    single_values = [
+        round(v, 2)
+        for v in [
+            single_position_values[0] + 0.05 * i
+            for i in range(int((single_position_values[1] - single_position_values[0]) / 0.05) + 1)
+        ]
+    ]
+
+    combinations = list(product(pos_values, single_values))
+    total = len(combinations) + 1  # +1 = 基准格
+
+    logger.info("\n🛡️ 风控敏感度扫描 - %s", strategy.__class__.__name__)
+    logger.info(f"   持仓数: {pos_values}")
+    logger.info(f"   单票上限: {single_values}")
+    logger.info(f"   组合数: {total} (含无风控基准)")
+
+    engine = BacktestEngine(db_path)
+    engine.connect()
+
+    def _run(pl) -> dict[str, Any]:
+        result = engine.run_backtest(
+            strategy,
+            initial_capital=initial_capital,
+            position_size=position_size,
+            start_date=start_date,
+            end_date=end_date,
+            position_limit=pl,
+        )
+        return {
+            "total_return": round(result.total_return, 4),
+            "sharpe_ratio": round(result.sharpe_ratio, 4),
+            "max_drawdown": round(result.max_drawdown, 4),
+            "win_rate": round(result.win_rate, 4),
+            "total_trades": result.total_trades,
+        }
+
+    grid: list[dict[str, Any]] = []
+    benchmark: dict[str, Any] = {}
+    try:
+        for i in range(total):
+            if progress_callback:
+                progress_callback(i + 1, total)
+            if i < len(combinations):
+                max_pos, max_single = combinations[i]
+                data = _run(create_position_limit(max_positions=max_pos, max_single_position_pct=max_single))
+                grid.append({"max_positions": max_pos, "max_single_position_pct": max_single, **data})
+                logger.info(
+                    f"   持仓≤{max_pos} 单票≤{max_single*100:.0f}%: "
+                    f"收益 {data['total_return']*100:6.2f}%  夏普 {data['sharpe_ratio']:6.2f}  "
+                    f"回撤 {data['max_drawdown']*100:6.2f}%  胜率 {data['win_rate']*100:5.1f}%  交易 {data['total_trades']:>3d}"
+                )
+            else:
+                data = _run(None)
+                benchmark = {"max_positions": None, "max_single_position_pct": None, **data}
+                grid.append(data | {"max_positions": None, "max_single_position_pct": None})
+                logger.info(
+                    f"   [基准·无风控] 收益 {data['total_return']*100:6.2f}%  "
+                    f"夏普 {data['sharpe_ratio']:6.2f}  回撤 {data['max_drawdown']*100:6.2f}%"
+                )
+    finally:
+        engine.close()
+
+    if not grid:
+        raise ValueError("风控扫描失败, 无有效结果")
+
+    best_by_sharpe = max(grid, key=lambda r: r["sharpe_ratio"])
+    best_by_return = max(grid, key=lambda r: r["total_return"])
+
+    return {
+        "strategy": strategy.__class__.__name__,
+        "benchmark": benchmark,
+        "grid": grid,
+        "best_by_sharpe": best_by_sharpe,
+        "best_by_return": best_by_return,
+    }
 
 
 def run_optimization(

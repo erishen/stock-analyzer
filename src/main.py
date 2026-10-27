@@ -876,6 +876,56 @@ def run_paper_auto(args):
         logger.info(f"   结果已写入: {output_path}")
 
 
+def run_risk_scan(args):
+    """风控敏感度扫描: 固定策略参数, 扫 max_positions × 单票上限 网格, 输出 收益/回撤/夏普 对比"""
+    import json
+
+    from strategy import scan_risk_sensitivity
+
+    logger.info("\n" + "=" * 60)
+    logger.info("🛡️ 风控敏感度扫描 (PositionLimit)")
+    logger.info("=" * 60)
+
+    db_path = Path(args.db) if args.db else get_stock_analysis_db_path()
+
+    if not db_path.exists():
+        logger.error(f"❌ 数据库不存在: {db_path}")
+        logger.info("   请先运行: python -m src.main etl")
+        return
+
+    result = scan_risk_sensitivity(
+        db_path=db_path,
+        strategy_type=args.strategy,
+        max_positions_values=(args.max_pos_min, args.max_pos_max),
+        single_position_values=(args.single_min, args.single_max),
+        position_size=args.position_size,
+        initial_capital=args.capital,
+        start_date=args.start,
+        end_date=args.end,
+    )
+
+    logger.info("\n📊 风控敏感度对比 (固定策略参数, 只变风控上限):")
+    logger.info(f"{'持仓≤':<8} {'单票≤':<8} {'收益率':>10} {'夏普':>8} {'最大回撤':>10} {'胜率':>8} {'交易':>6}")
+    logger.info("-" * 62)
+    for row in result["grid"]:
+        mp = "无" if row["max_positions"] is None else f"≤{row['max_positions']}"
+        sp = "无" if row["max_single_position_pct"] is None else f"≤{row['max_single_position_pct']*100:.0f}%"
+        logger.info(
+            f"{mp:<8} {sp:<8} {row['total_return']*100:>9.2f}% {row['sharpe_ratio']:>7.2f}  "
+            f"{row['max_drawdown']*100:>9.2f}% {row['win_rate']*100:>7.1f}% {row['total_trades']:>6d}"
+        )
+
+    logger.info(f"\n🏆 夏普最优: 持仓≤{result['best_by_sharpe']['max_positions']} 单票≤{result['best_by_sharpe']['max_single_position_pct']*100:.0f}%")
+    logger.info(f"📈 收益最优: 持仓≤{result['best_by_return']['max_positions']} 单票≤{result['best_by_return']['max_single_position_pct']*100:.0f}%")
+
+    if args.output:
+        output_path = Path(args.output)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(output_path, "w", encoding="utf-8") as f:
+            json.dump(result, f, ensure_ascii=False, indent=2, default=float)
+        logger.info(f"\n💾 报告已保存到: {output_path}")
+
+
 def run_optimize(args):
     """运行参数优化"""
     import json
@@ -1247,6 +1297,25 @@ def main():
     )
     optimize_parser.add_argument("--output", type=str, help="输出文件路径(JSON)")
 
+    risk_scan_parser = subparsers.add_parser("risk-scan", help="风控敏感度扫描 (PositionLimit)")
+    risk_scan_parser.add_argument("--db", type=str, help="数据库路径")
+    risk_scan_parser.add_argument(
+        "--strategy",
+        type=str,
+        default="momentum",
+        choices=["momentum", "mean_reversion"],
+        help="策略类型",
+    )
+    risk_scan_parser.add_argument("--max-pos-min", type=int, default=3, help="持仓数下界")
+    risk_scan_parser.add_argument("--max-pos-max", type=int, default=10, help="持仓数上界")
+    risk_scan_parser.add_argument("--single-min", type=float, default=0.10, help="单票上限下界")
+    risk_scan_parser.add_argument("--single-max", type=float, default=0.30, help="单票上限上界")
+    risk_scan_parser.add_argument("--position-size", type=float, default=0.1, help="基础单票仓位")
+    risk_scan_parser.add_argument("--capital", type=float, default=100000, help="初始资金")
+    risk_scan_parser.add_argument("--start", type=str, help="回测起始日期")
+    risk_scan_parser.add_argument("--end", type=str, help="回测结束日期")
+    risk_scan_parser.add_argument("--output", type=str, help="输出文件路径(JSON)")
+
     monitor_parser = subparsers.add_parser("monitor", help="市场实时监控")
     monitor_parser.add_argument("--db", type=str, help="数据库路径")
     monitor_parser.add_argument("--output", type=str, help="输出文件路径(JSON)")
@@ -1394,6 +1463,8 @@ def main():
         run_backtest_viz(args)
     elif args.command == "optimize":
         run_optimize(args)
+    elif args.command == "risk-scan":
+        run_risk_scan(args)
     elif args.command == "trade-report":
         run_trade_report(args)
     elif args.command == "export":
