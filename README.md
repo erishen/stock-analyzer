@@ -3,15 +3,18 @@
 [![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
+[中文文档](README.zh.md)
+
 An A-share stock market analysis toolkit — ETL pipeline for daily K-line data, full-market technical signal scanning, strategy backtesting, and a React + FastAPI web dashboard with an AI stock-picking assistant (Text2SQL).
 
 ## ⚠️ Disclaimer
 
-This project is for educational and research purposes only. Not financial advice.
+This project is a quantitative-research / paper-trading tool for educational and research purposes only. It does not execute real money, and its outputs are **not investment advice**.
 
-- All technical indicators, signals, and AI answers are for reference only
-- Stock market investment carries risk; never rely on this tool for actual trading decisions
-- The author is not responsible for any losses
+- All backtest results, technical indicators, signals, and AI answers are for reference only and do not guarantee accuracy
+- Market data is sourced from public feeds (akshare / Tencent / EastMoney), for research purposes only; data belongs to their respective owners
+- Backtests are built on historical data and are subject to overfitting and survivorship bias; past performance does not guarantee future results
+- Stock market investment carries risk; never rely on this tool for actual trading decisions. The author is not responsible for any losses
 
 ## ✨ Features
 
@@ -87,7 +90,7 @@ The AI agent is restricted to **read-only** queries:
 |---|---|---|
 | Local / loopback | (default) | Requests from `127.0.0.1`/`::1` are always allowed. |
 | Public demo | `AGENT_CHAT_PUBLIC=1` (no `WEB_CHAT_TOKEN`) | Non-loopback requests allowed **without** a token. Interface is read-only SQL only — safe for public demos. This is what the hosted demo uses. |
-| Token-protected | `WEB_CHAT_TOKEN=<secret>` (no `AGENT_CHAT_PUBLIC`) | Non-loopback requests require `Authorization: Bearer <secret>`. Frontend: click "设置访问令牌（可选）" in the AI panel and paste the same value. |
+| Token-protected | `WEB_CHAT_TOKEN=<secret>` (no `AGENT_CHAT_PUBLIC`) | Non-loopback requests require `Authorization: Bearer <secret>`. Frontend: click the "设置访问令牌（可选）" ("Access token (optional)") button in the AI chat panel and paste the same value. |
 
 Generate a token:
 
@@ -146,12 +149,6 @@ make test             # run the full pytest suite
 
 ## Related Articles
 - [51 Indicators × 5000 Stocks: Engineering Practices for Full-Market Technical Scanning](https://erishen.cn/stock_analyzer-en/)
-
-## Disclaimer
-
-- This project is a **quantitative-research / paper-trading tool**. It does not execute real money; all backtest results, signals, and simulated-portfolio P&L are for research only and **do not constitute investment advice**. Use at your own risk.
-- Market data is sourced from public feeds (akshare / Tencent / EastMoney), for research purposes only; data belongs to their respective owners.
-- Backtests are built on historical data and are subject to overfitting and survivorship bias; past performance does not guarantee future results.
 
 ## License
 

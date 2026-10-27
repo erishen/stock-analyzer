@@ -1,17 +1,20 @@
 # Stock Analyzer
 
-[![Python](https://img.shields.io/badge/Python-3.13+-blue.svg)](https://www.python.org/)
+[![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+
+[English](README.md)
 
 A 股市场分析工具集 —— 面向日线 K 线的 ETL 数据管道、全市场技术信号扫描、策略回测，以及一个集成 AI 选股助手（Text2SQL）的 React + FastAPI Web 仪表盘。
 
 ## ⚠️ 免责声明
 
-本项目仅供技术学习和研究使用，不构成任何投资建议。
+本项目是**量化研究 / 模拟交易（paper trading）工具**，仅供技术学习和研究使用，不涉及真实资金交易，所有输出**均不构成投资建议**。
 
-- 所有技术指标、信号和 AI 回答仅供参考，不保证准确性
-- 股市有风险，投资需谨慎，请勿将本工具用于实际投资决策
-- 作者不对使用本工具造成的任何损失负责
+- 所有回测结果、技术指标、信号和 AI 回答仅供参考，不保证准确性
+- 市场数据来自公开行情源（akshare / 腾讯 / 东财），仅供研究用途，版权归原作者所有
+- 回测基于历史数据，存在过拟合与幸存者偏差风险，历史表现不代表未来结果
+- 股市有风险，投资需谨慎，请勿将本工具用于实际投资决策；作者不对使用本工具造成的任何损失负责
 
 ## ✨ 功能特点
 
@@ -129,12 +132,6 @@ make test             # 运行完整 pytest 测试套件
 
 ## 相关文章
 - [51个指标 × 5000只股票：全市场技术扫描的工程实践](https://erishen.cn/stock_analyzer/)
-
-## 免责声明 (Disclaimer)
-
-- 本项目是**量化研究 / 模拟交易 (paper trading) 工具**，不涉及真实资金交易，所有回测、信号、模拟仓盈亏输出**均不构成投资建议**；据此操作风险自负。
-- 市场数据来自公开行情源 (akshare / 腾讯 / 东财)，仅供研究用途，版权归原作者所有。
-- 回测基于历史数据，存在过拟合与幸存者偏差风险，历史表现不代表未来结果。
 
 ## License
 
