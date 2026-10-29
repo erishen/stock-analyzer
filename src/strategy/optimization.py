@@ -359,17 +359,17 @@ def scan_risk_sensitivity(
                 data = _run(create_position_limit(max_positions=max_pos, max_single_position_pct=max_single))
                 grid.append({"max_positions": max_pos, "max_single_position_pct": max_single, **data})
                 logger.info(
-                    f"   持仓≤{max_pos} 单票≤{max_single*100:.0f}%: "
-                    f"收益 {data['total_return']*100:6.2f}%  夏普 {data['sharpe_ratio']:6.2f}  "
-                    f"回撤 {data['max_drawdown']*100:6.2f}%  胜率 {data['win_rate']*100:5.1f}%  交易 {data['total_trades']:>3d}"
+                    f"   持仓≤{max_pos} 单票≤{max_single * 100:.0f}%: "
+                    f"收益 {data['total_return'] * 100:6.2f}%  夏普 {data['sharpe_ratio']:6.2f}  "
+                    f"回撤 {data['max_drawdown'] * 100:6.2f}%  胜率 {data['win_rate'] * 100:5.1f}%  交易 {data['total_trades']:>3d}"
                 )
             else:
                 data = _run(None)
                 benchmark = {"max_positions": None, "max_single_position_pct": None, **data}
                 grid.append(data | {"max_positions": None, "max_single_position_pct": None})
                 logger.info(
-                    f"   [基准·无风控] 收益 {data['total_return']*100:6.2f}%  "
-                    f"夏普 {data['sharpe_ratio']:6.2f}  回撤 {data['max_drawdown']*100:6.2f}%"
+                    f"   [基准·无风控] 收益 {data['total_return'] * 100:6.2f}%  "
+                    f"夏普 {data['sharpe_ratio']:6.2f}  回撤 {data['max_drawdown'] * 100:6.2f}%"
                 )
     finally:
         engine.close()

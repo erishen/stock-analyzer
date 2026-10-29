@@ -172,7 +172,10 @@ class PaperPortfolio:
         buy_amount = float(buy_price) * float(shares)
         buy_commission = max(buy_amount * commission_rate, min_commission)
         if deduct_cash and self.get_cash() < buy_amount + buy_commission:
-            return {"success": False, "message": f"现金不足: 需 {buy_amount + buy_commission:.2f}, 仅 {self.get_cash():.2f}"}
+            return {
+                "success": False,
+                "message": f"现金不足: 需 {buy_amount + buy_commission:.2f}, 仅 {self.get_cash():.2f}",
+            }
 
         self.data["positions"][code] = {
             "name": self._name(code),

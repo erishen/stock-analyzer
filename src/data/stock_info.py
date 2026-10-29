@@ -186,6 +186,7 @@ class StockInfoFetcher:
             self._loaded_mtime = m
             return True
         return False
+
     def get_cached_name(self, code: str) -> str:
         """仅从本地缓存取名称 (不触发网络请求), 未命中返回空串"""
         info = self._cache.get(code)

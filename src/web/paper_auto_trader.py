@@ -160,9 +160,7 @@ class PaperAutoTrader:
                 "date": d,
                 "dry_run": dry_run,
                 "strategy": self.config.strategy_type,
-                "strategy_label": _STRATEGY_LABELS.get(
-                    self.config.strategy_type, self.config.strategy_type
-                ),
+                "strategy_label": _STRATEGY_LABELS.get(self.config.strategy_type, self.config.strategy_type),
                 "executed": executed,
                 "new_orders": new_orders,
                 "positions": len(pf.data["positions"]),
@@ -185,9 +183,7 @@ class PaperAutoTrader:
         return {"success": True, "message": f"模拟仓已重置, 初始资金 {pf.get_cash():.2f}"}
 
     # ---------- 成交 ----------
-    def _execute_pending(
-        self, pf, all_data: dict, exec_date: str
-    ) -> list[dict[str, Any]]:
+    def _execute_pending(self, pf, all_data: dict, exec_date: str) -> list[dict[str, Any]]:
         """把 signal_date < exec_date 的待成交订单, 以 exec_date 开盘价成交。"""
         pending = pf.get_pending()
         if not pending:
@@ -323,9 +319,7 @@ class PaperAutoTrader:
             strategy = self._build_strategy()
             names = engine.get_stock_names()
             try:
-                selected = strategy.select_stocks(
-                    all_data, 0, d, stock_names=names, lookup=engine._row_pos
-                )
+                selected = strategy.select_stocks(all_data, 0, d, stock_names=names, lookup=engine._row_pos)
             except Exception as e:
                 logger.warning("策略选股失败: %s", e)
                 selected = []
@@ -461,4 +455,3 @@ class PaperAutoTrader:
         except Exception as e:  # pragma: no cover
             logger.warning("读取 %s@%s 行情失败: %s", code, d, e)
             return None
-

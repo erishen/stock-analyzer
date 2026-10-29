@@ -102,8 +102,7 @@ def require_llm_config() -> dict[str, str]:
     cfg = get_llm_config()
     if not cfg["api_key"]:
         raise RuntimeError(
-            "未找到 LLM_API_KEY: 请在项目根 .env (参考 .env.example) 里配置 LLM 凭证, "
-            "或用环境变量 LLM_API_KEY"
+            "未找到 LLM_API_KEY: 请在项目根 .env (参考 .env.example) 里配置 LLM 凭证, 或用环境变量 LLM_API_KEY"
         )
     return cfg
 

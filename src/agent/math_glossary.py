@@ -267,15 +267,45 @@ INDICATOR_MATH: dict[str, dict[str, str]] = {
 
 # schema 注入用: 核心子集(覆盖 Agent 最常查询/解释的指标), 控制注入 token 量
 SCHEMA_GLOSSARY_KEYS: list[str] = [
-    "ma5", "ma10", "ma20", "ma60", "close_ma20_ratio",
-    "ema12", "ema26", "macd", "macd_signal", "macd_hist", "macd_cross",
-    "rsi", "rsi_overbought", "rsi_oversold",
-    "boll_upper", "boll_lower", "boll_position", "boll_width",
-    "kdj_k", "kdj_d", "kdj_j", "kdj_cross",
-    "atr", "atr_ratio", "obv", "obv_signal", "williams_r",
-    "momentum_5d", "momentum_10d", "momentum_20d", "roc_10", "roc_20",
-    "volatility_5d", "volatility_20d", "volatility_ratio",
-    "amplitude", "turnover_rate", "change_percent", "body_size",
+    "ma5",
+    "ma10",
+    "ma20",
+    "ma60",
+    "close_ma20_ratio",
+    "ema12",
+    "ema26",
+    "macd",
+    "macd_signal",
+    "macd_hist",
+    "macd_cross",
+    "rsi",
+    "rsi_overbought",
+    "rsi_oversold",
+    "boll_upper",
+    "boll_lower",
+    "boll_position",
+    "boll_width",
+    "kdj_k",
+    "kdj_d",
+    "kdj_j",
+    "kdj_cross",
+    "atr",
+    "atr_ratio",
+    "obv",
+    "obv_signal",
+    "williams_r",
+    "momentum_5d",
+    "momentum_10d",
+    "momentum_20d",
+    "roc_10",
+    "roc_20",
+    "volatility_5d",
+    "volatility_20d",
+    "volatility_ratio",
+    "amplitude",
+    "turnover_rate",
+    "change_percent",
+    "body_size",
 ]
 
 
@@ -290,7 +320,5 @@ def glossary_text(keys: list[str] | None = None) -> str:
         item = INDICATOR_MATH.get(k)
         if not item:
             continue
-        lines.append(
-            f"- {k}: {item['formula']}；人话: {item['meaning']}；判读: {item['signal']}"
-        )
+        lines.append(f"- {k}: {item['formula']}；人话: {item['meaning']}；判读: {item['signal']}")
     return "\n".join(lines)

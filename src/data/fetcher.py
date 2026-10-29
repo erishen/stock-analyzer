@@ -230,9 +230,7 @@ class StockDataFetcher:
         v = os.environ.get("STOCK_FETCH_SOURCE", "tencent").strip().lower()
         return v if v in ("tencent", "eastmoney", "auto") else "tencent"
 
-    def _fetch_from_eastmoney(
-        self, code: str, start_date: str | None, end_date: str | None, adjust: str
-    ) -> list[dict]:
+    def _fetch_from_eastmoney(self, code: str, start_date: str | None, end_date: str | None, adjust: str) -> list[dict]:
         """东财源 K 线 (stock_zh_a_hist): 字段最全, 含成交额/振幅/涨跌幅/换手率。"""
         df = self.akshare.stock_zh_a_hist(
             symbol=code,

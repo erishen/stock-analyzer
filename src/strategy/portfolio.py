@@ -285,8 +285,11 @@ class MultiStrategyPortfolio:
                 strategy = strategy_class(**config.params)
 
                 result = engine.run_backtest(
-                    strategy, initial_capital, position_size,
-                    start_date=start_date, end_date=end_date,
+                    strategy,
+                    initial_capital,
+                    position_size,
+                    start_date=start_date,
+                    end_date=end_date,
                 )
                 strategy_results.append(result)
 
@@ -487,7 +490,10 @@ def run_portfolio_backtest(
             )
 
     result = portfolio.run_backtest(
-        db_path, initial_capital, start_date=start_date, end_date=end_date,
+        db_path,
+        initial_capital,
+        start_date=start_date,
+        end_date=end_date,
     )
     print_portfolio_result(result)
 

@@ -764,8 +764,9 @@ class BacktestEngine:
         if c.startswith("bj"):
             return 0.30
         # 科创板/创业板 20%
-        if c.startswith(("sz300", "sh688", "sz688", "300", "688")) or \
-           (len(c) >= 6 and c[-6:].startswith(("300", "688"))):
+        if c.startswith(("sz300", "sh688", "sz688", "300", "688")) or (
+            len(c) >= 6 and c[-6:].startswith(("300", "688"))
+        ):
             return 0.20
         # 主板 10%
         return 0.10
@@ -846,7 +847,9 @@ class BacktestEngine:
 
         # 风控持仓限制 (PositionLimit): 默认 None=不限制, 保持与历史回测结果兼容
         max_positions: int | None = getattr(position_limit, "max_positions", None) if position_limit else None
-        max_single_pct: float | None = getattr(position_limit, "max_single_position_pct", None) if position_limit else None
+        max_single_pct: float | None = (
+            getattr(position_limit, "max_single_position_pct", None) if position_limit else None
+        )
         # 生效单票仓位: 设了风控上限时取 min(仓位比例, 上限), 否则维持原 position_size
         eff_pos_pct = min(position_size, max_single_pct) if max_single_pct else position_size
         if position_limit:
@@ -940,7 +943,9 @@ class BacktestEngine:
                             total_commission += sell_commission
                             total_stamp_tax += sell_stamp_tax
                             # 实现盈亏(按本次实际成交 sell_shares 计, 部分成交日跨日累加到同一 Trade)
-                            trade.profit += (exec_price - trade.entry_price) * sell_shares - (sell_commission + sell_stamp_tax)
+                            trade.profit += (exec_price - trade.entry_price) * sell_shares - (
+                                sell_commission + sell_stamp_tax
+                            )
                             capital += sell_amount - sell_cost
                             if sell_shares < total_shares:
                                 # 成交量截断: 仅成交 sell_shares, 剩余股保留在 holdings 顺延次日继续卖, 不再凭空蒸发

@@ -212,7 +212,7 @@ class DataTransformer:
             bad = df["amplitude"].isna() | (df["amplitude"] == 0)
             mask = bad & prev_close.notna()
             if mask.any():
-                calc = ((df["high"] - df["low"]) / prev_close * 100)
+                calc = (df["high"] - df["low"]) / prev_close * 100
                 df.loc[mask, "amplitude"] = calc[mask].round(2)
         return df
 

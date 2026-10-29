@@ -80,9 +80,9 @@ async def lifespan(app: FastAPI):
     # 清残留更新状态文件: 上次任务被强杀(kill/重启容器)会留下 running 僵尸态,
     # 阻塞下一次触发。容器 /tmp 不随 restart 清空, 须在 Web 启动时主动清理。
     with suppress(OSError):
-        Path(
-            os.environ.get("STOCK_UPDATE_STATUS_FILE", "/tmp/stock_analyzer_update_status.json")
-        ).unlink(missing_ok=True)
+        Path(os.environ.get("STOCK_UPDATE_STATUS_FILE", "/tmp/stock_analyzer_update_status.json")).unlink(
+            missing_ok=True
+        )
     yield
     logger.info("\n👋 服务器关闭")
 
@@ -308,9 +308,7 @@ def _notify_clear(result: dict) -> None:
             for s in skipped:
                 lines.append(f"- {s.get('name', '')} {s.get('code', '')} · {s.get('reason', '')}")
         lines.append("")
-        lines.append(
-            f"合计回款 {float(result.get('total_proceeds') or 0):,.2f} | {result.get('message', '')}"
-        )
+        lines.append(f"合计回款 {float(result.get('total_proceeds') or 0):,.2f} | {result.get('message', '')}")
         ok, msg = notify_hook.send_markdown("\n".join(lines), title="模拟仓一键清仓")
         if not ok:
             logger.warning("钉钉推送失败: %s", msg)
@@ -1152,21 +1150,34 @@ def _spawn_update_task() -> dict:
             return {"success": False, "message": "更新任务已在运行中", "status": cur}
     # 先重置状态并落盘 (running), 避免子进程尚未写盘时 API 读到旧状态
     ut._set(
-        status="running", stage="prepare", total=0, current=0,
-        fetched_rows=0, failed=0, skipped=0, no_new=0, etl_loaded=0,
-        message="准备中...", started_at=datetime.now().isoformat(),
-        finished_at="", error="",
+        status="running",
+        stage="prepare",
+        total=0,
+        current=0,
+        fetched_rows=0,
+        failed=0,
+        skipped=0,
+        no_new=0,
+        etl_loaded=0,
+        message="准备中...",
+        started_at=datetime.now().isoformat(),
+        finished_at="",
+        error="",
     )
     script = PROJECT_ROOT / "data_tools" / "update_task.py"
     env = os.environ.copy()
     env["STOCK_UPDATE_STATUS_FILE"] = str(ut.STATUS_FILE)
     try:
         subprocess.Popen(
-            [sys.executable, str(script)], env=env, cwd=str(PROJECT_ROOT),
+            [sys.executable, str(script)],
+            env=env,
+            cwd=str(PROJECT_ROOT),
         )
     except Exception as e:  # pragma: no cover
         ut._set(
-            status="error", stage="done", error=f"{type(e).__name__}: {e}",
+            status="error",
+            stage="done",
+            error=f"{type(e).__name__}: {e}",
             finished_at=datetime.now().isoformat(),
         )
         return {"success": False, "message": f"启动更新失败: {e}", "status": ut.load_status()}

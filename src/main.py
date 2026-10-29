@@ -909,14 +909,18 @@ def run_risk_scan(args):
     logger.info("-" * 62)
     for row in result["grid"]:
         mp = "无" if row["max_positions"] is None else f"≤{row['max_positions']}"
-        sp = "无" if row["max_single_position_pct"] is None else f"≤{row['max_single_position_pct']*100:.0f}%"
+        sp = "无" if row["max_single_position_pct"] is None else f"≤{row['max_single_position_pct'] * 100:.0f}%"
         logger.info(
-            f"{mp:<8} {sp:<8} {row['total_return']*100:>9.2f}% {row['sharpe_ratio']:>7.2f}  "
-            f"{row['max_drawdown']*100:>9.2f}% {row['win_rate']*100:>7.1f}% {row['total_trades']:>6d}"
+            f"{mp:<8} {sp:<8} {row['total_return'] * 100:>9.2f}% {row['sharpe_ratio']:>7.2f}  "
+            f"{row['max_drawdown'] * 100:>9.2f}% {row['win_rate'] * 100:>7.1f}% {row['total_trades']:>6d}"
         )
 
-    logger.info(f"\n🏆 夏普最优: 持仓≤{result['best_by_sharpe']['max_positions']} 单票≤{result['best_by_sharpe']['max_single_position_pct']*100:.0f}%")
-    logger.info(f"📈 收益最优: 持仓≤{result['best_by_return']['max_positions']} 单票≤{result['best_by_return']['max_single_position_pct']*100:.0f}%")
+    logger.info(
+        f"\n🏆 夏普最优: 持仓≤{result['best_by_sharpe']['max_positions']} 单票≤{result['best_by_sharpe']['max_single_position_pct'] * 100:.0f}%"
+    )
+    logger.info(
+        f"📈 收益最优: 持仓≤{result['best_by_return']['max_positions']} 单票≤{result['best_by_return']['max_single_position_pct'] * 100:.0f}%"
+    )
 
     if args.output:
         output_path = Path(args.output)

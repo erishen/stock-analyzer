@@ -7,6 +7,7 @@ webhook 配置。本模块按**文件路径**动态加载同仓的 ``data_tools/
 本地 Docker 镜像会 ``COPY data_tools/``（见 Dockerfile），因此容器内的
 「一键清仓」等操作具备钉钉推送能力；未配 ``STOCK_WEBHOOK_URL`` 时 notify 自身会跳过。
 """
+
 from __future__ import annotations
 
 import importlib.util

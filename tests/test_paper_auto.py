@@ -32,8 +32,7 @@ def _make_db(path: Path, n_days: int = 60, codes=("sh600000", "sz000001", "sz000
             rows.append((code, d, prev, close, close + 1, close - 1, 1_000_000.0, close, close))
             prev = close
     conn.executemany(
-        "INSERT INTO stock_analysis (code, date, open, close, high, low, volume, ma20, rsi) "
-        "VALUES (?,?,?,?,?,?,?,?,?)",
+        "INSERT INTO stock_analysis (code, date, open, close, high, low, volume, ma20, rsi) VALUES (?,?,?,?,?,?,?,?,?)",
         rows,
     )
     conn.commit()
@@ -111,8 +110,14 @@ class TestPaperClearAll:
         pf.set_initial_capital(100000.0)
         # 手工塞一只数据库里没有行情的持仓
         pf.data["positions"]["sh600099"] = {
-            "name": "NODATA", "buy_date": dates[0], "buy_price": 10.0, "shares": 100,
-            "stop_loss": 0.08, "take_profit": 0.20, "buy_cost": 5.0, "reason": "",
+            "name": "NODATA",
+            "buy_date": dates[0],
+            "buy_price": 10.0,
+            "shares": 100,
+            "stop_loss": 0.08,
+            "take_profit": 0.20,
+            "buy_cost": 5.0,
+            "reason": "",
         }
         pf._save()
 
@@ -216,8 +221,14 @@ class TestPaperAutoTrader:
         pf = PaperPortfolio(db, store)
         pf.set_initial_capital(cfg.initial_capital)
         pf.data["positions"]["sh600000"] = {
-            "name": "T", "buy_date": dates[-5], "buy_price": 999.0, "shares": 100,
-            "stop_loss": 0.08, "take_profit": 0.20, "buy_cost": 30.0, "reason": "",
+            "name": "T",
+            "buy_date": dates[-5],
+            "buy_price": 999.0,
+            "shares": 100,
+            "stop_loss": 0.08,
+            "take_profit": 0.20,
+            "buy_cost": 30.0,
+            "reason": "",
         }
         pf._save()
 
