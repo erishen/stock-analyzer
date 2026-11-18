@@ -38,6 +38,7 @@ output/bj_codes.txt
 *.db.backup_*
 *.db-shm
 *.db-wal
+*.db-journal
 data/stock_analysis.db
 data/*.demo_backup_*
 data/stock_klines.db
