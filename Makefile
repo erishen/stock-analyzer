@@ -1,4 +1,4 @@
-.PHONY: help install deps sync-env fetch fetch-sample etl scan visualize analyze accuracy score monitor trade-report export market-timing compare sector sector-validate portfolio portfolio-sharpe web dev web-dev web-build web-public backtest backtest-momentum backtest-reversion backtest-trend backtest-multifactor backtest-optimized backtest-viz backtest-full backtest-benchmark optimize optimize-momentum optimize-reversion db-optimize stats test test-cov lint format clean docker-build docker-up docker-down docker-logs docker-restart docker-ps daily-update daily-update-backfill backfill-etl data-refresh data-refresh-backfill push-report push-paper check-stale
+.PHONY: help install deps sync-env fetch fetch-sample etl scan visualize analyze accuracy score monitor trade-report export market-timing compare sector sector-validate portfolio portfolio-sharpe web dev web-dev web-build web-public backtest backtest-momentum backtest-reversion backtest-trend backtest-multifactor backtest-optimized backtest-viz backtest-full backtest-benchmark optimize optimize-momentum optimize-reversion db-optimize stats test test-cov lint format clean docker-build docker-up docker-down docker-logs docker-restart docker-ps daily-update daily-update-ml daily-update-backfill backfill-etl data-refresh data-refresh-backfill push-report push-paper check-stale ml-gbm ml-anomaly ml-cluster ml-garch
 
 help:
 	@echo "Stock Analyzer - 股票数据分析工具"
@@ -40,7 +40,8 @@ help:
 	@echo "  docker-logs     实时查看容器日志"
 	@echo "  docker-restart  重启容器"
 	@echo "  docker-ps       查看容器状态"
-	@echo "  daily-update    每日增量更新 (含钉钉推送; 补数用 daily-update-backfill)"
+	@echo "  daily-update    每日增量更新 (含 ML 巡检与钉钉推送; 补数用 daily-update-backfill)"
+	@echo "  daily-update-ml 每日增量更新 + LightGBM 全量训练 (较重, 数分钟)"
 	@echo "  daily-update-backfill  补数更新 (所有落后股票, 含钉钉推送)"
 	@echo "  backfill-etl    宿主补算指标缺口 (klines 有数据但 analysis 未算的股票)"
 	@echo "  data-refresh    一键刷新: 宿主更新 + 重启容器 (容器长驻进程缓存旧数据, 须重启才能读到最新)"
@@ -65,6 +66,10 @@ help:
 	@echo "  lint        运行代码检查"
 	@echo "  format      格式化代码"
 	@echo "  clean       清理缓存文件"
+	@echo "  ml-gbm      LightGBM 横截面排名模型 (选股排序, 需 uv sync --extra ml)"
+	@echo "  ml-anomaly  Isolation Forest 异常检测"
+	@echo "  ml-cluster  K-Means 聚类"
+	@echo "  ml-garch    GARCH(1,1) 波动率建模"
 
 install:
 	uv sync --extra dev --extra web
@@ -113,8 +118,12 @@ etl:
 	uv run python -m src.main etl
 
 daily-update:
-	@echo "每日增量更新: 活跃股票增量拉取 -> 增量 ETL -> 信号扫描 -> 钉钉推送"
-	uv run python data_tools/daily_update.py --notify
+	@echo "每日增量更新: 活跃股票增量拉取 -> 增量 ETL -> 信号扫描 -> ML 巡检(异常+聚类) -> 钉钉推送"
+	uv run python data_tools/daily_update.py --notify --ml
+
+daily-update-ml:
+	@echo "每日增量更新 + 全量 ML: 在上面的基础上加跑 LightGBM 全量训练(较重, 数分钟)"
+	uv run python data_tools/daily_update.py --notify --ml --ml-gbm
 
 daily-update-backfill:
 	@echo "补数更新: 所有落后股票 -> 增量 ETL -> 信号扫描 -> 钉钉推送"
@@ -328,6 +337,24 @@ docker-ps:
 
 stats:
 	uv run python -m src.main stats
+
+# ---------- ML 模型 (uv sync --extra ml) ----------
+
+ml-gbm:
+	uv sync --extra ml
+	uv run python -m src.main ml-gbm --output output/reports/ml_gbm_report.json
+
+ml-anomaly:
+	uv sync --extra ml
+	uv run python -m src.main ml-anomaly --output output/reports/ml_anomaly_report.json
+
+ml-cluster:
+	uv sync --extra ml
+	uv run python -m src.main ml-cluster --output output/reports/ml_cluster_report.json
+
+ml-garch:
+	uv sync --extra ml
+	uv run python -m src.main ml-garch --code $(CODE) --output output/reports/ml_garch_$(CODE).json
 
 test:
 	uv run pytest tests/ -v

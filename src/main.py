@@ -1174,6 +1174,34 @@ def run_risk_attribution(args):
         logger.info(f"\n💾 结果已保存到: {output_path}")
 
 
+def run_ml_gbm(args):
+    """运行 LightGBM 横截面排名模型训练与评估。"""
+    from ml.gbm_rank import run_gbm
+
+    run_gbm(args)
+
+
+def run_ml_anomaly(args):
+    """运行 Isolation Forest 异常检测。"""
+    from ml.anomaly import run_anomaly
+
+    run_anomaly(args)
+
+
+def run_ml_cluster(args):
+    """运行 K-Means 聚类。"""
+    from ml.clustering import run_cluster
+
+    run_cluster(args)
+
+
+def run_ml_garch(args):
+    """运行 GARCH(1,1) 波动率建模。"""
+    from ml.volatility import run_garch
+
+    run_garch(args)
+
+
 def main():
     logging.basicConfig(
         level=logging.INFO,
@@ -1195,6 +1223,10 @@ def main():
   python -m src.main backtest         # 动量策略回测
   python -m src.main backtest --strategy mean_reversion  # 均值回归策略
   python -m src.main backtest-viz     # 回测结果可视化
+  python -m src.main ml-gbm           # LightGBM 排名模型 (uv sync --extra ml)
+  python -m src.main ml-anomaly       # Isolation Forest 异常检测
+  python -m src.main ml-cluster       # K-Means 聚类
+  python -m src.main ml-garch --code 600000   # GARCH 波动率
         """,
     )
 
@@ -1433,6 +1465,52 @@ def main():
     paper_auto_parser.add_argument("--dry-run", action="store_true", help="只计算不落盘")
     paper_auto_parser.add_argument("--output", type=str, help="把本轮结果 JSON 写入指定路径")
 
+    # ---------- ML 模型 (uv sync --extra ml) ----------
+    ml_gbm_parser = subparsers.add_parser("ml-gbm", help="LightGBM 横截面排名模型 (选股排序)")
+    ml_gbm_parser.add_argument("--db", type=str, help="分析库路径")
+    ml_gbm_parser.add_argument("--start-year", type=int, default=2020, help="起始年份")
+    ml_gbm_parser.add_argument("--end-year", type=int, default=2027, help="结束年份(不含)")
+    ml_gbm_parser.add_argument("--horizon", type=int, default=20, help="预测/持有天数")
+    ml_gbm_parser.add_argument("--top-n", type=int, default=10, help="回测 Top-N 数量")
+    ml_gbm_parser.add_argument("--min-price", type=float, default=2.0, help="最低价格过滤")
+    ml_gbm_parser.add_argument("--train-end", type=str, help="训练集截止日 (默认 2023-11-30)")
+    ml_gbm_parser.add_argument("--valid-end", type=str, help="验证集截止日 (默认 2024-11-30)")
+    ml_gbm_parser.add_argument("--test-start", type=str, help="测试集起始日 (默认 2025-01-01)")
+    ml_gbm_parser.add_argument("--num-threads", type=int, default=4, help="LightGBM 线程数")
+    ml_gbm_parser.add_argument("--output", type=str, help="输出文件路径(JSON)")
+
+    ml_anomaly_parser = subparsers.add_parser("ml-anomaly", help="Isolation Forest 异常检测")
+    ml_anomaly_parser.add_argument("--db", type=str, help="分析库路径")
+    ml_anomaly_parser.add_argument("--date", type=str, help="分析日期 (默认最新交易日)")
+    ml_anomaly_parser.add_argument("--contamination", type=float, default=0.01, help="异常比例")
+    ml_anomaly_parser.add_argument("--n-estimators", type=int, default=200, help="树数量")
+    ml_anomaly_parser.add_argument("--random-state", type=int, default=42, help="随机种子")
+    ml_anomaly_parser.add_argument("--top-n", type=int, default=20, help="输出 Top-N 异常")
+    ml_anomaly_parser.add_argument("--output", type=str, help="输出文件路径(JSON)")
+
+    ml_cluster_parser = subparsers.add_parser("ml-cluster", help="K-Means 聚类")
+    ml_cluster_parser.add_argument("--db", type=str, help="分析库路径")
+    ml_cluster_parser.add_argument("--date", type=str, help="分析日期 (默认最新交易日)")
+    ml_cluster_parser.add_argument("--k", type=int, default=6, help="聚类数")
+    ml_cluster_parser.add_argument("--auto-k", action="store_true", help="按轮廓系数自动选 k")
+    ml_cluster_parser.add_argument("--random-state", type=int, default=42, help="随机种子")
+    ml_cluster_parser.add_argument("--output", type=str, help="输出文件路径(JSON)")
+
+    ml_garch_parser = subparsers.add_parser("ml-garch", help="GARCH(1,1) 波动率建模")
+    ml_garch_parser.add_argument("--db", type=str, help="分析库路径")
+    ml_garch_parser.add_argument("--code", type=str, required=True, help="股票代码 (6位)")
+    ml_garch_parser.add_argument("--window", type=int, default=500, help="回看交易日数")
+    ml_garch_parser.add_argument("--horizon", type=int, default=5, help="预测天数")
+    ml_garch_parser.add_argument(
+        "--dist",
+        type=str,
+        default="normal",
+        choices=["normal", "t", "skewt"],
+        help="收益分布假设",
+    )
+    ml_garch_parser.add_argument("--no-chart", action="store_true", help="不生成图表")
+    ml_garch_parser.add_argument("--output", type=str, help="输出文件路径(JSON)")
+
     args = parser.parse_args()
 
     if args.command == "interactive":
@@ -1493,6 +1571,14 @@ def main():
         run_risk_attribution(args)
     elif args.command == "paper-auto":
         run_paper_auto(args)
+    elif args.command == "ml-gbm":
+        run_ml_gbm(args)
+    elif args.command == "ml-anomaly":
+        run_ml_anomaly(args)
+    elif args.command == "ml-cluster":
+        run_ml_cluster(args)
+    elif args.command == "ml-garch":
+        run_ml_garch(args)
     else:
         parser.print_help()
 

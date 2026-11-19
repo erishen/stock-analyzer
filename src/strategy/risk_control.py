@@ -600,6 +600,45 @@ class PositionSizer:
 
         return min(new_weight, self.position_limit.max_single_position_pct)
 
+    def garch_volatility_targeting(
+        self,
+        weights: dict[str, float],
+        target_volatility: float = 0.15,
+        db_path: Path | None = None,
+        horizon: int = 5,
+        window: int = 300,
+    ) -> dict[str, float]:
+        """基于 GARCH 条件波动率的波动率目标仓位调整。
+
+        对每只持仓拟合 GARCH(1,1) 得未来 horizon 日条件波动率, 按 target/vol 缩放权重,
+        封顶 max_single_position_pct 后归一化。arch 缺失或单股拟合失败时该股保持原权重(不阻断)。
+
+        Args:
+            weights: 原始权重 {code: weight}
+            target_volatility: 目标年化/期波动率(小数)
+            db_path: 分析库路径 (默认项目配置)
+            horizon: GARCH 预测天数
+            window: 回看交易日数
+        """
+        adjusted: dict[str, float] = {}
+        for code, w in weights.items():
+            try:
+                from ml.volatility import GARCHVolatility, load_stock_returns
+
+                returns = load_stock_returns(code, window, db_path)
+                model = GARCHVolatility(horizon=horizon).fit(returns)
+                vol = model.forecast_vol()
+                scale = target_volatility / vol if vol > 0 else 1.0
+                adjusted[code] = min(w * scale, self.position_limit.max_single_position_pct)
+            except Exception:
+                # arch 缺失 / 单股拟合失败: 保留原权重, 不阻断整体仓位管理
+                adjusted[code] = w
+        total = sum(adjusted.values())
+        # 只在超配时向下归一化; 未满仓则保留现金(尊重单票上限, 不因归一化把权重推高)
+        if total > 1:
+            adjusted = {k: v / total for k, v in adjusted.items()}
+        return adjusted
+
 
 def run_signal_backtest(
     db_path: Path,
@@ -637,3 +676,48 @@ def create_position_limit(
         max_single_position_pct=max_single_position_pct,
         max_sector_position_pct=max_sector_position_pct,
     )
+
+
+def garch_volatility_sizing_report(
+    weights: dict[str, float],
+    target_volatility: float = 0.15,
+    db_path: Path | None = None,
+    horizon: int = 5,
+    window: int = 300,
+    max_single_position_pct: float = 0.15,
+) -> dict:
+    """GARCH 波动率目标仓位详情报告（供 Web / CLI 展示）。
+
+    返回 {target_volatility, horizon, details: [{code, weight, forecast_vol_pct,
+    annualized_vol_pct, scale, suggested_weight, error?}]}。单股拟合失败带 error 字段、
+    suggested_weight 沿用原权重；arch 缺失时逐股报错但不抛。
+
+    Args:
+        max_single_position_pct: 单票上限 (与 PositionSizer.position_limit 对齐, 默认 0.15)。
+    """
+    details = []
+    for code, w in weights.items():
+        item: dict = {"code": code, "weight": round(float(w), 4)}
+        try:
+            from ml.volatility import GARCHVolatility, load_stock_returns
+
+            returns = load_stock_returns(code, window, db_path)
+            model = GARCHVolatility(horizon=horizon).fit(returns)
+            vol = model.forecast_vol()
+            scale = target_volatility / vol if vol > 0 else 1.0
+            item["forecast_vol_pct"] = round(vol * 100, 3)
+            item["annualized_vol_pct"] = round(model.annualized_vol() * 100, 2)
+            item["scale"] = round(scale, 3)
+            item["suggested_weight"] = min(float(w) * scale, max_single_position_pct)
+        except Exception as e:
+            item["error"] = f"{type(e).__name__}: {e}"
+            item["suggested_weight"] = float(w)
+        details.append(item)
+
+    # 归一化建议权重
+    total = sum(d.get("suggested_weight", 0.0) for d in details)
+    if total > 0:
+        for d in details:
+            d["suggested_weight"] = round(d["suggested_weight"] / total, 4)
+
+    return {"target_volatility": target_volatility, "horizon_days": horizon, "details": details}

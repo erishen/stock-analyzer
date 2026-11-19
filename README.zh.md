@@ -26,7 +26,8 @@ A 股市场分析工具集 —— 面向日线 K 线的 ETL 数据管道、全�
 - **市场分析** — 大盘择时（牛 / 熊 / 震荡）、市场广度脉搏图、行业轮动
 - **模拟交易** — 模拟持仓：记录仓位，基于 MA/MACD/RSI 的持仓诊断、止损 / 止盈提醒、交易历史
 - **🤖 AI 选股** — 用自然语言提问，系统对真实数据运行只读 Text2SQL 数据管道，并以图表、持仓诊断和动态追问给出回答
-- **Web 界面** — React + Vite + TypeScript 前端，基于 ECharts，共 10 个 Tab，红涨绿跌配色，含术语字典
+- **ML 模型** — LightGBM 横截面排名（选股）、Isolation Forest 异常检测、K-Means 风格聚类、GARCH(1,1) 波动率建模（`src/ml/`，详见 [docs/ML_MODELS.md](docs/ML_MODELS.md)）
+- **Web 界面** — React + Vite + TypeScript 前端，基于 ECharts，共 11 个 Tab，红涨绿跌配色，含术语字典
 
 ## 🚀 快速开始
 
@@ -46,7 +47,7 @@ make dev
 
 ## Web 界面
 
-仪表盘共 10 个 Tab：
+仪表盘共 11 个 Tab：
 
 | Tab | 说明 |
 |-----|------|
@@ -58,6 +59,7 @@ make dev
 | 📊 策略回测 | 回测内置策略，查看资金曲线与风险指标 |
 | 📦 组合分析 | 多策略组合回测、相关性矩阵、权重配置 |
 | 🏭 行业轮动 | 行业强度排名与轮动信号 |
+| 🧠 ML 模型 | LightGBM 排名、Isolation Forest 异常检测、K-Means 聚类、GARCH 波动率 |
 | 📖 术语字典 | A 股 / 指标术语词典，支持搜索 |
 | ⚙️ 设置 | 运行时配置 LLM 模型（保存到 `data/llm_settings.json`） |
 
@@ -98,13 +100,14 @@ stock-analyzer/
 │   ├── paper_portfolio.json    # 模拟交易持仓
 │   └── llm_settings.json       # 运行时 LLM 配置覆盖 (设置 Tab)
 ├── frontend/                   # React + Vite + TS Web 界面
-│   └── src/components/         # 10 个 Tab 面板
+│   └── src/components/         # 11 个 Tab 面板
 ├── output/                     # 报告与图表
 ├── scripts/                    # 策略挖掘 / 参数扫描 / 演示数据脚本
 ├── src/                        # 源代码
 │   ├── agent/                  # Text2SQL: llm、sqlsafety、schema、pipeline、portfolio
 │   ├── data/                   # fetcher、stock_info、资产快照、sync_env
 │   ├── etl/                    # ETL 数据管道
+│   ├── ml/                     # LightGBM 排名、Isolation Forest、K-Means、GARCH
 │   ├── scanner/                # signals、screener、monitor、accuracy
 │   ├── strategy/               # backtest、timing、行业轮动、portfolio、risk
 │   ├── web/                    # FastAPI、api_cache、paper_trading
@@ -115,7 +118,7 @@ stock-analyzer/
 └── README.md
 ```
 
-数据库 Schema（表结构）见 [docs/DATABASE_SCHEMA.md](docs/DATABASE_SCHEMA.md)；数据库本体不随仓库分发。
+数据库 Schema（表结构）见 [docs/DATABASE_SCHEMA.md](docs/DATABASE_SCHEMA.md)；数据库本体不随仓库分发。ML 模型方法论见 [docs/ML_MODELS.md](docs/ML_MODELS.md)。
 
 ## CLI / Make 命令
 
@@ -124,6 +127,12 @@ make etl              # 增量 ETL (计算指标)
 make scan             # 全市场信号扫描
 make backtest / optimize / compare / sector / portfolio   # 策略相关
 make paper-auto       # 策略驱动模拟仓自动交易: 信号 → 次日开盘成交, 自动止损/止盈
+make ml-gbm           # LightGBM 横截面排名模型 (需 uv sync --extra ml)
+make ml-anomaly       # Isolation Forest 异常检测
+make ml-cluster       # K-Means 聚类
+make ml-garch CODE=600000   # GARCH(1,1) 单股波动率建模
+make daily-update     # 每日增量更新 + ML 巡检(异常+聚类) + 钉钉推送
+make daily-update-ml  # 每日更新 + LightGBM 全量训练(较重)
 make dev              # 后端 :8001 + 前端 :3000，热更新，Ctrl+C 同时停止
 make web-build        # 构建前端到 src/web/static (由 FastAPI 托管)
 make web-public       # 构建并在 0.0.0.0 提供服务

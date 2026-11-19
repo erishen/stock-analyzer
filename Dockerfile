@@ -32,7 +32,10 @@ ENV PYTHONUNBUFFERED=1 \
     UV_LINK_MODE=copy \
     UV_COMPILE_BYTECODE=1
 
-RUN pip install --no-cache-dir uv \
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libgomp1 \
+    && rm -rf /var/lib/apt/lists/* \
+    && pip install --no-cache-dir uv \
     && mkdir -p /app/apps/stock-analyzer/{data,output,logs}
 
 WORKDIR /app
@@ -51,7 +54,7 @@ COPY apps/stock-analyzer/scripts/ ./apps/stock-analyzer/scripts/
 COPY apps/stock-analyzer/data_tools/ ./apps/stock-analyzer/data_tools/
 
 WORKDIR /app/apps/stock-analyzer
-RUN uv sync --extra web --no-dev --no-cache
+RUN uv sync --extra web --extra ml --no-dev --no-cache
 
 # 前端静态产物（git 已提交的旧 build 会被此层覆盖为最新）
 COPY --from=frontend /build/src/web/static ./src/web/static

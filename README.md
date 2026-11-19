@@ -26,7 +26,8 @@ This project is a quantitative-research / paper-trading tool for educational and
 - **Market Analysis** — Market timing (bull/bear/range), market breadth pulse charts, sector rotation
 - **Paper Trading** — Simulated portfolio: record positions, get MA/MACD/RSI-based diagnostics, stop-loss/take-profit alerts, and trade history
 - **🤖 AI Stock Picking** — Ask questions in natural language; the system runs a read-only Text2SQL pipeline against real data and answers with charts, portfolio diagnostics, and dynamic follow-up questions
-- **Web UI** — React + Vite + TypeScript frontend with ECharts, 10 tabs, red-up/green-down coloring, and a terminology dictionary
+- **ML Models** — LightGBM cross-sectional ranking (stock picking), Isolation Forest anomaly detection, K-Means style clustering, and GARCH(1,1) volatility modeling (`src/ml/`, see [docs/ML_MODELS.md](docs/ML_MODELS.md))
+- **Web UI** — React + Vite + TypeScript frontend with ECharts, 11 tabs, red-up/green-down coloring, and a terminology dictionary
 
 ## 🚀 Quick Start
 
@@ -46,7 +47,7 @@ make dev
 
 ## Web Interface
 
-The dashboard has 10 tabs:
+The dashboard has 11 tabs:
 
 | Tab | Description |
 |-----|-------------|
@@ -58,6 +59,7 @@ The dashboard has 10 tabs:
 | 📊 Strategy Backtesting | Backtest built-in strategies, view equity curve and risk metrics |
 | 📦 Portfolio Analysis | Multi-strategy portfolio backtesting, correlation matrix, weight allocation |
 | 🏭 Sector Rotation | Sector strength ranking and rotation signals |
+| 🧠 ML Models | LightGBM ranking, Isolation Forest anomaly, K-Means clustering, GARCH volatility |
 | 📖 Glossary | A-share/indicator glossary with search |
 | ⚙️ Settings | Configure the LLM model at runtime (saved to `data/llm_settings.json`) |
 
@@ -122,6 +124,7 @@ stock-analyzer/
 │   ├── agent/                  # Text2SQL: llm, sqlsafety, schema, pipeline, portfolio
 │   ├── data/                   # fetcher, stock_info, asset snapshot, sync_env
 │   ├── etl/                    # ETL pipeline
+│   ├── ml/                     # LightGBM rank, Isolation Forest, K-Means, GARCH
 │   ├── scanner/                # signals, screener, monitor, accuracy
 │   ├── strategy/               # backtest, timing, sector rotation, portfolio, risk
 │   ├── web/                    # FastAPI, api_cache, paper_trading
@@ -132,7 +135,7 @@ stock-analyzer/
 └── README.md
 ```
 
-Database schema (table structures) is documented in [docs/DATABASE_SCHEMA.md](docs/DATABASE_SCHEMA.md); the database files are not distributed with the repo.
+Database schema (table structures) is documented in [docs/DATABASE_SCHEMA.md](docs/DATABASE_SCHEMA.md); the database files are not distributed with the repo. ML model methodology is in [docs/ML_MODELS.md](docs/ML_MODELS.md).
 
 ## CLI / Make Commands
 
@@ -141,6 +144,12 @@ make etl              # incremental ETL (computes indicators)
 make scan             # full-market signal scan
 make backtest / optimize / compare / sector / portfolio   # strategy work
 make paper-auto       # strategy-driven paper trading: signals → next-day-open fills, stops/take-profit
+make ml-gbm           # LightGBM cross-sectional rank model (needs `uv sync --extra ml`)
+make ml-anomaly       # Isolation Forest anomaly detection
+make ml-cluster       # K-Means clustering
+make ml-garch CODE=600000   # GARCH(1,1) volatility model for one stock
+make daily-update     # daily incremental update + ML sweep (anomaly+cluster) + DingTalk push
+make daily-update-ml  # daily update + full LightGBM retrain (heavier)
 make dev              # backend :8001 + frontend :3000 with hot reload, Ctrl+C stops both
 make web-build        # build frontend into src/web/static (served by FastAPI)
 make web-public       # build + serve on 0.0.0.0

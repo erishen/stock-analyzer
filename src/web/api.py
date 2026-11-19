@@ -1493,6 +1493,201 @@ async def get_stock_detail(code: str, limit: int = 120, days: int = 250):
         return JSONResponse(content=StockDetailResponse(success=False, code=code, error=str(e)).to_dict())
 
 
+# ===================== ML 模型接口 (需 uv sync --extra ml) =====================
+
+
+def _ml_error(exc: Exception) -> JSONResponse:
+    logger.warning("ML 接口失败: %s", exc)
+    return JSONResponse(content={"success": False, "error": str(exc)}, status_code=500)
+
+
+@app.get("/api/ml/status")
+async def ml_status():
+    """ML 依赖可用性 (供前端决定是否渲染计算按钮)。"""
+    from ml.common import require_ml
+
+    available = {}
+    for name in ("lightgbm", "sklearn", "arch"):
+        try:
+            require_ml(name)
+            available[name] = True
+        except Exception:
+            available[name] = False
+    return JSONResponse(content={"success": True, "available": available})
+
+
+@app.get("/api/ml/anomaly")
+async def ml_anomaly(refresh: bool = False):
+    """Isolation Forest 异常检测 (最新交易日全市场, 结果缓存)。"""
+    if not db_path.exists():
+        return JSONResponse(content={"success": False, "error": "数据库不存在"})
+    try:
+        from ml import compute_anomaly_report
+
+        def _compute():
+            return compute_anomaly_report(db_path=db_path, top_n=20)
+
+        data = run_cached("ml_anomaly", {}, _compute, force_refresh=refresh)
+        return JSONResponse(content=data)
+    except Exception as e:
+        return _ml_error(e)
+
+
+@app.get("/api/ml/cluster")
+async def ml_cluster(k: int = 6, refresh: bool = False):
+    """K-Means 聚类 (最新交易日全市场, 结果缓存)。"""
+    if not db_path.exists():
+        return JSONResponse(content={"success": False, "error": "数据库不存在"})
+    try:
+        from ml import compute_cluster_report
+
+        k = max(2, min(15, int(k)))
+
+        def _compute():
+            return compute_cluster_report(k=k, db_path=db_path)
+
+        data = run_cached("ml_cluster", {"k": k}, _compute, force_refresh=refresh)
+        return JSONResponse(content=data)
+    except Exception as e:
+        return _ml_error(e)
+
+
+@app.get("/api/ml/garch")
+async def ml_garch(code: str, window: int = 300, horizon: int = 5, dist: str = "normal"):
+    """GARCH(1,1) 单股波动率 (含条件波动率序列, 供前端画图)。"""
+    if not db_path.exists():
+        return JSONResponse(content={"success": False, "error": "数据库不存在"})
+    if dist not in ("normal", "t", "skewt"):
+        dist = "normal"
+    try:
+        from ml import compute_garch_report
+
+        data = compute_garch_report(
+            code,
+            window=max(60, min(3000, int(window))),
+            horizon=max(1, min(30, int(horizon))),
+            dist=dist,
+            db_path=db_path,
+            with_series=True,
+        )
+        return JSONResponse(content=data)
+    except Exception as e:
+        return _ml_error(e)
+
+
+@app.get("/api/ml/gbm")
+async def ml_gbm():
+    """读取最近的 ml-gbm 训练报告 (若有)。
+
+    完整训练需数分钟, 不适合在线请求; 该接口只读最近一次 make ml-gbm 落盘的报告。
+    """
+    reports_dir = PROJECT_ROOT / "output" / "reports"
+    if not reports_dir.exists():
+        return JSONResponse(content={"success": False, "error": "无训练报告 (请先运行 make ml-gbm)"})
+    files = sorted(reports_dir.glob("ml_gbm*.json"), key=lambda p: p.stat().st_mtime, reverse=True)
+    if not files:
+        return JSONResponse(content={"success": False, "error": "无训练报告 (请先运行 make ml-gbm)"})
+    import json as _json
+
+    data = _json.loads(files[0].read_text(encoding="utf-8"))
+    return JSONResponse(content={"success": True, "report": data, "file": files[0].name})
+
+
+# ---- LightGBM 训练任务 (转发宿主执行 + 阶段进度) ----
+# 容器内 FUSE 只读挂载读 4.4GB 分析库 + 8G 内存限制, 全量训练会卡死/被重启;
+# 宿主内存/CPU 充裕且可跑, 故训练转发宿主 web_trigger_server (STOCK_UPDATE_HOST:19090)
+# 执行, 容器只透传状态。复用 /update 的既有"容器按钮 -> 宿主执行"架构。
+_ML_HOST = os.environ.get("STOCK_UPDATE_HOST", "http://host.docker.internal:19090").rstrip("/")
+
+
+def _host_call(method: str, path: str, payload: dict | None = None, timeout: float = 30.0):
+    """调宿主 web_trigger_server, 返回 (ok, body_dict)。"""
+    import urllib.request
+
+    url = f"{_ML_HOST}{path}"
+    data = None
+    headers = {}
+    if payload is not None:
+        import json as _json
+
+        data = _json.dumps(payload).encode("utf-8")
+        headers["Content-Type"] = "application/json"
+    req = urllib.request.Request(url, data=data, headers=headers, method=method)
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            return True, resp.read().decode("utf-8")
+    except Exception as e:
+        return False, str(e)
+
+
+@app.post("/api/ml/gbm/train")
+def submit_ml_gbm_train(payload: dict | None = None):
+    """提交 LightGBM 排名模型训练任务 (转发宿主异步执行, 返回状态)。
+
+    Body (可选): {start_year?, end_year?} 训练窗口。默认 2020~2026 全量;
+    容器内 FUSE 读库慢, 建议用小窗口 (如 2022 起)。
+    """
+    try:
+        from ml.common import require_ml
+
+        require_ml("lightgbm")
+    except Exception as e:
+        return JSONResponse(content={"success": False, "error": str(e)}, status_code=500)
+
+    payload = payload or {}
+    try:
+        start_year = int(payload.get("start_year", 2020) or 2020)
+        end_year = int(payload.get("end_year", 2027) or 2027)
+    except (TypeError, ValueError):
+        return JSONResponse(content={"success": False, "error": "年份参数非法"})
+    if end_year <= start_year or end_year - start_year > 10:
+        return JSONResponse(
+            content={"success": False, "error": f"训练窗口不合法: {start_year}~{end_year} (需 1~10 年)"}
+        )
+
+    ok, body = _host_call("POST", "/ml-gbm", payload, timeout=15)
+    if not ok:
+        return JSONResponse(
+            content={"success": False, "error": f"宿主训练服务不可用 ({_ML_HOST}): {body}"}, status_code=502
+        )
+    try:
+        import json as _json
+
+        data = _json.loads(body)
+    except Exception:
+        data = {"success": False, "error": f"宿主响应解析失败: {body[:200]}"}
+    if not data.get("success"):
+        return JSONResponse(content=data)
+    # 统一返回结构: task_id 占位 (宿主单实例), 前端轮询同 task_id
+    return JSONResponse(
+        content={"success": True, "task_id": "host", "status": "running", "stage": data.get("stage", "排队中...")}
+    )
+
+
+@app.get("/api/ml/gbm/train/status/{task_id}")
+def ml_gbm_train_status(task_id: str):
+    """查询 LightGBM 训练任务状态 (透传宿主 /ml-gbm/status)。"""
+    ok, body = _host_call("GET", "/ml-gbm/status", timeout=15)
+    if not ok:
+        return JSONResponse(
+            content={"success": False, "error": f"宿主训练服务不可用 ({_ML_HOST}): {body}"}, status_code=502
+        )
+    try:
+        import json as _json
+
+        data = _json.loads(body)
+    except Exception:
+        data = {"success": False, "error": f"宿主响应解析失败: {body[:200]}"}
+    data["task_id"] = task_id
+    data["success"] = True
+    # 宿主状态字段对齐前端期望: running/done/error
+    if data.get("status") == "success":
+        data["status"] = "done"
+    elif data.get("status") == "idle":
+        data["status"] = "idle"
+    return JSONResponse(content=data)
+
+
 def get_default_html() -> str:
     """获取默认 HTML"""
     return """

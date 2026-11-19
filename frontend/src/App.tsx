@@ -8,6 +8,7 @@ import { AgentPanel } from '@/components/AgentPanel'
 import { BacktestPanel } from '@/components/BacktestPanel'
 import { PortfolioPanel } from '@/components/PortfolioPanel'
 import { SectorPanel } from '@/components/SectorPanel'
+import { MLPanel } from '@/components/MLPanel'
 import { MarketPanel } from '@/components/MarketPanel'
 import { DictionaryPanel } from '@/components/DictionaryPanel'
 import { StocksPanel } from '@/components/StocksPanel'
@@ -16,7 +17,7 @@ import { api } from '@/services/api'
 import type { Stats } from '@/types'
 
 const STORAGE_KEY = 'stock-analyzer:activeTab'
-const ALL_TABS = ['agent', 'stocks', 'scan', 'paper', 'market', 'backtest', 'portfolio', 'sector', 'dict', 'settings']
+const ALL_TABS = ['agent', 'stocks', 'scan', 'paper', 'market', 'backtest', 'portfolio', 'sector', 'ml', 'dict', 'settings']
 
 const App: FC = () => {
   const [activeTab, setActiveTab] = useState<string>(() => {
@@ -90,6 +91,7 @@ const App: FC = () => {
     { id: 'backtest', node: <BacktestPanel /> },
     { id: 'portfolio', node: <PortfolioPanel /> },
     { id: 'sector', node: <SectorPanel /> },
+    { id: 'ml', node: <MLPanel /> },
     { id: 'dict', node: <DictionaryPanel /> },
     { id: 'settings', node: <SettingsPanel /> },
   ]

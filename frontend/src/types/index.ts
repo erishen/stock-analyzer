@@ -457,3 +457,97 @@ export interface LLMSettings {
   disabled?: boolean
   detail?: { disabled?: boolean; message?: string }
 }
+
+// ---------------- ML 模型 ----------------
+
+export interface MLStatus {
+  success: boolean
+  available: { lightgbm: boolean; sklearn: boolean; arch: boolean }
+}
+
+export interface MLAnomalyItem {
+  code: string
+  name: string
+  severity: number
+  anomaly_score: number
+  change_percent: number
+  amplitude: number
+  turnover_rate: number
+}
+
+export interface MLAnomalyResult {
+  success: boolean
+  date: string
+  total_stocks: number
+  n_anomalies: number
+  contamination: number
+  top_anomalies: MLAnomalyItem[]
+  error: string
+}
+
+export interface MLClusterItem {
+  cluster: number
+  size: number
+  share_pct: number
+  avg_change_pct: number
+  profile_zscore: Record<string, number>
+  top_stocks: { code: string; name: string; change_percent: number }[]
+}
+
+export interface MLClusterResult {
+  success: boolean
+  date: string
+  n_clusters: number
+  silhouette: number | null
+  n_stocks: number
+  clusters: MLClusterItem[]
+  error: string
+}
+
+export interface MLGarchSummary {
+  params: { omega: number; alpha: number; beta: number; persistence: number }
+  dist: string
+  horizon_days: number
+  current_conditional_vol_pct: number
+  forecast_vol_pct: number
+  annualized_vol_pct: number
+  realized_vol_30d_pct: number
+  aic: number
+  bic: number
+}
+
+export interface MLGarchResult {
+  success: boolean
+  code: string
+  window_days: number
+  summary: MLGarchSummary
+  series?: { dates: string[]; conditional_vol_pct: number[]; log_return: number[] }
+  error: string
+}
+
+export interface MLGBMResult {
+  success: boolean
+  file?: string
+  report?: {
+    rankic?: { mean_ic: number; icir: number; t_stat: number; positive_rate: number; n_days: number }
+    decile?: { decile_mean_fwd_pct?: Record<string, number>; monotonic?: boolean }
+    backtest?: {
+      ml_topn?: { total_return_pct: number; final_capital: number; periods: number }
+      random_n?: { total_return_pct: number }
+      equal_weight?: { total_return_pct: number }
+    }
+    feature_importance_top15?: [string, number][]
+  }
+  error: string
+}
+
+export interface MLGBMTrainTask {
+  success: boolean
+  task_id?: string
+  status: string
+  stage: string
+  progress: number
+  total: number
+  error?: string
+  result?: MLGBMResult['report']
+}

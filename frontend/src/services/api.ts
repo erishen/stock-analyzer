@@ -1,4 +1,4 @@
-import type { Stats, ScanResult, ScreenerFieldsResult, AssetSnapshotResult, AssetRefreshResult, ScreenerResult, ScreenerCondition, BacktestResult, OptimizeTask, PortfolioResult, SectorResult, MarketTimingResult, MarketHistory, StocksPageResult, StockDetail, UpdateStatus, UpdateStartResult, PaperResult, PaperAutoResult, PaperClearResult, AgentChatResult, LLMSettings } from '@/types'
+import type { Stats, ScanResult, ScreenerFieldsResult, AssetSnapshotResult, AssetRefreshResult, ScreenerResult, ScreenerCondition, BacktestResult, OptimizeTask, PortfolioResult, SectorResult, MarketTimingResult, MarketHistory, StocksPageResult, StockDetail, UpdateStatus, UpdateStartResult, PaperResult, PaperAutoResult, PaperClearResult, AgentChatResult, LLMSettings, MLStatus, MLAnomalyResult, MLClusterResult, MLGarchResult, MLGBMResult, MLGBMTrainTask } from '@/types'
 
 const API_BASE = '/api'
 
@@ -253,4 +253,31 @@ export const api = {
     }),
 
   resetLLMSettings: () => fetchAPI<LLMSettings>('/agent/settings/reset', { method: 'POST' }),
+
+  getMLStatus: () => fetchAPI<MLStatus>('/ml/status'),
+
+  getMLAnomaly: (refresh = false) => {
+    const qs = refresh ? '?refresh=true' : ''
+    return fetchAPI<MLAnomalyResult>(`/ml/anomaly${qs}`)
+  },
+
+  getMLCluster: (k = 6, refresh = false) => {
+    const qs = new URLSearchParams({ k: String(k) })
+    if (refresh) qs.set('refresh', 'true')
+    return fetchAPI<MLClusterResult>(`/ml/cluster?${qs.toString()}`)
+  },
+
+  getMLGarch: (code: string, window = 300, horizon = 5) =>
+    fetchAPI<MLGarchResult>(`/ml/garch?code=${encodeURIComponent(code)}&window=${window}&horizon=${horizon}`),
+
+  getMLGBM: () => fetchAPI<MLGBMResult>('/ml/gbm'),
+
+  trainMLGBM: (startYear: number, endYear: number) =>
+    fetchAPI<MLGBMTrainTask>('/ml/gbm/train', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ start_year: startYear, end_year: endYear }),
+    }),
+
+  getMLGBMTrainStatus: (taskId: string) => fetchAPI<MLGBMTrainTask>(`/ml/gbm/train/status/${taskId}`),
 }

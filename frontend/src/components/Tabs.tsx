@@ -14,6 +14,7 @@ const tabs = [
   { id: 'backtest', label: '📊 策略回测' },
   { id: 'portfolio', label: '📦 组合分析' },
   { id: 'sector', label: '🏭 行业轮动' },
+  { id: 'ml', label: '🧠 ML 模型' },
   { id: 'dict', label: '📖 术语字典' },
   { id: 'settings', label: '⚙️ 设置' },
 ]
