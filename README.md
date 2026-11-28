@@ -16,6 +16,12 @@ This project is a quantitative-research / paper-trading tool for educational and
 - Backtests are built on historical data and are subject to overfitting and survivorship bias; past performance does not guarantee future results
 - Stock market investment carries risk; never rely on this tool for actual trading decisions. The author is not responsible for any losses
 
+### Privacy: what leaves your machine
+
+- Everything is **local by default**: market data, paper portfolio, backtests and models live in `data/`; the databases are gitignored and never uploaded
+- The only outbound path is the **AI stock-picking / agent chat** tab: your question text (plus the auto-attached market context) is sent to whatever `LLM_BASE_URL` in `.env` points at, which may be a foreign provider. Skip that tab and nothing leaves the machine
+- "Fetch latest data" only calls the market data feeds from local scripts; no private data is uploaded
+
 ## ✨ Features
 
 - **ETL Pipeline** — Ingest raw daily K-line data and compute 51 technical indicators with a true incremental window (only recent rows are recomputed, ~6x less writes)
@@ -44,6 +50,27 @@ make dev
 ```
 
 > For the **AI tab**, configure the LLM in `.env` (see [LLM Configuration](#llm-configuration)). Without credentials the other tabs still work.
+
+## 🐳 Docker
+
+Two modes depending on your repository layout:
+
+| Layout | Files | Build context |
+|---|---|---|
+| monorepo (root has `pyproject.toml` / `uv.lock` / `libs/`) | `docker-compose.yml` + `Dockerfile` | `../..` |
+| **this repo cloned alone** | `docker-compose.standalone.yml` + `Dockerfile.standalone` | `.` (repo root) |
+
+```bash
+cp .env.example .env                 # optional; without it there is just no LLM
+# put stock_analysis.db / stock_klines.db under ./data/
+docker compose -f docker-compose.standalone.yml up -d --build
+# → http://127.0.0.1:18001
+```
+
+Two caveats:
+
+- `data_tools/` (fetching / ETL helpers) is **not distributed**; the standalone image only carries a placeholder README, so there is no "fetch latest data" capability. Missing modules degrade to a "not ready" response, everything else works
+- The default compose files are tuned for **private, local-only** deployment (auth off, update endpoints on). Before exposing it publicly, change `WEB_CHAT_TOKEN`, `AGENT_CHAT_PUBLIC`, `SETTINGS_REMOTE_ALLOW`, `WEB_ENABLE_UPDATE` per the ⚠️ block at the top of `docker-compose.yml`, and keep the `127.0.0.1:` port binding
 
 ## Web Interface
 
@@ -175,5 +202,8 @@ make test             # run the full pytest suite
 - [51 Indicators × 5000 Stocks: Engineering Practices for Full-Market Technical Scanning](https://erishen.cn/stock_analyzer-en/)
 
 ## License
+
+MIT (see [LICENSE](LICENSE)). Third-party dependency licenses: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
 
 MIT

@@ -68,6 +68,8 @@ data/*.bak_*
 
 
 # Local-only data tooling (fetch/backfill/cron helpers) — NEVER pushed to GitHub
+# 该目录本身是个独立 git 仓库, 父仓库无法在里面放占位文件;
+# 公开克隆请用 Dockerfile.standalone（不 COPY 这一层）
 data_tools/
 
 # Coverage

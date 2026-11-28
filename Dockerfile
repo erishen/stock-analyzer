@@ -50,7 +50,8 @@ COPY apps/stock-analyzer/src/ ./apps/stock-analyzer/src/
 COPY apps/stock-analyzer/investkit_utils/ ./apps/stock-analyzer/investkit_utils/
 COPY apps/stock-analyzer/scripts/ ./apps/stock-analyzer/scripts/
 # data_tools（拉取/ETL 后台任务，供 WEB_ENABLE_UPDATE=1 时页面「拉取最新数据」按钮调用；
-# 仅进本地镜像，仍不随公开 GitHub 仓库分发）
+# 仅进本地镜像，不随公开 GitHub 仓库分发。这一层只对 monorepo/本地构建有效，
+# 单独克隆本仓库请改用 Dockerfile.standalone（不 COPY 此目录）。
 COPY apps/stock-analyzer/data_tools/ ./apps/stock-analyzer/data_tools/
 
 WORKDIR /app/apps/stock-analyzer

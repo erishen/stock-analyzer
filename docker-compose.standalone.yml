@@ -1,0 +1,47 @@
+# ============================================================
+# Stock Analyzer — standalone compose（单仓库克隆即可用）
+#
+#   docker compose -f docker-compose.standalone.yml up -d --build
+#
+# 与 docker-compose.yml 的区别:
+#   - 构建上下文是本仓库根（不是 monorepo 的 ../..），不需要根目录 pyproject/uv.lock
+#   - 不启用 WEB_ENABLE_UPDATE（没有 data_tools 抓取模块），只读现有数据
+#   - 默认**不**开放免鉴权：没有 WEB_CHAT_TOKEN 时，非本机请求一律拒绝
+# 数据目录 ./data 需自己准备（stock_analysis.db / stock_klines.db 等），不进镜像也不入库。
+# 首次运行: cp .env.example .env
+# ============================================================
+
+services:
+  stock-analyzer:
+    build:
+      context: .
+      dockerfile: Dockerfile.standalone
+    image: stock-analyzer:standalone
+    container_name: stock-analyzer-standalone
+    init: true
+
+    # 先 cp .env.example .env（不填也能起，只是没有 LLM 能力）
+    env_file:
+      - .env
+    environment:
+      - TZ=Asia/Shanghai
+      - STOCK_ANALYSIS_DB_PATH=/app/data/stock_analysis.db
+      - STOCK_KLINES_DB_PATH=/app/data/stock_klines.db
+      - INVESTKIT_DB_PATH=/app/data
+      # 只读部署：不给抓取/更新入口（镜像里没有 data_tools 抓取模块）
+      - WEB_ENABLE_UPDATE=0
+
+    volumes:
+      - ./data:/app/data:ro
+      - ./output:/app/output
+
+    ports:
+      # 只绑本机回环，局域网/公网都进不来
+      - "127.0.0.1:${STOCK_ANALYZER_PORT:-18001}:8001"
+
+    deploy:
+      resources:
+        limits:
+          cpus: "4"
+          memory: 8G
+    restart: unless-stopped

@@ -1,0 +1,27 @@
+# 构建上下文排除项（standalone 镜像用，避免把 4.5G 数据目录塞进构建缓存）
+data/
+output/
+logs/
+*.db
+*.db-shm
+*.db-wal
+*.db-journal
+
+.venv/
+.git/
+node_modules/
+frontend/node_modules/
+frontend/dist/
+
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+
+.env
+.env.*
+!.env.example
+data_tools/*
+!data_tools/README.md

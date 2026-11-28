@@ -16,6 +16,14 @@ A 股市场分析工具集 —— 面向日线 K 线的 ETL 数据管道、全�
 - 回测基于历史数据，存在过拟合与幸存者偏差风险，历史表现不代表未来结果
 - 股市有风险，投资需谨慎，请勿将本工具用于实际投资决策；作者不对使用本工具造成的任何损失负责
 
+### 隐私说明（数据会不会离开本机）
+
+- 默认**全本地**：行情、持仓、回测、模型都在本机 `data/` 下，数据库不进仓库、也不上传
+- 唯一的外发路径是 **AI 选股 / Agent 对话**：你的问题文本（含自动附带的选股上下文）会发到
+  `.env` 里 `LLM_BASE_URL` 指向的服务，可能是境外厂商。不用这个 Tab 就不会外发
+- 页面「设置」里改了 LLM 地址后，同样按该地址外发；`data/llm_settings.json` 只存本机
+- 「拉取最新数据」只在本地脚本里请求行情源，不上传任何自有数据
+
 ## ✨ 功能特点
 
 - **ETL 数据管道** — 摄取原始日线 K 线数据并计算 51 个技术指标，采用真正的增量窗口（只重算近期数据，写入量减少约 6 倍）
@@ -44,6 +52,31 @@ make dev
 ```
 
 > 使用 **AI 选股** Tab 需在 `.env` 中配置 LLM（见 [LLM 配置](#llm-配置)）。未配置凭据时，其他 Tab 仍可正常使用。
+
+## 🐳 Docker 部署
+
+两种模式，按你的仓库布局选一种：
+
+| 场景 | 文件 | 构建上下文 |
+|---|---|---|
+| monorepo（根目录有 `pyproject.toml` / `uv.lock` / `libs/`） | `docker-compose.yml` + `Dockerfile` | `../..` |
+| **单独克隆本仓库** | `docker-compose.standalone.yml` + `Dockerfile.standalone` | `.`（本仓库根） |
+
+```bash
+# 单仓库部署（公开克隆即可用）
+cp .env.example .env          # 不填也能起，只是没有 LLM 能力
+# 把 stock_analysis.db / stock_klines.db 放进 ./data/
+docker compose -f docker-compose.standalone.yml up -d --build
+# → http://127.0.0.1:18001
+```
+
+两点必须知道：
+
+- `data_tools/`（行情抓取/ETL）**不随公开仓库分发**，standalone 镜像里只有占位 README，
+  因此没有「拉取最新数据」能力；缺少模块时相关端点返回"未就绪"，其余功能正常
+- 默认 compose 是**本机私有部署**配置（免鉴权 + 开放更新入口）。要放到公网/反代后面，
+  先按 `docker-compose.yml` 顶部的 ⚠️ 清单改掉 `WEB_CHAT_TOKEN`、`AGENT_CHAT_PUBLIC`、
+  `SETTINGS_REMOTE_ALLOW`、`WEB_ENABLE_UPDATE` 四项，并保持 `127.0.0.1:` 端口绑定
 
 ## Web 界面
 
@@ -159,5 +192,8 @@ make test             # 运行完整 pytest 测试套件
 - [51个指标 × 5000只股票：全市场技术扫描的工程实践](https://erishen.cn/stock_analyzer/)
 
 ## License
+
+MIT（见 [LICENSE](LICENSE)）。第三方依赖的许可证见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
+
 
 MIT
