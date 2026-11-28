@@ -125,18 +125,10 @@ class MarketTiming:
             effective = up_count + down_count
             breadth = up_count / effective if effective > 0 else 0
 
-            cursor = conn.execute(
-                """
-                SELECT date, AVG(change_percent) as avg_change
-                FROM stock_analysis
-                WHERE date <= ?
-                GROUP BY date
-                ORDER BY date DESC
-                LIMIT 30
-            """,
-                (date,),
-            )
-            market_returns = pd.DataFrame(cursor.fetchall(), columns=["date", "avg_change"])
+            # 30 日市场日均涨跌幅序列(波动率/趋势用)。旧写法 `GROUP BY date LIMIT 30`
+            # 没有下界, 每次把 700 万行全表聚合一遍(实测 4.4s); 优先读 ETL 维护的
+            # market_daily 窄表, 表未构建时退回带下界的旧查询。
+            market_returns = _market_return_series(conn, date)
 
         volatility = 0
         if len(market_returns) > 1:
@@ -284,6 +276,34 @@ def print_market_timing(indicator: MarketIndicator):
         logger.info("   建议仓位: 30-50%")
     else:
         logger.info("   建议仓位: 0-20% 或空仓")
+
+
+def _market_return_series(conn, date: str) -> pd.DataFrame:
+    """近 30 个交易日的市场日均涨跌幅序列(优先读 market_daily)。"""
+    try:
+        rows = conn.execute(
+            "SELECT date, avg_change FROM market_daily WHERE date <= ? ORDER BY date DESC LIMIT 30",
+            (date,),
+        ).fetchall()
+        if rows:
+            return pd.DataFrame(rows, columns=["date", "avg_change"])
+    except sqlite3.Error:
+        pass  # 汇总表尚未构建 -> 旧查询兜底
+    rows = conn.execute(
+        """
+        SELECT date, AVG(change_percent) as avg_change
+        FROM stock_analysis
+        WHERE date <= ? AND date >= (
+            SELECT MIN(date) FROM (
+                SELECT DISTINCT date FROM stock_analysis WHERE date <= ? ORDER BY date DESC LIMIT 30
+            )
+        )
+        GROUP BY date
+        ORDER BY date DESC
+        """,
+        (date, date),
+    ).fetchall()
+    return pd.DataFrame(rows, columns=["date", "avg_change"])
 
 
 def run_market_timing(db_path: Path | None = None) -> MarketIndicator:

@@ -610,6 +610,16 @@ class ETLPipeline:
 
         result.duration_seconds = (datetime.now() - start_time).total_seconds()
 
+        # 维护大盘汇总窄表(market_daily): /api/market/history 与择时都靠它,
+        # 否则每次请求都要从 700 万行的 stock_analysis 现算(9~12s)。
+        # 增量只重算最近 40 个交易日; 失败不影响 ETL 主流程。
+        try:
+            from data.market_summary import refresh_market_summary
+
+            refresh_market_summary(Path(self.config.target_db), days=40)
+        except Exception as e:  # 汇总表坏了大不了让 Web 端退回慢查询
+            logger.warning(f"   ⚠️ market_daily 刷新失败: {e}")
+
         logger.info(f"\n{'=' * 60}")
         logger.info("✅ ETL Pipeline 执行完成")
         logger.info(f"   处理股票: {result.stocks_processed}")

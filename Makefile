@@ -1,4 +1,4 @@
-.PHONY: help install deps sync-env fetch fetch-sample etl scan visualize analyze accuracy score monitor trade-report export market-timing compare sector sector-validate portfolio portfolio-sharpe web dev web-dev web-build web-public backtest backtest-momentum backtest-reversion backtest-trend backtest-multifactor backtest-optimized backtest-viz backtest-full backtest-benchmark optimize optimize-momentum optimize-reversion db-optimize stats test test-cov lint format clean docker-build docker-up docker-down docker-logs docker-restart docker-ps daily-update daily-update-ml daily-update-backfill backfill-etl data-refresh data-refresh-backfill push-report push-paper check-stale check-coverage check-gaps fill-gaps build-factors ml-gbm ml-anomaly ml-cluster ml-garch
+.PHONY: help install deps sync-env fetch fetch-sample etl scan visualize analyze accuracy score monitor trade-report export market-timing compare sector sector-validate portfolio portfolio-sharpe web dev web-dev web-build web-public backtest backtest-momentum backtest-reversion backtest-trend backtest-multifactor backtest-optimized backtest-viz backtest-full backtest-benchmark optimize optimize-momentum optimize-reversion db-optimize stats test test-cov lint format clean docker-build docker-up docker-down docker-logs docker-restart docker-ps daily-update daily-update-ml daily-update-backfill backfill-etl data-refresh data-refresh-backfill push-report push-paper check-stale check-coverage check-gaps fill-gaps build-factors market-summary ml-gbm ml-anomaly ml-cluster ml-garch
 
 help:
 	@echo "Stock Analyzer - 股票数据分析工具"
@@ -51,6 +51,7 @@ help:
 	@echo "  check-gaps      逐票历史空洞体检 (某只票中间成片缺交易日, 单日校验看不出来)"
 	@echo "  fill-gaps       体检并补拉历史空洞, 补到的票全量重跑 ETL"
 	@echo "  build-factors   构建比例复权因子表 (原始价+分红送转, 源端 qfq 不能用)"
+	@echo "  market-summary  全量重建大盘汇总表 market_daily (ETL 每日自动增量维护)"
 	@echo "  backtest    策略回测 (默认)"
 	@echo "  backtest-momentum   动量策略回测"
 	@echo "  backtest-reversion  均值回归策略回测"
@@ -170,6 +171,10 @@ fill-gaps:
 build-factors:
 	@echo "比例复权因子: 从分红送转事件自建 data/stock_adjust_factors.db (长周期回测用)"
 	uv run python scripts/build_adjust_factors.py
+
+market-summary:
+	@echo "大盘汇总: 全量重建 stock_analysis 里的 market_daily (约 90s, 日常由 ETL 增量维护)"
+	uv run python -c "import sys; sys.path.insert(0, 'src'); from data.market_summary import refresh_market_summary; print('rows', refresh_market_summary('data/stock_analysis.db'))"
 
 etl-codes:
 	@read -p "输入股票代码(逗号分隔): " codes; \

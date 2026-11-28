@@ -1057,6 +1057,57 @@ async def market_history(days: int = 90):
     def _compute():
         import pandas as pd
 
+        # 延迟导入: api 既被 `src.web.api` 也被 `web.api`(测试) 两种方式加载,
+        # 顶层相对导入 `..data` 在后者会越界。
+        from data import market_summary
+
+        with sqlite3.connect(str(db_path)) as conn:
+            if market_summary.table_ready(db_path):
+                # 快路径: 读 ETL 维护的 market_daily(1,430 行窄表), 毫秒级。
+                # 多取 20 行用于算 20 日波动率, 再切回请求的窗口。
+                rows = conn.execute(
+                    """
+                    SELECT date, avg_close, avg_ma5, avg_ma20, avg_change, avg_rsi, breadth
+                    FROM market_daily ORDER BY date DESC LIMIT ?
+                    """,
+                    (days + 20,),
+                ).fetchall()[::-1]
+            else:
+                rows = []
+
+        if not rows:
+            return _market_history_slow(days)
+
+        changes_all = [r[4] for r in rows]
+        s = pd.Series(changes_all)
+        rolling = s.rolling(20).std()
+        rows = rows[-days:]
+        vol = []
+        for i in range(len(rows)):
+            idx_all = len(changes_all) - len(rows) + i
+            v = rolling.iloc[idx_all]
+            vol.append(None if pd.isna(v) else float(v))
+
+        dates = [r[0] for r in rows]
+        return MarketHistoryResponse(
+            success=True,
+            days=len(dates),
+            start_date=dates[0],
+            end_date=dates[-1],
+            dates=dates,
+            avg_close=[round(r[1], 2) if r[1] is not None else None for r in rows],
+            avg_ma5=[round(r[2], 2) if r[2] is not None else None for r in rows],
+            avg_ma20=[round(r[3], 2) if r[3] is not None else None for r in rows],
+            avg_change=[round(r[4], 2) if r[4] is not None else None for r in rows],
+            avg_rsi=[round(r[5], 2) if r[5] is not None else None for r in rows],
+            breadth=[round(r[6] * 100, 2) if r[6] is not None else None for r in rows],
+            volatility=[round(v, 4) if v is not None else None for v in vol],
+        ).to_dict()
+
+    def _market_history_slow(days: int):
+
+        import pandas as pd
+
         with sqlite3.connect(str(db_path)) as conn:
             # 最近 days 个交易日
             trade_dates = [
@@ -1092,7 +1143,9 @@ async def market_history(days: int = 90):
         ma20s = [r[3] for r in rows]
         changes = [r[4] for r in rows]
         rsis = [r[5] for r in rows]
-        breadths = [(r[6] or 0) * 100 for r in rows]
+        # 广度 = 上涨家数 / 有涨跌家数。全天全平盘(或当日无有效涨跌幅)时分母为 NULL,
+        # 此时给 None 让前端断线, 而不是画成 0% —— "0% 上涨"是一个误导性结论。
+        breadths = [(r[6] * 100) if r[6] is not None else None for r in rows]
 
         # 波动率 = 近20个交易日 日均涨跌幅(%) 的滚动标准差
         vol = [None] * len(changes)

@@ -4,7 +4,7 @@
 数据每日更新, 这里按「接口 + 请求参数哈希 + 数据最新日期」落盘缓存:
   - 首次请求: 真计算, 结果写入 data/cache/{key}.json
   - 之后同参数请求: 直接读缓存瞬显
-  - 数据更新 (分析库 MAX(date) 变化): key 自动变化, 重新计算
+  - 数据更新 (分析库 MAX(date) 变化 或 文件被重写): key 自动变化, 重新计算
   - 提供 refresh 参数强制重算
 """
 
@@ -21,7 +21,6 @@ logger = logging.getLogger(__name__)
 
 # 分析库最新日期 -> 缓存 key 的一部分 (数据更新后自动失效)
 _DB_PATH = None
-_latest_date_cache: tuple[str, str] | None = None  # (db_path, date)
 
 # 缓存文件保留天数(按最后修改时间), 旧于该天数的启动时清理避免无限膨胀
 CACHE_KEEP_DAYS = 14
@@ -57,18 +56,31 @@ def clean_old_caches(keep_days: int = CACHE_KEEP_DAYS) -> int:
 
 
 def _get_latest_date() -> str:
-    global _latest_date_cache
-    if _latest_date_cache and _latest_date_cache[0] == str(_DB_PATH):
-        return _latest_date_cache[1]
-    date = ""
+    """分析库最新交易日。
+
+    不进程内缓存: MAX(date) 走 idx_analysis_date, 实测 0.00s; 一旦缓存住,
+    常驻的 Web 进程在每日更新后仍会一直用旧 key, 等于永远吃旧缓存。
+    """
     try:
         with sqlite3.connect(str(_DB_PATH)) as conn:
             row = conn.execute("SELECT MAX(date) FROM stock_analysis").fetchone()
-            date = row[0] or ""
+            return row[0] or ""
     except Exception:
-        date = ""
-    _latest_date_cache = (str(_DB_PATH), date)
-    return date
+        return ""
+
+
+def _data_version() -> str:
+    """缓存版本戳 = 最新交易日 + 分析库 mtime。
+
+    只看日期不够: 历史数据被重算(补空洞/修正复权口径)时 MAX(date) 不变, 但库文件
+    一定被重写。曾经因此复用了一份在重建进行中写入的半成品结果
+    (sector 接口返回 2024-01-02 / 只有 1 个行业, 实际数据已到 2026-11-27)。
+    """
+    try:
+        mtime = int(Path(_DB_PATH).stat().st_mtime) if _DB_PATH else 0
+    except OSError:
+        mtime = 0
+    return f"{_get_latest_date()}_{mtime}"
 
 
 def cache_dir() -> Path:
@@ -78,11 +90,11 @@ def cache_dir() -> Path:
 
 
 def make_key(endpoint: str, params: dict[str, Any]) -> str:
-    """生成缓存文件名: {endpoint}_{datelatest}_{params_hash}.json"""
+    """生成缓存文件名: {endpoint}_{数据版本}_{params_hash}.json"""
     params_hash = hashlib.md5(json.dumps(params, sort_keys=True, ensure_ascii=False, default=str).encode()).hexdigest()[
         :12
     ]
-    return f"{endpoint}_{_get_latest_date()}_{params_hash}"
+    return f"{endpoint}_{_data_version()}_{params_hash}"
 
 
 def run_cached(
