@@ -570,3 +570,26 @@ export interface MLGBMTrainTask {
   error?: string
   result?: MLGBMResult['report']
 }
+
+// ---------------- 方法论 ----------------
+
+export interface MethodologyItem {
+  name: string
+  what: string
+  how: string
+  limits: string
+}
+
+export interface MethodologySection {
+  id: string
+  title: string
+  summary: string
+  items: MethodologyItem[]
+}
+
+export interface MethodologyResult {
+  success: boolean
+  updated_at: string
+  disclaimer: string
+  sections: MethodologySection[]
+}

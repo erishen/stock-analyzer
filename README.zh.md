@@ -27,7 +27,7 @@ A 股市场分析工具集 —— 面向日线 K 线的 ETL 数据管道、全�
 - **模拟交易** — 模拟持仓：记录仓位，基于 MA/MACD/RSI 的持仓诊断、止损 / 止盈提醒、交易历史
 - **🤖 AI 选股** — 用自然语言提问，系统对真实数据运行只读 Text2SQL 数据管道，并以图表、持仓诊断和动态追问给出回答
 - **ML 模型** — LightGBM 横截面排名（选股）、Isolation Forest 异常检测、K-Means 风格聚类、GARCH(1,1) 波动率建模（`src/ml/`，详见 [docs/ML_MODELS.md](docs/ML_MODELS.md)）
-- **Web 界面** — React + Vite + TypeScript 前端，基于 ECharts，共 11 个 Tab，红涨绿跌配色，含术语字典
+- **Web 界面** — React + Vite + TypeScript 前端，基于 ECharts，共 12 个 Tab，红涨绿跌配色，含术语字典与方法论说明
 
 ## 🚀 快速开始
 
@@ -47,7 +47,7 @@ make dev
 
 ## Web 界面
 
-仪表盘共 11 个 Tab：
+仪表盘共 12 个 Tab：
 
 | Tab | 说明 |
 |-----|------|
@@ -60,7 +60,8 @@ make dev
 | 📦 组合分析 | 多策略组合回测、相关性矩阵、权重配置 |
 | 🏭 行业轮动 | 行业强度排名与轮动信号 |
 | 🧠 ML 模型 | LightGBM 排名、Isolation Forest 异常检测、K-Means 聚类、GARCH 波动率 |
-| 📖 术语字典 | A 股 / 指标术语词典，支持搜索 |
+| 📖 术语字典 | A 股 / 指标术语词典（含算法与口径分类），支持搜索 |
+| 📐 方法论 | 各算法做什么 / 怎么算 / 近似口径 / 未建模项，内容源 `src/web/methodology.py`，接口 `/api/methodology` |
 | ⚙️ 设置 | 运行时配置 LLM 模型（保存到 `data/llm_settings.json`） |
 
 ### LLM 配置
@@ -110,7 +111,7 @@ stock-analyzer/
 │   ├── paper_portfolio.json    # 模拟交易持仓
 │   └── llm_settings.json       # 运行时 LLM 配置覆盖 (设置 Tab)
 ├── frontend/                   # React + Vite + TS Web 界面
-│   └── src/components/         # 11 个 Tab 面板
+│   └── src/components/         # 12 个 Tab 面板
 ├── output/                     # 报告与图表
 ├── scripts/                    # 策略挖掘 / 参数扫描 / 演示数据脚本
 ├── src/                        # 源代码

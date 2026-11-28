@@ -16,6 +16,7 @@ const tabs = [
   { id: 'sector', label: '🏭 行业轮动' },
   { id: 'ml', label: '🧠 ML 模型' },
   { id: 'dict', label: '📖 术语字典' },
+  { id: 'methodology', label: '📐 方法论' },
   { id: 'settings', label: '⚙️ 设置' },
 ]
 

@@ -273,6 +273,12 @@
   该段是整体下行 + 高波动 regime, 选出的高动量票回撤更深。
   另: 单特征基线在同一窗口 `turnover_rate` 的 20 日 rankIC 就有 +0.296,
   说明 0.15 的截面 IC 有相当一部分来自数据区间本身的相关性, 不宜当作可持续 alpha。
+- [x] **方法论页 (Web「📐 方法论」Tab)**: 新增 `src/web/methodology.py`(静态内容源)+
+  `GET /api/methodology` + `frontend/src/components/MethodologyPanel.tsx`, 按「选股打分 /
+  回测 / ML / 标的池」四块写清每个算法做什么・怎么算・近似口径・未建模项, 并挂统一免责声明。
+  术语字典新增「算法与口径」分类(RankIC / ICIR / embargo / bootstrap / 前视偏差 /
+  幸存者偏差 / PIT 标的池 / 滑点 / 基准同成本 / 成本敏感性 / 扫描漏斗 / 未建模项)。
+  页面的内容与代码同源(改口径就改同一个模块), 测试断言每个算法都必须带 `limits` 字段。
 - [x] **PIT 标的池 + 幸存者偏差量化**: 新增 `src/data/universe.py`
   (`make universe`/`python -m src.main universe`), 把每只标的的 `first_date`/`last_date`
   落成 `code_lifecycle` 窄表, 之后按日期取标的池走 `universe_as_of(date)` 而不是

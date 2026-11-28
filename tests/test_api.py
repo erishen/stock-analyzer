@@ -362,3 +362,21 @@ class TestMLAPI:
         resp2 = client.post("/api/ml/gbm/train", json={"start_year": 2020, "end_year": 2035})
         assert resp2.status_code == 200
         assert resp2.json()["success"] is False
+
+
+def test_methodology_endpoint_shape(client):
+    """方法论页: 四个分区齐全, 每个算法都带"局限"字段(页面不能只写优点)。"""
+    resp = client.get("/api/methodology")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["success"] is True
+    assert data["updated_at"]
+    assert "不是投资建议" in data["disclaimer"]  # 页面必须自带"不是投资建议"声明
+    ids = [s["id"] for s in data["sections"]]
+    assert ids == ["scan", "backtest", "ml", "universe"]
+    for section in data["sections"]:
+        assert section["title"] and section["summary"]
+        assert section["items"], f"{section['id']} 至少要有一条算法说明"
+        for item in section["items"]:
+            for key in ("name", "what", "how", "limits"):
+                assert item[key], f"{section['id']}/{item.get('name')} 缺 {key}"

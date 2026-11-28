@@ -11,6 +11,7 @@ import { SectorPanel } from '@/components/SectorPanel'
 import { MLPanel } from '@/components/MLPanel'
 import { MarketPanel } from '@/components/MarketPanel'
 import { DictionaryPanel } from '@/components/DictionaryPanel'
+import { MethodologyPanel } from '@/components/MethodologyPanel'
 import { StocksPanel } from '@/components/StocksPanel'
 import { SettingsPanel } from '@/components/SettingsPanel'
 import { api } from '@/services/api'
@@ -96,6 +97,7 @@ const App: FC = () => {
     { id: 'sector', node: <SectorPanel /> },
     { id: 'ml', node: <MLPanel /> },
     { id: 'dict', node: <DictionaryPanel /> },
+    { id: 'methodology', node: <MethodologyPanel /> },
     { id: 'settings', node: <SettingsPanel /> },
   ]
 

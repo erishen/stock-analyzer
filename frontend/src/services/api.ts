@@ -1,4 +1,4 @@
-import type { Stats, ScanResult, ScreenerFieldsResult, AssetSnapshotResult, AssetRefreshResult, ScreenerResult, ScreenerCondition, BacktestResult, OptimizeTask, PortfolioResult, SectorResult, MarketTimingResult, MarketHistory, StocksPageResult, StockDetail, UpdateStatus, UpdateStartResult, PaperResult, PaperAutoResult, PaperClearResult, AgentChatResult, LLMSettings, MLStatus, MLAnomalyResult, MLClusterResult, MLGarchResult, MLGBMResult, MLGBMTrainTask } from '@/types'
+import type { Stats, ScanResult, ScreenerFieldsResult, AssetSnapshotResult, AssetRefreshResult, ScreenerResult, ScreenerCondition, BacktestResult, OptimizeTask, PortfolioResult, SectorResult, MarketTimingResult, MarketHistory, StocksPageResult, StockDetail, UpdateStatus, UpdateStartResult, PaperResult, PaperAutoResult, PaperClearResult, AgentChatResult, LLMSettings, MLStatus, MLAnomalyResult, MLClusterResult, MLGarchResult, MLGBMResult, MLGBMTrainTask, MethodologyResult } from '@/types'
 
 const API_BASE = '/api'
 
@@ -93,6 +93,8 @@ export async function fetchAPI<T>(endpoint: string, options: RequestInit = {}): 
 
 export const api = {
   getStats: () => fetchAPI<Stats>('/stats'),
+
+  getMethodology: () => fetchAPI<MethodologyResult>('/methodology'),
 
   getIndicators: () =>
     fetchAPI<{

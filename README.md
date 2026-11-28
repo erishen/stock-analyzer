@@ -27,7 +27,7 @@ This project is a quantitative-research / paper-trading tool for educational and
 - **Paper Trading** — Simulated portfolio: record positions, get MA/MACD/RSI-based diagnostics, stop-loss/take-profit alerts, and trade history
 - **🤖 AI Stock Picking** — Ask questions in natural language; the system runs a read-only Text2SQL pipeline against real data and answers with charts, portfolio diagnostics, and dynamic follow-up questions
 - **ML Models** — LightGBM cross-sectional ranking (stock picking), Isolation Forest anomaly detection, K-Means style clustering, and GARCH(1,1) volatility modeling (`src/ml/`, see [docs/ML_MODELS.md](docs/ML_MODELS.md))
-- **Web UI** — React + Vite + TypeScript frontend with ECharts, 11 tabs, red-up/green-down coloring, and a terminology dictionary
+- **Web UI** — React + Vite + TypeScript frontend with ECharts, 12 tabs, red-up/green-down coloring, and a terminology dictionary
 
 ## 🚀 Quick Start
 

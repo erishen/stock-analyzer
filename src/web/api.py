@@ -1772,6 +1772,14 @@ async def ml_gbm():
     return JSONResponse(content={"success": True, "report": data, "file": files[0].name})
 
 
+@app.get("/api/methodology")
+async def methodology():
+    """方法论/算法说明 (静态内容, 含各算法的近似口径与未建模项)。"""
+    from .methodology import get_methodology
+
+    return JSONResponse(content=get_methodology())
+
+
 @app.get("/api/universe/survivorship")
 async def universe_survivorship(start: str | None = None, end: str | None = None):
     """幸存者偏差口径: 窗口内新上市/中途停止更新/两端可交易标的数量。
