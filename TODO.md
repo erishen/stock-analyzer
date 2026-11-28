@@ -243,6 +243,37 @@
   headless/容器兜底; 实机渲染验证中文正常(默认 DejaVu Sans 会缺字形, 配置后正常)。
   没有新增缺陷, 原问题是旧版"盲设 font.family 不校验"留下的印象。
 
+### 回测/验证口径 (2026-11-28, 借鉴 rhyc/stock-algo-lume)
+- [x] **基准与策略不同成本**: `src/strategy/benchmark.py` 的等权基准原先不扣任何费用, 而策略那条腿
+  扣了佣金/印花税/滑点, 超额收益里天然含成本差(短窗口 40 天/7 次调仓约 1~2pp)。同时旧实现
+  每天把权重重置回等权, 等于隐含"免费日度再平衡", 却对外称"等权买入持有"。
+  已改为真正买入持有(权重随价格漂移) + 一次性成本参数 `cost_rate`, CLI 传
+  `2*佣金+印花税+2*滑点`(=0.26%), `/api/backtest` 增加 `benchmark` 字段(同窗口同成本)。
+  离线报告走逐票 `calculate_equal_weight_benchmark`, 在线接口走 `market_daily` 汇总窄表
+  (`calculate_equal_weight_benchmark_from_summary`, 毫秒级), 两者口径一致。
+- [x] **成本敏感性三档**: `BacktestResult.cost_sensitivity` = 0x / 1x / 3x(同一持仓路径只缩放
+  显式费用), 断言单调性(3x < 1x < 0x)。近似口径已在字段 `note` 里写明: 不重解仓位规模。
+- [x] **滚动样本外验证**: 新增 `src/ml/walk_forward.py` + `make ml-walkforward`
+  (`python -m src.main ml-walkforward`)。原 `ml-gbm` 只有一次 train/valid/test 静态切分,
+  回答不了"换个年份还灵不灵"; 现在每 `--step` 个交易日重训一次, 逐期 RankIC + ICIR
+  + IC>0 比例 + bootstrap 单尾 p 值(`(n₀+1)/(B+1)`, 固定种子), 并在报告中给出
+  未建模项。只读接口 `/api/ml/walkforward` 读最近一次报告(训练不与请求抢资源)。
+  训练窗口/验证段/embargo 都以**交易日**计, 测试覆盖 embargo 恰好 20 天、验证段落在训练
+  窗口内、短窗口跳过而不是崩。
+- [x] **规则漏斗 + 口径声明**: `/api/scan` 增加 `funnel`(全市场代码 → 有数据可分析 → 每级过滤
+  → 实际返回), 源头在 `ScanResult.diagnostics`; 原先数据缺失/异常/过滤过多都只表现为
+  "结果变少", 现在能看见哪一级掉了多少。`/api/backtest` 增加 `methodology`(已建模/未建模)
+  与 `cost_sensitivity`, 前端回测面板展示"基准同成本 + 费用三档 + 未建模项"。
+- [x] **真实数据冒烟 (2024-01-02~2026-11-27, 3,747,621 行 / 5,586 只)**:
+  `make ml-walkforward PARAMS='--train-days 250 --max-periods 3'` 跑出 2 期有效
+  (signal_day 2026-09-08 / 2026-10-14), IC 均值 +0.1541、ICIR 3.96、
+  bootstrap 95% CI [+0.127, +0.182]、p=0.0033; 第 3 期因信号日的前向收益需要
+  20 个交易日后的收盘价、已超出数据末端而跳过(报告里写明原因, 不再只给 `names=0`)。
+  同期 Top-10 含费 -12.3% / 随机 10 只 -4.6% / 等权 -9.2%: **IC 高不等于赚钱**,
+  该段是整体下行 + 高波动 regime, 选出的高动量票回撤更深。
+  另: 单特征基线在同一窗口 `turnover_rate` 的 20 日 rankIC 就有 +0.296,
+  说明 0.15 的截面 IC 有相当一部分来自数据区间本身的相关性, 不宜当作可持续 alpha。
+
 ---
 
 ## 优化建议

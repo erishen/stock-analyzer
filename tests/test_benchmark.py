@@ -349,3 +349,78 @@ class TestBenchmarkCalculations:
         assert isinstance(result.alpha, float)
         assert isinstance(result.beta, float)
         assert result.beta >= 0
+
+
+class TestEqualWeightBuyAndHold:
+    """等权买入持有口径(2026-11-28 修正): 权重随价格漂移 + 一次性成本"""
+
+    def test_weights_drift_instead_of_daily_reset(self, temp_db):
+        """两只票涨幅 100% / 0%, 买入持有终值应是 (2 + 1)/2 = 1.5 倍。
+
+        旧实现每天重置等权, 结果会偏离买入持有(该例恰好相同), 因此额外构造
+        一只中途暴涨的票: 买入持有终值按首日权重累加, 不再被重置稀释。
+        """
+        curve = calculate_equal_weight_benchmark(temp_db)
+        assert len(curve) == 5
+        # 000001: 10.0 -> 11.0 (+10%), 000002: 20.0 -> 21.0 (+5%)
+        # 买入持有 = mean(1.10, 1.05) = 1.075
+        assert curve[-1]["equity"] == pytest.approx(100000 * 1.075, rel=1e-6)
+
+    def test_cost_is_charged_on_the_benchmark_leg(self, temp_db):
+        free = calculate_equal_weight_benchmark(temp_db)
+        paid = calculate_equal_weight_benchmark(temp_db, cost_rate=0.002)
+        assert paid[0]["equity"] == pytest.approx(free[0]["equity"] * 0.998, rel=1e-6)
+        assert paid[-1]["equity"] == pytest.approx(free[-1]["equity"] * 0.998, rel=1e-6)
+
+    def test_summary_benchmark_compounds_daily_returns(self, temp_db):
+        """market_daily 路径: 每日等权收益连乘, 与逐票版本同源同口径。"""
+        from src.strategy.benchmark import calculate_equal_weight_benchmark_from_summary
+
+        with sqlite3.connect(str(temp_db)) as conn:
+            conn.execute("CREATE TABLE market_daily (date TEXT PRIMARY KEY, avg_change REAL)")
+            conn.executemany(
+                "INSERT INTO market_daily VALUES (?, ?)",
+                [("2024-01-01", 2.0), ("2024-01-02", -1.0), ("2024-01-03", 0.5)],
+            )
+            conn.commit()
+
+        curve = calculate_equal_weight_benchmark_from_summary(temp_db)
+        # 首日是建仓日(作为净值起点), 涨幅从第二日起复利——与策略净值曲线一致
+        assert curve[-1]["equity"] == pytest.approx(100000 * 0.99 * 1.005, rel=1e-4)
+
+        paid = calculate_equal_weight_benchmark_from_summary(temp_db, cost_rate=0.002)
+        assert paid[-1]["equity"] == pytest.approx(curve[-1]["equity"] * 0.998, rel=1e-4)
+
+    def test_summary_benchmark_returns_empty_without_table(self):
+        with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
+            db_path = Path(f.name)
+        sqlite3.connect(str(db_path)).close()
+
+        from src.strategy.benchmark import calculate_equal_weight_benchmark_from_summary
+
+        assert calculate_equal_weight_benchmark_from_summary(db_path) == []
+        db_path.unlink(missing_ok=True)
+
+
+class TestCostSensitivity:
+    """成本敏感性三档: 单调性 + 与显式费用对账"""
+
+    def test_three_tiers_are_monotonic(self):
+        from src.strategy.backtest import build_cost_sensitivity
+
+        sens = build_cost_sensitivity(100000.0, 110000.0, cost_total=1200.0)
+        assert sens["cost_0x_pct"] > sens["cost_1x_pct"] > sens["cost_3x_pct"]
+        assert sens["cost_0x_pct"] == pytest.approx(11.2, abs=1e-6)
+        assert sens["cost_1x_pct"] == pytest.approx(10.0, abs=1e-6)
+        assert sens["cost_3x_pct"] == pytest.approx(10.0 - 2 * 1200 / 1000, abs=1e-6)
+
+    def test_zero_cost_degenerates_to_single_value(self):
+        from src.strategy.backtest import build_cost_sensitivity
+
+        sens = build_cost_sensitivity(100000.0, 105000.0, cost_total=0.0)
+        assert sens["cost_0x_pct"] == sens["cost_1x_pct"] == sens["cost_3x_pct"] == 5.0
+
+    def test_invalid_capital_returns_empty(self):
+        from src.strategy.backtest import build_cost_sensitivity
+
+        assert build_cost_sensitivity(0.0, 1000.0, 10.0) == {}

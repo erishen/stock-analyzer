@@ -111,6 +111,7 @@ class ScanResult:
     signals: list[Signal]
     summary: dict[str, int]
     top_signals: list[Signal]
+    diagnostics: dict[str, int] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -120,6 +121,7 @@ class ScanResult:
             "signals": [s.to_dict() for s in self.signals],
             "summary": self.summary,
             "top_signals": [s.to_dict() for s in self.top_signals],
+            "diagnostics": self.diagnostics,
         }
 
 
@@ -1051,11 +1053,15 @@ class MarketScanner:
         logger.info(f"\n🔍 开始扫描 {total_stocks} 只股票...")
 
         name_cache: dict[str, str] = {}
+        no_data = 0
+        errored = 0
+        with_signals = 0
 
         for i, code in enumerate(codes, 1):
             try:
                 df = self.get_stock_data(code)
                 if df.empty:
+                    no_data += 1
                     continue
 
                 signals = self.detector.detect_all_signals(df)
@@ -1072,15 +1078,19 @@ class MarketScanner:
                 for s in signals:
                     s.name = name_cache[code]
 
+                if signals:
+                    with_signals += 1
                 all_signals.extend(signals)
 
                 if i % 500 == 0:
                     logger.info(f"   进度: {i}/{total_stocks} ({i / total_stocks * 100:.1f}%)")
 
             except KeyError:
+                no_data += 1
                 continue
 
             except Exception:
+                errored += 1
                 continue
 
         all_signals.sort(key=lambda x: x.score, reverse=True)
@@ -1099,6 +1109,13 @@ class MarketScanner:
             signals=all_signals,
             summary=summary,
             top_signals=top_signals,
+            diagnostics={
+                "codes": total_stocks,
+                "no_data": no_data,
+                "error": errored,
+                "scanned": total_stocks - no_data - errored,
+                "with_signals": with_signals,
+            },
         )
 
         logger.info(f"\n✅ 扫描完成: 发现 {len(all_signals)} 个信号")
@@ -1239,10 +1256,15 @@ class MarketScanner:
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             futures = {executor.submit(process_stock, code): code for code in codes}
 
+            no_data = 0
+            errored = 0
+            with_signals = 0
             for future in as_completed(futures):
                 code = futures[future]
                 try:
                     signals = future.result()
+                    if data_map.get(code) is None:
+                        no_data += 1
 
                     if code not in name_cache:
                         name_cache[code] = get_stock_name(code)
@@ -1250,12 +1272,14 @@ class MarketScanner:
                     for s in signals:
                         s.name = name_cache[code]
 
+                    if signals:
+                        with_signals += 1
                     all_signals.extend(signals)
                 except KeyError:
-                    pass
+                    no_data += 1
 
                 except Exception:
-                    pass
+                    errored += 1
 
                 completed += 1
                 if completed % 500 == 0:
@@ -1277,6 +1301,13 @@ class MarketScanner:
             signals=all_signals,
             summary=summary,
             top_signals=top_signals,
+            diagnostics={
+                "codes": total_stocks,
+                "no_data": no_data,
+                "error": errored,
+                "scanned": total_stocks - no_data - errored,
+                "with_signals": with_signals,
+            },
         )
 
         logger.info(f"\n✅ 并行扫描完成: 发现 {len(all_signals)} 个信号")

@@ -565,7 +565,9 @@ def run_backtest(args):
         logger.info("=" * 60)
 
         try:
-            benchmark_result = compare_with_benchmark(result, db_path)
+            # 基准与策略同口径成本: 佣金万三双边 + 印花税千一(卖出) + 滑点万五双边
+            round_trip_cost = 2 * 0.0003 + 0.001 + 2 * 0.0005
+            benchmark_result = compare_with_benchmark(result, db_path, cost_rate=round_trip_cost)
             print_benchmark_comparison(benchmark_result)
         except Exception as e:
             logger.error(f"❌ 基准对比失败: {e}")
@@ -1181,6 +1183,13 @@ def run_ml_gbm(args):
     run_gbm(args)
 
 
+def run_ml_walkforward(args):
+    """运行滚动样本外验证(每 step 个交易日重训 + 逐期 IC + bootstrap 显著性)。"""
+    from ml.walk_forward import run_walk_forward
+
+    run_walk_forward(args)
+
+
 def run_ml_anomaly(args):
     """运行 Isolation Forest 异常检测。"""
     from ml.anomaly import run_anomaly
@@ -1479,6 +1488,23 @@ def main():
     ml_gbm_parser.add_argument("--num-threads", type=int, default=4, help="LightGBM 线程数")
     ml_gbm_parser.add_argument("--output", type=str, help="输出文件路径(JSON)")
 
+    # 滚动样本外 (walk-forward): 每 step 个交易日重训一次, 逐期 IC + bootstrap 显著性
+    ml_wf_parser = subparsers.add_parser("ml-walkforward", help="滚动样本外验证 (逐期 IC + 显著性)")
+    ml_wf_parser.add_argument("--db", type=str, help="分析库路径")
+    ml_wf_parser.add_argument("--start-year", type=int, default=2020, help="起始年份")
+    ml_wf_parser.add_argument("--end-year", type=int, default=2027, help="结束年份(不含)")
+    ml_wf_parser.add_argument("--horizon", type=int, default=20, help="标签/持有天数")
+    ml_wf_parser.add_argument("--step", type=int, default=20, help="重训与调仓间隔(交易日)")
+    ml_wf_parser.add_argument("--train-days", type=int, default=750, help="训练窗口(交易日)")
+    ml_wf_parser.add_argument("--valid-days", type=int, default=120, help="验证段(交易日)")
+    ml_wf_parser.add_argument("--embargo", type=int, default=20, help="训练末端与信号日间隔(交易日)")
+    ml_wf_parser.add_argument("--top-n", type=int, default=10, help="Top-N 组合数量")
+    ml_wf_parser.add_argument("--min-price", type=float, default=2.0, help="最低价格过滤")
+    ml_wf_parser.add_argument("--boot", type=int, default=500, help="bootstrap 次数")
+    ml_wf_parser.add_argument("--seed", type=int, default=20261128, help="bootstrap 随机种子")
+    ml_wf_parser.add_argument("--max-periods", type=int, help="只跑最后 N 期(调试用)")
+    ml_wf_parser.add_argument("--output", type=str, help="输出文件路径(JSON)")
+
     ml_anomaly_parser = subparsers.add_parser("ml-anomaly", help="Isolation Forest 异常检测")
     ml_anomaly_parser.add_argument("--db", type=str, help="分析库路径")
     ml_anomaly_parser.add_argument("--date", type=str, help="分析日期 (默认最新交易日)")
@@ -1573,6 +1599,8 @@ def main():
         run_paper_auto(args)
     elif args.command == "ml-gbm":
         run_ml_gbm(args)
+    elif args.command == "ml-walkforward":
+        run_ml_walkforward(args)
     elif args.command == "ml-anomaly":
         run_ml_anomaly(args)
     elif args.command == "ml-cluster":

@@ -533,6 +533,7 @@ async def scan_signals(request: ScanRequest, http_request: Request):
             "total_stocks": result.total_stocks,
             "summary": result.summary,
             "signals": [s.to_dict() for s in result.signals],  # 全量, 未过滤
+            "diagnostics": result.diagnostics or {},
         }
 
     try:
@@ -542,6 +543,18 @@ async def scan_signals(request: ScanRequest, http_request: Request):
         return JSONResponse(content=ScanResponse(success=False, error=str(e)).to_dict())
 
     # 内存中对全量结果做筛选 + 排序 + 取前 N, 秒回
+    # 漏斗: 全市场 → 有数据可分析 → 每级过滤后剩余信号数 → 实际返回。
+    # 这些计数以前是"静默"的: 数据缺失/异常/过滤过多都表现为"结果变少"。
+    diag = data.get("diagnostics") or {}
+    funnel = {
+        "codes": int(diag.get("codes", data["total_stocks"])),
+        "scanned": int(diag.get("scanned", data["total_stocks"])),
+        "no_data": int(diag.get("no_data", 0)),
+        "error": int(diag.get("error", 0)),
+        "stocks_with_signals": int(diag.get("with_signals", 0)),
+        "signals": len(data["signals"]),
+    }
+
     if request.signal_type:
         st = None
         with suppress(ValueError):
@@ -550,11 +563,14 @@ async def scan_signals(request: ScanRequest, http_request: Request):
             want = st.value
             filtered = [s for s in data["signals"] if s["signal_type"] == want]
             data = {**data, "signals": filtered}
+            funnel["after_signal_type"] = len(filtered)
 
     if request.min_score > 0:
         data = {**data, "signals": [s for s in data["signals"] if s["score"] >= request.min_score]}
+        funnel["after_min_score"] = len(data["signals"])
 
     top = sorted(data["signals"], key=lambda s: s["score"], reverse=True)[: request.limit]
+    funnel["returned"] = len(top)
     signals = [
         SignalItem(
             code=s["code"],
@@ -575,6 +591,7 @@ async def scan_signals(request: ScanRequest, http_request: Request):
             signals_found=len(data["signals"]),
             signals=signals,
             summary=data["summary"],
+            funnel=funnel,
         ).to_dict()
     )
 
@@ -717,7 +734,7 @@ def run_backtest(request: BacktestRequest, http_request: Request):
                 }
             )
 
-        return BacktestResponse(
+        payload = BacktestResponse(
             success=True,
             strategy_name=result.strategy_name,
             start_date=result.start_date,
@@ -736,7 +753,37 @@ def run_backtest(request: BacktestRequest, http_request: Request):
             profit_factor=result.profit_factor,
             trades=trades,
             equity_curve=result.equity_curve,
+            cost_sensitivity=result.cost_sensitivity,
         ).to_dict()
+
+        # 基准对比(同窗口、同成本口径): 逐票全表读要 5s+, 这里走 market_daily 汇总表。
+        try:
+            from strategy.benchmark import calculate_equal_weight_benchmark_from_summary
+
+            cost_rate = 2 * 0.0003 + 0.001 + 2 * float(request.slippage_rate or 0.0005)
+            curve = calculate_equal_weight_benchmark_from_summary(
+                db_path, result.start_date, result.end_date, cost_rate
+            )
+            if len(curve) > 1:
+                b0, b1 = curve[0]["equity"], curve[-1]["equity"]
+                bench_return = (b1 - b0) / b0
+                step = max(1, len(curve) // 120)
+                payload["benchmark"] = {
+                    "return": round(bench_return * 100, 2),
+                    "excess_return": round((result.total_return - bench_return) * 100, 2),
+                    "cost_pct": round(cost_rate * 100, 3),
+                    "method": "全市场等权日收益连乘(market_daily), 建仓+清仓一次性成本",
+                    "curve": curve[::step],
+                }
+        except Exception as e:  # 基准是附加信息, 失败不影响回测本身
+            logger.warning(f"基准对比计算失败: {e}")
+
+        payload["methodology"] = {
+            "modeled": ["佣金/印花税/最低佣金", "固定比例滑点", "成交额参与率上限", "T+1 禁卖", "涨停不可买/跌停不可卖"],
+            "not_modeled": ["真实盘口与冲击成本", "历史 ST 状态(用当前名称)", "退市路径(按最后收盘价退出)", "停牌日按最后收盘价估值"],
+            "cost_sensitivity": result.cost_sensitivity,
+        }
+        return payload
 
     try:
         params = {
@@ -1718,6 +1765,23 @@ async def ml_gbm():
     files = sorted(reports_dir.glob("ml_gbm*.json"), key=lambda p: p.stat().st_mtime, reverse=True)
     if not files:
         return JSONResponse(content={"success": False, "error": "无训练报告 (请先运行 make ml-gbm)"})
+    import json as _json
+
+    data = _json.loads(files[0].read_text(encoding="utf-8"))
+    return JSONResponse(content={"success": True, "report": data, "file": files[0].name})
+
+
+@app.get("/api/ml/walkforward")
+async def ml_walkforward():
+    """读取最近的 ml-walk-forward 报告 (若有)。
+
+    滚动重训 = N 次 GBDT 训练, 分钟级且吃内存, 不适合在线请求;
+    与 /api/ml/gbm 一致: 训练走 `make ml-walkforward`, 这里只读最近一次落盘报告。
+    """
+    reports_dir = PROJECT_ROOT / "output" / "reports"
+    files = sorted(reports_dir.glob("ml_walkforward*.json"), key=lambda p: p.stat().st_mtime, reverse=True) if reports_dir.exists() else []
+    if not files:
+        return JSONResponse(content={"success": False, "error": "无滚动验证报告 (请先运行 make ml-walkforward)"})
     import json as _json
 
     data = _json.loads(files[0].read_text(encoding="utf-8"))

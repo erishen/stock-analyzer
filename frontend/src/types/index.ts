@@ -102,6 +102,25 @@ export interface BacktestResult {
   profit_factor: number
   trades: Trade[]
   equity_curve: EquityPoint[]
+  cost_sensitivity?: {
+    cost_0x_pct: number
+    cost_1x_pct: number
+    cost_3x_pct: number
+    cost_total: number
+    note?: string
+  }
+  benchmark?: {
+    return: number
+    excess_return: number
+    cost_pct: number
+    method: string
+    curve?: EquityPoint[]
+  }
+  methodology?: {
+    modeled: string[]
+    not_modeled: string[]
+    cost_sensitivity?: Record<string, unknown>
+  }
   error: string
 }
 

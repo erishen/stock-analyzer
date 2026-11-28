@@ -32,6 +32,8 @@ class BenchmarkResult:
     correlation: float
     information_ratio: float
     tracking_error: float
+    # 基准计费口径: 建仓+清仓一次性成本(小数), 0 表示未计费(旧行为)
+    benchmark_cost: float = 0.0
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -39,6 +41,7 @@ class BenchmarkResult:
             "strategy_return": round(self.strategy_return * 100, 2),
             "benchmark_return": round(self.benchmark_return * 100, 2),
             "excess_return": round(self.excess_return * 100, 2),
+            "benchmark_cost_pct": round(self.benchmark_cost * 100, 3),
             "strategy_sharpe": round(self.strategy_sharpe, 2),
             "benchmark_sharpe": round(self.benchmark_sharpe, 2),
             "strategy_drawdown": round(self.strategy_drawdown * 100, 2),
@@ -55,72 +58,94 @@ def calculate_equal_weight_benchmark(
     db_path: Path,
     start_date: str | None = None,
     end_date: str | None = None,
+    cost_rate: float = 0.0,
 ) -> list[dict]:
-    """
-    计算等权买入持有基准
+    """等权买入持有基准(整段窗口只建仓一次, 权重随价格自然漂移)。
 
-    模拟买入所有股票并持有到结束
+    口径修正(2026-11-28):
+      - 旧实现每天把权重重置回等权, 等于隐含「免费日度再平衡」, 而策略那条腿
+        要付调仓成本; 两个口径不一致, 超额收益被高估。这里改为真正持有的
+        买入持有: 首日按等权建仓, 之后不再调仓。
+      - 旧实现不扣任何成本。``cost_rate`` 为一次性成本(建仓+清仓合计, 小数),
+        例如佣金万三双边+印花税千一+滑点 → ``2*0.0003 + 0.001 + 2*0.0005``。
     """
     query = """
         SELECT code, date, close
         FROM stock_analysis
         WHERE close > 0
-        ORDER BY date, code
     """
+    if start_date:
+        query += f" AND date >= '{start_date}'"
+    if end_date:
+        query += f" AND date <= '{end_date}'"
+
     with sqlite3.connect(str(db_path)) as conn:
         df = pd.read_sql_query(query, conn)
-
-    df["date"] = pd.to_datetime(df["date"])
-
-    if start_date:
-        df = df[df["date"] >= start_date]
-    if end_date:
-        df = df[df["date"] <= end_date]
 
     if df.empty:
         return []
 
-    first_date = df["date"].min()
-    last_date = df["date"].max()
+    df["date"] = pd.to_datetime(df["date"])
+    pivot = df.pivot_table(index="date", columns="code", values="close", aggfunc="last").sort_index()
 
-    first_prices = df[df["date"] == first_date].set_index("code")["close"]
-    last_prices = df[df["date"] == last_date].set_index("code")["close"]
+    # 只保留建仓日有收盘价的标的（之后停牌/退市的按最后可得价格持有）
+    first_row = pivot.iloc[0]
+    codes = first_row.dropna().index
+    if len(codes) == 0:
+        return []
 
-    common_codes = first_prices.index.intersection(last_prices.index)
-    first_prices = first_prices[common_codes]
-    last_prices = last_prices[common_codes]
+    entry = first_row[codes]
+    rel = pivot[codes].ffill() / entry
+    index_level = rel.mean(axis=1).dropna()
 
-    returns = (last_prices - first_prices) / first_prices
-    returns.mean()
-
-    daily_returns = []
-    dates = sorted(df["date"].unique())
-
-    for i in range(1, len(dates)):
-        prev_date = dates[i - 1]
-        curr_date = dates[i]
-
-        prev_prices = df[df["date"] == prev_date].set_index("code")["close"]
-        curr_prices = df[df["date"] == curr_date].set_index("code")["close"]
-
-        common = prev_prices.index.intersection(curr_prices.index)
-        if len(common) > 0:
-            daily_ret = ((curr_prices[common] - prev_prices[common]) / prev_prices[common]).mean()
-            daily_returns.append(daily_ret)
-
-    equity = 1.0
-    equity_curve = [{"date": dates[0].strftime("%Y-%m-%d"), "equity": 100000.0}]
-
-    for i, ret in enumerate(daily_returns):
-        equity *= 1 + ret
-        equity_curve.append({"date": dates[i + 1].strftime("%Y-%m-%d"), "equity": round(equity * 100000, 2)})
-
+    # 一次性成本: 建仓买入 + 期末卖出
+    gross = 100000.0 * (1.0 - cost_rate)
+    equity_curve = [
+        {"date": idx.strftime("%Y-%m-%d"), "equity": round(float(v) * gross, 2)}
+        for idx, v in index_level.items()
+    ]
     return equity_curve
+
+
+def calculate_equal_weight_benchmark_from_summary(
+    db_path: Path,
+    start_date: str | None = None,
+    end_date: str | None = None,
+    cost_rate: float = 0.0,
+) -> list[dict]:
+    """从 `market_daily` 汇总表快速构造等权基准(毫秒级, 供在线接口用)。
+
+    与上面的逐票版本口径一致: 每日全市场等权收益连乘。逐票版本用于离线报告,
+    这个版本用于请求路径——`stock_analysis` 700 万行每次全表读要 5s+。
+    汇总表由 ETL 末尾增量维护; 表不存在时返回空列表, 调用方自行降级。
+    """
+    query = "SELECT date, avg_change FROM market_daily WHERE avg_change IS NOT NULL"
+    if start_date:
+        query += f" AND date >= '{start_date}'"
+    if end_date:
+        query += f" AND date <= '{end_date}'"
+    query += " ORDER BY date"
+
+    try:
+        with sqlite3.connect(str(db_path)) as conn:
+            rows = conn.execute(query).fetchall()
+    except sqlite3.OperationalError:
+        return []
+    if not rows:
+        return []
+
+    equity = 1.0 - cost_rate
+    curve = [{"date": rows[0][0], "equity": round(equity * 100000.0, 2)}]
+    for _, chg in rows[1:]:
+        equity *= 1.0 + float(chg) / 100.0
+        curve.append({"date": _, "equity": round(equity * 100000.0, 2)})
+    return curve
 
 
 def compare_with_benchmark(
     backtest_result: Any,
     db_path: Path,
+    cost_rate: float = 0.0,
 ) -> BenchmarkResult:
     """
     将策略与基准对比
@@ -128,6 +153,9 @@ def compare_with_benchmark(
     Args:
         backtest_result: 回测结果
         db_path: 数据库路径
+        cost_rate: 基准一次性成本(建仓+清仓合计, 小数)。策略那条腿已经扣了
+            佣金/印花税/滑点, 基准不扣就会把成本差算进"超额收益", 因此默认
+            由调用方传入与策略相同的费率(见 main.py 的 backtest-benchmark)。
 
     Returns:
         基准对比结果
@@ -136,6 +164,7 @@ def compare_with_benchmark(
         db_path,
         start_date=backtest_result.start_date,
         end_date=backtest_result.end_date,
+        cost_rate=cost_rate,
     )
 
     if not benchmark_curve:
@@ -234,6 +263,7 @@ def compare_with_benchmark(
         correlation=correlation,
         information_ratio=information_ratio,
         tracking_error=tracking_error,
+        benchmark_cost=cost_rate,
     )
 
 
@@ -241,7 +271,7 @@ def print_benchmark_comparison(result: BenchmarkResult):
     """打印基准对比结果"""
     logger.info("\n📊 基准对比结果:")
     logger.info(f"   策略: {result.strategy_name}")
-    logger.info("   基准: 等权买入持有")
+    logger.info(f"   基准: 等权买入持有 (一次性成本 {result.benchmark_cost * 100:.2f}%)")
 
     logger.info("\n📈 收益对比:")
     logger.info(f"   策略收益: {result.strategy_return * 100:+.2f}%")

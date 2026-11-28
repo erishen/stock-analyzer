@@ -1,4 +1,4 @@
-.PHONY: help install deps sync-env fetch fetch-sample etl scan visualize analyze accuracy score monitor trade-report export market-timing compare sector sector-validate portfolio portfolio-sharpe web dev web-dev web-build web-public backtest backtest-momentum backtest-reversion backtest-trend backtest-multifactor backtest-optimized backtest-viz backtest-full backtest-benchmark optimize optimize-momentum optimize-reversion db-optimize stats test test-cov lint format clean docker-build docker-up docker-down docker-logs docker-restart docker-ps daily-update daily-update-ml daily-update-backfill backfill-etl data-refresh data-refresh-backfill push-report push-paper check-stale check-coverage check-gaps fill-gaps build-factors market-summary ml-gbm ml-anomaly ml-cluster ml-garch
+.PHONY: help install deps sync-env fetch fetch-sample etl scan visualize analyze accuracy score monitor trade-report export market-timing compare sector sector-validate portfolio portfolio-sharpe web dev web-dev web-build web-public backtest backtest-momentum backtest-reversion backtest-trend backtest-multifactor backtest-optimized backtest-viz backtest-full backtest-benchmark optimize optimize-momentum optimize-reversion db-optimize stats test test-cov lint format clean docker-build docker-up docker-down docker-logs docker-restart docker-ps daily-update daily-update-ml daily-update-backfill backfill-etl data-refresh data-refresh-backfill push-report push-paper check-stale check-coverage check-gaps fill-gaps build-factors market-summary ml-gbm ml-walkforward ml-anomaly ml-cluster ml-garch
 
 help:
 	@echo "Stock Analyzer - 股票数据分析工具"
@@ -72,6 +72,7 @@ help:
 	@echo "  format      格式化代码"
 	@echo "  clean       清理缓存文件"
 	@echo "  ml-gbm      LightGBM 横截面排名模型 (选股排序, 需 uv sync --extra ml)"
+	@echo "  ml-walkforward  滚动样本外验证 (逐期 IC + bootstrap 显著性)"
 	@echo "  ml-anomaly  Isolation Forest 异常检测"
 	@echo "  ml-cluster  K-Means 聚类"
 	@echo "  ml-garch    GARCH(1,1) 波动率建模"
@@ -368,6 +369,10 @@ stats:
 ml-gbm:
 	uv sync --extra ml
 	uv run python -m src.main ml-gbm --output output/reports/ml_gbm_report.json
+
+ml-walkforward:
+	uv sync --extra ml
+	uv run python -m src.main ml-walkforward --output output/reports/ml_walkforward_report.json
 
 ml-anomaly:
 	uv sync --extra ml

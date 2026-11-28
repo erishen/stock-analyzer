@@ -456,6 +456,58 @@ export const BacktestPanel: FC = () => {
             ))}
           </div>
 
+          {(result.benchmark || result.cost_sensitivity) && (
+            <div className="mb-5 p-4 bg-slate-50 border border-slate-200 rounded-lg">
+              <div className="flex items-center justify-between mb-2">
+                <div className="text-xs font-semibold text-slate-600">口径校验：基准同成本 · 费用三档</div>
+                {result.benchmark && (
+                  <div className="text-[11px] text-slate-400">{result.benchmark.method}</div>
+                )}
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                {result.benchmark && (
+                  <>
+                    <div className="text-center p-2 bg-white rounded">
+                      <div className="text-[11px] text-slate-500">等权基准(含成本)</div>
+                      <div className={`text-sm font-semibold ${result.benchmark.return >= 0 ? 'text-red-600' : 'text-green-600'}`}>
+                        {result.benchmark.return >= 0 ? '+' : ''}{result.benchmark.return.toFixed(2)}%
+                      </div>
+                    </div>
+                    <div className="text-center p-2 bg-white rounded">
+                      <div className="text-[11px] text-slate-500">超额收益</div>
+                      <div className={`text-sm font-semibold ${result.benchmark.excess_return >= 0 ? 'text-red-600' : 'text-green-600'}`}>
+                        {result.benchmark.excess_return >= 0 ? '+' : ''}{result.benchmark.excess_return.toFixed(2)}%
+                      </div>
+                      <div className="text-[10px] text-slate-400">基准一次性成本 {result.benchmark.cost_pct}%</div>
+                    </div>
+                  </>
+                )}
+                {result.cost_sensitivity?.cost_1x_pct !== undefined && (
+                  <>
+                    <div className="text-center p-2 bg-white rounded">
+                      <div className="text-[11px] text-slate-500">零成本(理论上限)</div>
+                      <div className="text-sm font-semibold text-slate-700">{result.cost_sensitivity.cost_0x_pct.toFixed(2)}%</div>
+                    </div>
+                    <div className="text-center p-2 bg-white rounded">
+                      <div className="text-[11px] text-slate-500">1x 成本(实际)</div>
+                      <div className="text-sm font-semibold text-slate-700">{result.cost_sensitivity.cost_1x_pct.toFixed(2)}%</div>
+                    </div>
+                    <div className="text-center p-2 bg-white rounded">
+                      <div className="text-[11px] text-slate-500">3x 成本(压力)</div>
+                      <div className="text-sm font-semibold text-slate-700">{result.cost_sensitivity.cost_3x_pct.toFixed(2)}%</div>
+                      <div className="text-[10px] text-slate-400">显式费用 {result.cost_sensitivity.cost_total.toLocaleString()} 元</div>
+                    </div>
+                  </>
+                )}
+              </div>
+              {result.methodology?.not_modeled && (
+                <div className="mt-2 text-[11px] text-slate-500">
+                  未建模：{result.methodology.not_modeled.join('、')}
+                </div>
+              )}
+            </div>
+          )}
+
           {result.equity_curve?.length > 0 && (
             <div className="h-64 mb-5">
               <ReactECharts option={getEquityChartOption()} style={{ height: '100%' }} />

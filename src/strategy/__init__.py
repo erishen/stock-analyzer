@@ -29,6 +29,8 @@ from .backtest import (
 )
 from .benchmark import (
     BenchmarkResult,
+    calculate_equal_weight_benchmark,
+    calculate_equal_weight_benchmark_from_summary,
     compare_with_benchmark,
     print_benchmark_comparison,
 )
@@ -150,6 +152,8 @@ __all__ = [
     "TrendFollowingStrategy",
     "WeightMethod",
     "backtest_sector_rotation",
+    "calculate_equal_weight_benchmark",
+    "calculate_equal_weight_benchmark_from_summary",
     "compare_strategies",
     "compare_with_benchmark",
     "create_position_limit",

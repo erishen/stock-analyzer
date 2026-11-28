@@ -138,6 +138,7 @@ make scan             # 全市场信号扫描
 make backtest / optimize / compare / sector / portfolio   # 策略相关
 make paper-auto       # 策略驱动模拟仓自动交易: 信号 → 次日开盘成交, 自动止损/止盈
 make ml-gbm           # LightGBM 横截面排名模型 (需 uv sync --extra ml)
+make ml-walkforward   # 滚动样本外验证: 每 step 日重训 + 逐期 IC + bootstrap 显著性
 make ml-anomaly       # Isolation Forest 异常检测
 make ml-cluster       # K-Means 聚类
 make ml-garch CODE=600000   # GARCH(1,1) 单股波动率建模

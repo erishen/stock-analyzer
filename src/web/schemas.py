@@ -52,6 +52,7 @@ class BacktestResponse:
     profit_factor: float = 0.0
     trades: list[dict[str, Any]] = field(default_factory=list)
     equity_curve: list[dict[str, Any]] = field(default_factory=list)
+    cost_sensitivity: dict[str, Any] = field(default_factory=dict)
     error: str = ""
 
     def to_dict(self) -> dict[str, Any]:
@@ -74,6 +75,7 @@ class BacktestResponse:
             "profit_factor": round(self.profit_factor, 2),
             "trades": self.trades[:50],
             "equity_curve": self.equity_curve[-100:],
+            "cost_sensitivity": self.cost_sensitivity,
             "error": self.error,
         }
 
@@ -222,6 +224,7 @@ class ScanResponse:
     signals: list[SignalItem] = field(default_factory=list)
     summary: dict[str, int] = field(default_factory=dict)
     error: str = ""
+    funnel: dict[str, int] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -230,6 +233,7 @@ class ScanResponse:
             "signals_found": self.signals_found,
             "signals": [s.to_dict() for s in self.signals],
             "summary": self.summary,
+            "funnel": self.funnel,
             "error": self.error,
         }
 

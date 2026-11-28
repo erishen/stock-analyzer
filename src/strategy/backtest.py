@@ -12,7 +12,7 @@ Strategy Backtester for Stock Analyzer.
 import logging
 import sqlite3
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -99,6 +99,24 @@ class Trade:
         }
 
 
+def build_cost_sensitivity(initial_capital: float, final_capital: float, cost_total: float) -> dict:
+    """成本敏感性三档: 0x / 1x / 3x 同一持仓路径只缩放显式费用。
+
+    滑点已含在成交价里, 不随倍数变化。这是近似口径: 仓位规模由当时的资金
+    决定, 费用翻倍后实际下单股数会略变, 这里没有重解。
+    """
+    if initial_capital <= 0:
+        return {}
+    gross_capital = final_capital + cost_total
+    return {
+        "cost_0x_pct": round((gross_capital - initial_capital) / initial_capital * 100, 2),
+        "cost_1x_pct": round((final_capital - initial_capital) / initial_capital * 100, 2),
+        "cost_3x_pct": round((gross_capital - 3.0 * cost_total - initial_capital) / initial_capital * 100, 2),
+        "cost_total": round(cost_total, 2),
+        "note": "同一持仓路径, 仅缩放显式费用; 未重解仓位规模, 属近似口径",
+    }
+
+
 @dataclass
 class BacktestResult:
     """回测结果"""
@@ -127,6 +145,7 @@ class BacktestResult:
     sortino_ratio: float = 0.0
     calmar_ratio: float = 0.0
     volatility: float = 0.0
+    cost_sensitivity: dict = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -154,6 +173,7 @@ class BacktestResult:
             "total_commission": round(self.total_commission, 2),
             "total_stamp_tax": round(self.total_stamp_tax, 2),
             "total_trading_cost": round(self.total_trading_cost, 2),
+            "cost_sensitivity": self.cost_sensitivity,
         }
 
 
@@ -1143,6 +1163,9 @@ class BacktestEngine:
             if max_drawdown > 0:
                 calmar_ratio = annualized_return / max_drawdown
 
+        cost_total = float(total_commission + total_stamp_tax)
+        cost_sensitivity = build_cost_sensitivity(initial_capital, final_capital, cost_total)
+
         return BacktestResult(
             strategy_name=strategy_name,
             start_date=dates[0],
@@ -1168,6 +1191,7 @@ class BacktestEngine:
             sortino_ratio=sortino_ratio,
             calmar_ratio=calmar_ratio,
             volatility=volatility,
+            cost_sensitivity=cost_sensitivity,
         )
 
 
