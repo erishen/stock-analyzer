@@ -11,6 +11,7 @@ import sys
 import threading
 import time
 import uuid
+from collections import deque
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager, suppress
 from datetime import datetime
@@ -146,6 +147,67 @@ def _require_settings_local(request: Request):
         status_code=403,
         detail={"disabled": True, "message": "模型设置仅在本地(localhost)部署可用"},
     )
+
+
+# ---- 公网 Demo 算力护栏 ---- #
+# 背景: Render 免费实例只有 0.1 vCPU, 全市场扫描/回测/参数寻优/GBM 训练都能被匿名批量触发,
+# 换一组参数就绕过结果缓存, 很容易把实例刷满(表现为页面整体超时)。原有护栏只挡了模拟仓写接口。
+# DEMO_READONLY=1 时:
+#   1) 禁"强制刷新"(refresh=true) —— 只允许读缓存或按默认参数算一次
+#   2) 禁后台重计算与库刷新(参数寻优 / GBM 训练 / 资产快照刷新)
+#   3) 对仍允许的耗时接口(扫描/回测/组合)按来源 IP 做滑动窗口限流
+_DEMO_BLOCKED_ACTIONS = {"optimize", "gbm_train", "asset_refresh"}
+_DEMO_RATE_LIMITS = {"scan": (60.0, 6), "backtest": (60.0, 4), "portfolio": (60.0, 4)}
+_demo_hits: dict[str, deque[float]] = {}
+_demo_hits_lock = threading.Lock()
+
+
+def _demo_mode() -> bool:
+    """是否运行在只读演示模式。"""
+    return os.environ.get("DEMO_READONLY", "").strip() == "1"
+
+
+def _client_ip(http_request: Request) -> str:
+    """取真实来源 IP: 反代(Render/Nginx)场景优先 X-Forwarded-For 首个地址。"""
+    xff = http_request.headers.get("x-forwarded-for", "")
+    if xff:
+        return xff.split(",")[0].strip()
+    return (http_request.client.host if http_request.client else "") or "?"
+
+
+def _demo_rate_limit(http_request: Request, action: str) -> None:
+    """按 (接口, IP) 做滑动窗口限流, 超限返回 429。"""
+    window, limit = _DEMO_RATE_LIMITS[action]
+    key = f"{action}:{_client_ip(http_request)}"
+    now = time.time()
+    with _demo_hits_lock:
+        hits = _demo_hits.setdefault(key, deque())
+        while hits and now - hits[0] > window:
+            hits.popleft()
+        if len(hits) >= limit:
+            raise HTTPException(
+                status_code=429,
+                detail={"disabled": True, "message": f"演示环境限流: 每 {int(window)} 秒最多 {limit} 次"},
+            )
+        hits.append(now)
+
+
+def _demo_protect(http_request: Request, action: str, refresh: bool = False) -> None:
+    """演示模式护栏: 拦截禁用的重计算入口、强制刷新与超频请求。非演示模式下是空操作。"""
+    if not _demo_mode():
+        return
+    if action in _DEMO_BLOCKED_ACTIONS:
+        raise HTTPException(
+            status_code=403,
+            detail={"disabled": True, "message": "演示环境已禁用该操作(算力保护), 本地部署可用"},
+        )
+    if refresh:
+        raise HTTPException(
+            status_code=403,
+            detail={"disabled": True, "message": "演示环境不支持强制刷新(refresh), 请使用缓存结果"},
+        )
+    if action in _DEMO_RATE_LIMITS:
+        _demo_rate_limit(http_request, action)
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -445,12 +507,13 @@ async def agent_settings_reset():
 
 
 @app.post("/api/scan")
-async def scan_signals(request: ScanRequest):
+async def scan_signals(request: ScanRequest, http_request: Request):
     """扫描信号
 
     只缓存「一次全量扫描结果」, signal_type / min_score / limit 在内存中对
     全量结果做过滤与截断, 因此任何筛选组合都无需重跑昂贵的全市场扫描。
     """
+    _demo_protect(http_request, "scan", request.refresh)
     if not db_path.exists():
         return JSONResponse(content=ScanResponse(success=False, error="数据库不存在").to_dict())
 
@@ -540,12 +603,13 @@ async def asset_snapshot():
 
 
 @app.post("/api/asset/refresh")
-async def asset_refresh():
+async def asset_refresh(http_request: Request):
     """拉取并更新全市场资产快照(东财源, 可能耗时数秒~数十秒)
 
     与 /api/update 同属「外部行情抓取」能力, 受 WEB_ENABLE_UPDATE 开关控制。
     抓取逻辑位于 data_tools/asset_fetch.py (不随仓库分发)。
     """
+    _demo_protect(http_request, "asset_refresh")
     if not _update_enabled():
         return JSONResponse(
             content={"success": False, "message": "数据更新功能未开启 (WEB_ENABLE_UPDATE)"},
@@ -604,8 +668,9 @@ async def screener_scan(request: ScreenerRequest):
 
 
 @app.post("/api/backtest")
-def run_backtest(request: BacktestRequest):
+def run_backtest(request: BacktestRequest, http_request: Request):
     """运行回测 (结果带缓存, 数据更新后失效; 可传 refresh=true 强刷)"""
+    _demo_protect(http_request, "backtest", request.refresh)
     if not db_path.exists():
         return JSONResponse(content=BacktestResponse(success=False, error="数据库不存在").to_dict())
 
@@ -716,8 +781,9 @@ def _poll_optimize_tasks():
 
 
 @app.post("/api/optimize")
-def submit_optimize(request: OptimizeRequest):
+def submit_optimize(request: OptimizeRequest, http_request: Request):
     """提交参数寻优任务 (异步执行, 返回 task_id)"""
+    _demo_protect(http_request, "optimize")
     if not db_path.exists():
         return JSONResponse(content=OptimizeResponse(success=False, error="数据库不存在").to_dict())
     if request.strategy not in ("momentum", "mean_reversion"):
@@ -828,8 +894,9 @@ def optimize_status(task_id: str):
 
 
 @app.post("/api/portfolio")
-def run_portfolio(request: PortfolioRequest):
+def run_portfolio(request: PortfolioRequest, http_request: Request):
     """运行组合回测 (结果带缓存, 数据更新后失效; 可传 refresh=true 强刷)"""
+    _demo_protect(http_request, "portfolio", request.refresh)
     if not db_path.exists():
         return JSONResponse(content=PortfolioResponse(success=False, error="数据库不存在").to_dict())
 
@@ -895,8 +962,9 @@ def run_portfolio(request: PortfolioRequest):
 
 
 @app.get("/api/sector")
-async def get_sector(refresh: bool = False):
+async def get_sector(http_request: Request, refresh: bool = False):
     """获取行业轮动 (结果带缓存, 数据更新后失效; 可传 refresh=true 强刷)"""
+    _demo_protect(http_request, "sector", refresh)
     if not db_path.exists():
         return JSONResponse(content=SectorResponse(success=False, error="数据库不存在").to_dict())
 
@@ -944,8 +1012,9 @@ async def get_sector(refresh: bool = False):
 
 
 @app.get("/api/market-timing")
-async def get_market_timing(refresh: bool = False):
+async def get_market_timing(http_request: Request, refresh: bool = False):
     """获取大盘择时 (结果带缓存, 数据更新后失效; 可传 refresh=true 强刷)"""
+    _demo_protect(http_request, "market_timing", refresh)
     if not db_path.exists():
         return JSONResponse(content=MarketTimingResponse(success=False, error="数据库不存在").to_dict())
 
@@ -1270,8 +1339,11 @@ async def get_stocks(
 
         with sqlite3.connect(str(db_path)) as conn:
             # 交易日: 默认取最近的完整交易日
-            # 最新日期可能只有部分市场完成更新(如北交所先入库、沪深增量未跑),
-            # 覆盖不足近期峰值 90% 时向前回退, 保证默认视图是全市场统一列表
+            # 最新日期可能只有部分市场完成更新(如北交所先入库、沪深增量未跑, 或
+            # 收盘后过早拉取时源端尚未发布部分深市当日 bar), 覆盖不足近期峰值 97%
+            # 时向前回退, 保证默认视图是全市场统一列表。
+            # 阈值曾为 90%: 2026-11-27 缺 216 只(4%)仍被判为完整交易日, 界面把残缺
+            # 的一天当全市场展示, 下游横截面选股/信号随之失真, 故收紧到 97%。
             if not date:
                 recent = conn.execute(
                     """
@@ -1284,7 +1356,7 @@ async def get_stocks(
                 ).fetchall()
                 if recent:
                     peak = max(r[1] for r in recent)
-                    date = next((r[0] for r in recent if r[1] >= peak * 0.9), recent[0][0])
+                    date = next((r[0] for r in recent if r[1] >= peak * 0.97), recent[0][0])
                 else:
                     date = ""
 
@@ -1517,8 +1589,9 @@ async def ml_status():
 
 
 @app.get("/api/ml/anomaly")
-async def ml_anomaly(refresh: bool = False):
+async def ml_anomaly(http_request: Request, refresh: bool = False):
     """Isolation Forest 异常检测 (最新交易日全市场, 结果缓存)。"""
+    _demo_protect(http_request, "ml_anomaly", refresh)
     if not db_path.exists():
         return JSONResponse(content={"success": False, "error": "数据库不存在"})
     try:
@@ -1534,8 +1607,9 @@ async def ml_anomaly(refresh: bool = False):
 
 
 @app.get("/api/ml/cluster")
-async def ml_cluster(k: int = 6, refresh: bool = False):
+async def ml_cluster(http_request: Request, k: int = 6, refresh: bool = False):
     """K-Means 聚类 (最新交易日全市场, 结果缓存)。"""
+    _demo_protect(http_request, "ml_cluster", refresh)
     if not db_path.exists():
         return JSONResponse(content={"success": False, "error": "数据库不存在"})
     try:
@@ -1621,12 +1695,13 @@ def _host_call(method: str, path: str, payload: dict | None = None, timeout: flo
 
 
 @app.post("/api/ml/gbm/train")
-def submit_ml_gbm_train(payload: dict | None = None):
+def submit_ml_gbm_train(http_request: Request, payload: dict | None = None):
     """提交 LightGBM 排名模型训练任务 (转发宿主异步执行, 返回状态)。
 
     Body (可选): {start_year?, end_year?} 训练窗口。默认 2020~2026 全量;
     容器内 FUSE 读库慢, 建议用小窗口 (如 2022 起)。
     """
+    _demo_protect(http_request, "gbm_train")
     try:
         from ml.common import require_ml
 

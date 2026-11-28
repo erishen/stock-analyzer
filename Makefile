@@ -1,4 +1,4 @@
-.PHONY: help install deps sync-env fetch fetch-sample etl scan visualize analyze accuracy score monitor trade-report export market-timing compare sector sector-validate portfolio portfolio-sharpe web dev web-dev web-build web-public backtest backtest-momentum backtest-reversion backtest-trend backtest-multifactor backtest-optimized backtest-viz backtest-full backtest-benchmark optimize optimize-momentum optimize-reversion db-optimize stats test test-cov lint format clean docker-build docker-up docker-down docker-logs docker-restart docker-ps daily-update daily-update-ml daily-update-backfill backfill-etl data-refresh data-refresh-backfill push-report push-paper check-stale ml-gbm ml-anomaly ml-cluster ml-garch
+.PHONY: help install deps sync-env fetch fetch-sample etl scan visualize analyze accuracy score monitor trade-report export market-timing compare sector sector-validate portfolio portfolio-sharpe web dev web-dev web-build web-public backtest backtest-momentum backtest-reversion backtest-trend backtest-multifactor backtest-optimized backtest-viz backtest-full backtest-benchmark optimize optimize-momentum optimize-reversion db-optimize stats test test-cov lint format clean docker-build docker-up docker-down docker-logs docker-restart docker-ps daily-update daily-update-ml daily-update-backfill backfill-etl data-refresh data-refresh-backfill push-report push-paper check-stale check-coverage check-gaps fill-gaps build-factors ml-gbm ml-anomaly ml-cluster ml-garch
 
 help:
 	@echo "Stock Analyzer - 股票数据分析工具"
@@ -47,6 +47,10 @@ help:
 	@echo "  data-refresh    一键刷新: 宿主更新 + 重启容器 (容器长驻进程缓存旧数据, 须重启才能读到最新)"
 	@echo "  push-report     推送最新更新报告到钉钉群"
 	@echo "  push-paper      推送最新模拟仓自动交易摘要到钉钉群"
+	@echo "  check-coverage  当日覆盖校验+缺口补拉 (源端晚发布当日 bar 时会缺 4% 而不报错)"
+	@echo "  check-gaps      逐票历史空洞体检 (某只票中间成片缺交易日, 单日校验看不出来)"
+	@echo "  fill-gaps       体检并补拉历史空洞, 补到的票全量重跑 ETL"
+	@echo "  build-factors   构建比例复权因子表 (原始价+分红送转, 源端 qfq 不能用)"
 	@echo "  backtest    策略回测 (默认)"
 	@echo "  backtest-momentum   动量策略回测"
 	@echo "  backtest-reversion  均值回归策略回测"
@@ -150,6 +154,22 @@ push-paper:
 check-stale:
 	@echo "定时更新健康自检: 报告停更 >3 天推钉钉告警 (--days 可调)"
 	uv run python data_tools/check_stale.py
+
+check-coverage:
+	@echo "当日覆盖校验: 对比前一交易日的代码集, 缺的补拉并增量重跑 ETL (--dry-run 只看缺口)"
+	uv run python data_tools/coverage_guard.py
+
+check-gaps:
+	@echo "逐票历史空洞体检: 以全市场日历为基准, 找连续缺失 >=10 个交易日的票 (--min-run 可调)"
+	uv run python data_tools/coverage_guard.py --gaps
+
+fill-gaps:
+	@echo "历史空洞补拉: 对体检命中的票整段重拉原始价并全量重跑 ETL (--dry-run 只看)"
+	uv run python data_tools/coverage_guard.py --fill-gaps
+
+build-factors:
+	@echo "比例复权因子: 从分红送转事件自建 data/stock_adjust_factors.db (长周期回测用)"
+	uv run python scripts/build_adjust_factors.py
 
 etl-codes:
 	@read -p "输入股票代码(逗号分隔): " codes; \

@@ -86,6 +86,16 @@ AI 智能体被限制为 **只读** 查询：
 - SQL 经过只读白名单校验（拦截写操作、危险函数、多条语句、过大的 `LIMIT`）
 - 结果最多返回 200 行
 
+**线上 Demo 算力护栏（`DEMO_READONLY=1`）**：免费实例只有 0.1 vCPU，所有可被匿名重复触发的耗时接口都做了限制：
+
+| 行为 | 接口 |
+|---|---|
+| 拒绝 `refresh=true` 强制刷新 | `/api/scan`、`/api/backtest`、`/api/portfolio`、`/api/sector`、`/api/market-timing`、`/api/ml/anomaly`、`/api/ml/cluster` |
+| 直接禁用（403） | `/api/optimize`、`/api/ml/gbm/train`、`/api/asset/refresh` |
+| 按来源 IP 滑动窗口限流（429） | `/api/scan` 6 次/分，`/api/backtest` 4 次/分，`/api/portfolio` 4 次/分 |
+
+本地/私有部署不设该变量，全部护栏自动失效，能力不受影响。
+
 ## 项目结构
 
 ```
@@ -136,6 +146,9 @@ make daily-update-ml  # 每日更新 + LightGBM 全量训练(较重)
 make dev              # 后端 :8001 + 前端 :3000，热更新，Ctrl+C 同时停止
 make web-build        # 构建前端到 src/web/static (由 FastAPI 托管)
 make web-public       # 构建并在 0.0.0.0 提供服务
+make check-coverage   # 校验当日覆盖 (源库 vs 前一交易日代码集)
+make check-gaps       # 体检逐票历史空洞 (连续缺失 >=10 交易日)
+make build-factors    # 构建比例复权因子表 (分红送转自建, 回测用)
 make test             # 运行完整 pytest 测试套件
 ```
 

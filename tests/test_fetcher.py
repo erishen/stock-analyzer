@@ -13,6 +13,7 @@ import pytest
 from src.data.fetcher import (
     FetchResult,
     StockDataFetcher,
+    _resolve_adjust,
     run_fetch,
 )
 
@@ -303,3 +304,69 @@ class TestRunFetch:
             result = run_fetch(db_path=temp_db, codes=["000001", "600519"])
 
         assert result.success is True
+
+
+class TestAdjustPassThrough:
+    """复权口径解析与透传。
+
+    历史 bug: 默认 adjust="qfq" 但腾讯源调用时没把参数传下去, 同一列 close 混了
+    "腾讯不复权 + 东财前复权"两种口径(2026-11-17 复盘)。这里锁死"传什么用什么"。
+    """
+
+    @pytest.mark.parametrize(
+        ("given", "expected"),
+        [(None, ""), ("", ""), ("qfq", "qfq"), (" QFQ ", "qfq"), ("hfq", "hfq"), ("abc", "")],
+    )
+    def test_resolve_adjust(self, given, expected, monkeypatch):
+        monkeypatch.delenv("STOCK_FETCH_ADJUST", raising=False)
+        assert _resolve_adjust(given) == expected
+
+    def test_env_default(self, monkeypatch):
+        monkeypatch.setenv("STOCK_FETCH_ADJUST", "qfq")
+        assert _resolve_adjust(None) == "qfq"
+        # 显式参数优先于环境变量
+        assert _resolve_adjust("hfq") == "hfq"
+
+    @patch("src.data.fetcher.StockDataFetcher.akshare")
+    def test_tencent_receives_adjust(self, mock_akshare, temp_db):
+        import pandas as pd
+
+        mock_akshare.stock_zh_a_hist_tx.return_value = pd.DataFrame(
+            {
+                "date": ["2024-01-01"],
+                "open": [10.0],
+                "close": [10.5],
+                "high": [10.8],
+                "low": [9.9],
+                "amount": [1000000],
+            }
+        )
+        fetcher = StockDataFetcher(temp_db)
+        fetcher._fetch_from_tencent("000001", "20240101", "20240102", "qfq")
+        assert mock_akshare.stock_zh_a_hist_tx.call_args.kwargs["adjust"] == "qfq"
+
+    def test_persist_adjust_warns_once(self, temp_db, monkeypatch, caplog):
+        """复权价落库必须告警(只告警一次), 因为锚点漂移会再次混口径。"""
+        import logging
+
+        from src.data import fetcher as fetcher_mod
+
+        monkeypatch.setattr(fetcher_mod, "_ADJUST_WARNED", False)
+        monkeypatch.setenv("STOCK_FETCH_ADJUST", "qfq")
+        f = StockDataFetcher(temp_db)
+        f.create_tables()
+        rec = {
+            "code": "000001",
+            "date": "2024-01-02",
+            "open": 10,
+            "close": 10.5,
+            "high": 10.8,
+            "low": 9.9,
+            "volume": 100,
+            "amount": 0,
+        }
+        with caplog.at_level(logging.WARNING, logger="src.data.fetcher"):
+            f.save_klines([rec])
+            f.save_klines([rec])
+        warns = [r for r in caplog.records if "复权价正在写入库" in r.getMessage()]
+        assert len(warns) == 1

@@ -15,3 +15,7 @@ services:
       # 公网 demo 写护栏: 禁掉 paper 模拟仓写接口(建仓/平仓/清仓/自动交易), 防免费实例被刷算力
       - key: PAPER_WRITE_DISABLED
         value: "1"
+      # 公网 demo 算力护栏: 禁强制刷新(refresh)、禁参数寻优/GBM 训练/资产快照刷新,
+      # 并对扫描/回测/组合按来源 IP 限流(免费实例 0.1 vCPU, 被批量触发会整站超时)
+      - key: DEMO_READONLY
+        value: "1"

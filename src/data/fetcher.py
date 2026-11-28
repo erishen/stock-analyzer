@@ -20,6 +20,24 @@ from typing import Any
 sys.path.insert(0, str(Path(__file__).parent.parent))
 import requests
 
+_VALID_ADJUST = ("", "qfq", "hfq")
+_ADJUST_WARNED = False
+
+
+def _resolve_adjust(adjust: str | None) -> str:
+    """解析复权口径: 显式参数优先, 否则读 STOCK_FETCH_ADJUST, 缺省 ""(不复权)。
+
+    统一口径的前提是所有源按同一个 adjust 取数; 北交所新浪源不支持复权(仅不复权)。
+    历史上默认 "qfq" 但腾讯源没透传 adjust, 同一列 close 因此混过两种口径。
+
+    另需注意 (2026-11-28 实测): 腾讯与东财的 "qfq" 都是**减法(等额)前复权**
+    (qfq = 原始价 - 累计分红), 且锚点是"最新交易日", 同一条历史隔天再拉数值就变。
+    因此它是派生视图而非事实, **不要写进库**; 库内一律存原始价(raw)。
+    """
+    a = str(adjust).strip().lower() if adjust is not None else os.environ.get("STOCK_FETCH_ADJUST", "").strip().lower()
+    return a if a in _VALID_ADJUST else ""
+
+
 # akshare 内部请求无超时, 远端挂起(TLS 无响应)时会永久阻塞, 让调用方
 # (daily_update.py / update_task.py 等) 卡死在拉取阶段。
 # 给 requests 全局默认超时, 挂起请求快速失败 -> 上层降级/重试。
@@ -176,7 +194,7 @@ class StockDataFetcher:
         code: str,
         start_date: str | None = None,
         end_date: str | None = None,
-        adjust: str = "qfq",
+        adjust: str | None = None,
     ) -> list[dict]:
         """
         获取单只股票的 K 线数据
@@ -185,28 +203,35 @@ class StockDataFetcher:
             code: 股票代码 (如 "000001")
             start_date: 开始日期 (如 "20240101")
             end_date: 结束日期 (如 "20241231")
-            adjust: 复权类型 ("qfq" 前复权, "hfq" 后复权, "" 不复权)
+            adjust: 复权类型 ("qfq" 前复权, "hfq" 后复权, "" 不复权);
+                    None 时取环境变量 STOCK_FETCH_ADJUST, 默认 ""(不复权)。
+                    历史教训: 原先默认 "qfq", 但腾讯源调用时根本没把 adjust 传下去,
+                    导致同一列 close 混了"腾讯不复权 + 东财前复权"两种口径。
         """
-        # 北交所代码走新浪源 (东财/腾讯均无北交所 K 线)
+        adj = _resolve_adjust(adjust)
+
+        # 北交所代码走新浪源 (东财/腾讯均无北交所 K 线; 新浪源只提供不复权价)
         if code.startswith(("43", "83", "87", "92")):
+            if adj:
+                logger.debug(f"北交所 {code} 走新浪源, 仅支持不复权, 忽略 adjust={adj}")
             return self._fetch_bj_sina(code, start_date, end_date)
 
         if self._resolve_source() == "tencent":
             # 默认腾讯源: 东财被 TLS 指纹拦截频繁, 腾讯更快; 腾讯失败再试东财(字段全)
-            records = self._fetch_from_tencent(code, start_date, end_date)
+            records = self._fetch_from_tencent(code, start_date, end_date, adj)
             if records:
                 return records
             try:
-                return self._fetch_from_eastmoney(code, start_date, end_date, adjust)
+                return self._fetch_from_eastmoney(code, start_date, end_date, adj)
             except Exception as e:
                 logger.error(f"腾讯+东财源获取 {code} 均失败: {type(e).__name__}: {e}")
                 return []
 
         # eastmoney/auto: 东财优先, 失败降级腾讯 (连续失败熔断)
         if self._em_failures >= 10:
-            return self._fetch_from_tencent(code, start_date, end_date)
+            return self._fetch_from_tencent(code, start_date, end_date, adj)
         try:
-            return self._fetch_from_eastmoney(code, start_date, end_date, adjust)
+            return self._fetch_from_eastmoney(code, start_date, end_date, adj)
         except (requests.RequestException, ValueError) as e:
             # 东财源失败(如 TLS 指纹拦截)，降级到腾讯源重试
             self._em_failures += 1
@@ -214,7 +239,7 @@ class StockDataFetcher:
                 logger.warning("东财源连续失败 10 次，本次运行剩余请求直接走腾讯源")
             else:
                 logger.warning(f"东财源获取 {code} 失败({type(e).__name__})，尝试腾讯源...")
-            return self._fetch_from_tencent(code, start_date, end_date)
+            return self._fetch_from_tencent(code, start_date, end_date, adj)
         except Exception as e:
             logger.error(f"获取 {code} K线数据失败: {e}")
             return []
@@ -311,11 +336,14 @@ class StockDataFetcher:
             logger.error(f"新浪北交所源获取 {code} 失败: {e}")
             return []
 
-    def _fetch_from_tencent(self, code: str, start_date: str | None, end_date: str | None) -> list[dict]:
+    def _fetch_from_tencent(
+        self, code: str, start_date: str | None, end_date: str | None, adjust: str = ""
+    ) -> list[dict]:
         """从腾讯源获取 K 线数据 (stock_zh_a_hist_tx 降级方案)
 
         腾讯源返回列: date/open/close/high/low/amount，其中 amount 为成交量，
-        无成交额/振幅/换手率，缺失字段以 0 填充。
+        无成交额/振幅/换手率，缺失字段以 0 填充。源端支持 qfq/hfq, 必须把 adjust
+        透传下去, 否则同一列 close 会混口径(2026-11-17 复盘结论)。
 
         单位注意 (经成交额交叉验证): 科创板(688/689)返回的是股，其余板块返回的是手(×100 转股)。
         """
@@ -325,6 +353,7 @@ class StockDataFetcher:
                 symbol=f"{prefix}{code}",
                 start_date=start_date or "20200101",
                 end_date=end_date or datetime.now().strftime("%Y%m%d"),
+                adjust=adjust,
             )
             if df is None or df.empty:
                 return []
@@ -359,7 +388,19 @@ class StockDataFetcher:
         源头合法性护栏: 丢弃任一 OHLC 价格 <= 0 的行 (历史脏数据形态:
         O=H=L=C 全为同值负数/零数, 量正常 = 源端缺失哨兵/缩放 bug)。
         A 股真实成交价恒 > 0, 故 close<=0 的行必为坏数据。
+
+        口径护栏: 库内只允许原始价。若 STOCK_FETCH_ADJUST 非空(复权价),
+        这里只告警不阻断 —— 复权价落库必然与原始价混口径(锚点随日期漂移)。
         """
+        global _ADJUST_WARNED
+        if not _ADJUST_WARNED:
+            adj = _resolve_adjust(None)
+            if adj:
+                _ADJUST_WARNED = True
+                logger.warning(
+                    f"STOCK_FETCH_ADJUST={adj}: 复权价正在写入库, 与原始价混口径(前复权锚点随日期前移); "
+                    "库内应只存原始价, 复权请当派生视图"
+                )
         if not self._conn:
             self.connect()
 

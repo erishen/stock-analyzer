@@ -43,6 +43,8 @@ data/stock_analysis.db
 data/*.demo_backup_*
 data/stock_klines.db
 data/stock_info_cache.json
+# 复权因子表由 make build-factors 从源端分红送转重建, 属派生产物
+data/stock_adjust_factors.db
 
 # Scan outputs (~4 MB each) produced by ad-hoc runs that pass an explicit
 # --output path; the Makefile writes them to the ignored output/reports/ instead

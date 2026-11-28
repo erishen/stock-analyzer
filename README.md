@@ -104,6 +104,16 @@ python -c "import secrets; print(secrets.token_hex(32))"
 
 Setting both `WEB_CHAT_TOKEN` and `AGENT_CHAT_PUBLIC=1`: token takes precedence for non-loopback (Bearer still checked); loopback is always allowed. If you run your own deployment and want real LLM answers (free-form Q&A / portfolio diagnosis) instead of the read-only SQL fallback, set `LLM_API_KEY` (+ `LLM_BASE_URL`/`LLM_MODEL`) **and** `WEB_CHAT_TOKEN`, then remove `AGENT_CHAT_PUBLIC`.
 
+**Hosted demo compute guard (`DEMO_READONLY=1`)** — the free demo instance has 0.1 vCPU, so every expensive endpoint that can be re-triggered anonymously is throttled or disabled:
+
+| Behavior | Endpoints |
+|---|---|
+| `refresh=true` rejected | `/api/scan`, `/api/backtest`, `/api/portfolio`, `/api/sector`, `/api/market-timing`, `/api/ml/anomaly`, `/api/ml/cluster` |
+| Blocked entirely (403) | `/api/optimize`, `/api/ml/gbm/train`, `/api/asset/refresh` |
+| Per-IP sliding-window limit (429) | `/api/scan` 6/min, `/api/backtest` 4/min, `/api/portfolio` 4/min |
+
+Unset it for local/private deployments — every guard becomes a no-op.
+
 ## Project Structure
 
 ```
@@ -153,6 +163,9 @@ make daily-update-ml  # daily update + full LightGBM retrain (heavier)
 make dev              # backend :8001 + frontend :3000 with hot reload, Ctrl+C stops both
 make web-build        # build frontend into src/web/static (served by FastAPI)
 make web-public       # build + serve on 0.0.0.0
+make check-coverage   # verify today's coverage (source vs prior trading day's code set)
+make check-gaps       # scan per-stock history holes (>=10 consecutive missing days)
+make build-factors    # build ratio adjustment factors (dividends/splits, for backtests)
 make test             # run the full pytest suite
 ```
 
