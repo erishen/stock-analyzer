@@ -984,6 +984,39 @@ def run_interactive_mode(args):
     run_interactive()
 
 
+def run_universe(args):
+    """重建 PIT 标的池 (code_lifecycle) 并打印幸存者偏差口径。"""
+    from data.universe import DEFAULT_KLINES_DB, rebuild_lifecycle, survivorship_report
+
+    db_path = Path(args.db) if getattr(args, "db", None) else PROJECT_ROOT / DEFAULT_KLINES_DB
+
+    logger.info("\n" + "=" * 60)
+    logger.info("🎯 PIT 标的池 / 幸存者偏差")
+    logger.info("=" * 60)
+
+    if not db_path.exists():
+        logger.error(f"❌ 行情库不存在: {db_path}")
+        return
+
+    if not getattr(args, "no_rebuild", False):
+        info = rebuild_lifecycle(db_path)
+        logger.info(
+            f"  code_lifecycle: {info['codes']:,} 只 / {info['rows']:,} 行 / "
+            f"{info['first_day']}~{info['last_day']}"
+        )
+
+    report = survivorship_report(args.start, args.end, db_path)
+    import json
+
+    print(json.dumps(report, ensure_ascii=False, indent=2))
+
+    if getattr(args, "output", None):
+        out = Path(args.output)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+        logger.info(f"💾 已保存: {out}")
+
+
 def run_db_optimize(args):
     """运行数据库性能优化"""
 
@@ -1435,6 +1468,13 @@ def main():
         help="服务器端口 (默认读 WEB_PORT, 否则 8001)",
     )
 
+    universe_parser = subparsers.add_parser("universe", help="PIT 标的池 (按日期取可交易标的) + 幸存者偏差口径")
+    universe_parser.add_argument("--db", type=str, help="行情库路径 (默认 data/stock_klines.db)")
+    universe_parser.add_argument("--start", type=str, help="统计窗口起始日 (默认数据首日)")
+    universe_parser.add_argument("--end", type=str, help="统计窗口结束日 (默认数据末日)")
+    universe_parser.add_argument("--no-rebuild", action="store_true", help="跳过重建 code_lifecycle, 只读现有表")
+    universe_parser.add_argument("--output", type=str, help="报告输出路径(JSON)")
+
     db_optimize_parser = subparsers.add_parser("db-optimize", help="数据库性能优化")
     db_optimize_parser.add_argument("--db", type=str, help="数据库路径")
 
@@ -1587,6 +1627,8 @@ def main():
         run_portfolio(args)
     elif args.command == "web":
         run_web(args)
+    elif args.command == "universe":
+        run_universe(args)
     elif args.command == "db-optimize":
         run_db_optimize(args)
     elif args.command == "signal-backtest":

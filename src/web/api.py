@@ -1049,6 +1049,7 @@ async def get_sector(http_request: Request, refresh: bool = False):
             analysis_date=result.date,
             sectors=sectors,
             rotation_signals=rotation_signals,
+            snapshot=getattr(result, "snapshot", {}),
         ).to_dict()
 
     try:
@@ -1769,6 +1770,40 @@ async def ml_gbm():
 
     data = _json.loads(files[0].read_text(encoding="utf-8"))
     return JSONResponse(content={"success": True, "report": data, "file": files[0].name})
+
+
+@app.get("/api/universe/survivorship")
+async def universe_survivorship(start: str | None = None, end: str | None = None):
+    """幸存者偏差口径: 窗口内新上市/中途停止更新/两端可交易标的数量。
+
+    数据来自 ``code_lifecycle`` 窄表 (``make universe`` 重建), 不扫行情全表。
+    """
+    from data.universe import survivorship_report
+
+    report = survivorship_report(start, end, DATA_DIR / "stock_klines.db")
+    if not report.get("ok"):
+        return JSONResponse(content={"success": False, "error": report.get("error")})
+    return JSONResponse(content={"success": True, "report": report})
+
+
+@app.get("/api/universe/asof")
+async def universe_asof(date: str | None = None):
+    """某交易日真实存在的标的 (first_date <= date <= last_date)。"""
+    from data.universe import has_lifecycle, universe_as_of
+
+    db_path = DATA_DIR / "stock_klines.db"
+    if not has_lifecycle(db_path):
+        return JSONResponse(
+            content={"success": False, "error": "缺少 code_lifecycle 表 (请先运行 make universe)"}
+        )
+    with sqlite3.connect(f"file:{db_path}?mode=ro", uri=True) as conn:
+        target = date or conn.execute(
+            "SELECT MAX(last_date) FROM code_lifecycle"
+        ).fetchone()[0]
+    codes = universe_as_of(target, db_path)
+    return JSONResponse(
+        content={"success": True, "date": target, "count": len(codes), "codes": codes}
+    )
 
 
 @app.get("/api/ml/walkforward")

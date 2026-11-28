@@ -6,7 +6,7 @@ Sector Rotation Analysis Module.
 import json
 import logging
 import sqlite3
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 from typing import Any
@@ -91,6 +91,8 @@ class SectorAnalysisResult:
     top_sectors: list[str]
     bottom_sectors: list[str]
     market_breadth: float
+    # 口径元信息: 板块归属是静态快照, 标的池按当日实际存在过滤
+    snapshot: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -100,6 +102,7 @@ class SectorAnalysisResult:
             "top_sectors": self.top_sectors,
             "bottom_sectors": self.bottom_sectors,
             "market_breadth": round(self.market_breadth * 100, 2),
+            "snapshot": self.snapshot,
         }
 
 
@@ -157,6 +160,40 @@ class SectorRotationAnalyzer:
             with open(mapping_file, encoding="utf-8") as f:
                 self.sector_mapping = json.load(f)
 
+    def _pit_universe(self, date: str, db_path: Path) -> set[str] | None:
+        """按交易日取"当日真实存在"的裸代码集合。
+
+        ``code_lifecycle`` 未建时返回 ``None`` —— 调用方据此显式回退,
+        而不是静默把"当前代码全集"当成历史标的池。
+        """
+        cache = getattr(self, "_pit_cache", None)
+        if cache is None:
+            cache = self._pit_cache = {}
+        if date in cache:
+            return cache[date]
+        klines = Path(db_path).parent / "stock_klines.db"
+        codes: set[str] | None = None
+        try:
+            from data.universe import has_lifecycle, universe_as_of
+
+            if has_lifecycle(klines):
+                codes = set(universe_as_of(date, klines))
+        except Exception:  # 行情库缺失/读失败时不影响板块统计, 只退化为不过滤
+            codes = None
+        cache[date] = codes
+        return codes
+
+    def snapshot_meta(self, date: str, db_path: Path) -> dict[str, Any]:
+        """口径元信息: 板块归属是静态快照, 标的池按当日实际存在过滤。"""
+        pit = self._pit_universe(date, db_path)
+        return {
+            "membership_source": "静态板块名单 (DEFAULT_SECTORS 或板块映射文件)",
+            "membership_known_as_of": "2026-11-28",
+            "universe_pit": "code_lifecycle" if pit is not None else "未过滤 (缺 code_lifecycle, 请跑 make universe)",
+            "universe_size": len(pit) if pit is not None else None,
+            "note": "板块归属在回测窗口内视为不变; 标的池按当日实际存在过滤, 不用当前代码全集",
+        }
+
     def get_sector_stocks(self, sector: str) -> list[str]:
         """获取行业股票列表"""
         return self.sector_mapping.get(sector, [])
@@ -175,6 +212,16 @@ class SectorRotationAnalyzer:
         # 兼容带前缀(sh/sz)与裸代码两种库内格式
         bare = [s[2:] if s[:2] in ("sh", "sz") else s for s in stocks]
         match_codes = list(dict.fromkeys(stocks + bare))
+
+        # PIT: 该日尚未上市 / 已停止更新的标的不能进板块样本(静态名单会带上它们)
+        pit = self._pit_universe(date, db_path)
+        if pit is not None:
+            match_codes = [
+                c for c in match_codes if (c[2:] if c[:2] in ("sh", "sz") else c) in pit
+            ]
+            if not match_codes:
+                return None
+
         placeholders = ",".join(["?" for _ in match_codes])
         query = f"""
             SELECT code, change_percent, volume, close, ma5, ma20
@@ -286,6 +333,7 @@ class SectorRotationAnalyzer:
             top_sectors=top_sectors,
             bottom_sectors=bottom_sectors,
             market_breadth=market_breadth,
+            snapshot=self.snapshot_meta(date, db_path),
         )
 
     def _generate_rotation_signal(

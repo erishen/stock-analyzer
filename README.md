@@ -156,6 +156,7 @@ make backtest / optimize / compare / sector / portfolio   # strategy work
 make paper-auto       # strategy-driven paper trading: signals → next-day-open fills, stops/take-profit
 make ml-gbm           # LightGBM cross-sectional rank model (needs `uv sync --extra ml`)
 make ml-walkforward   # rolling out-of-sample: retrain every N days + per-period IC + bootstrap
+make universe         # rebuild code_lifecycle (point-in-time universe) + survivorship report
 make ml-anomaly       # Isolation Forest anomaly detection
 make ml-cluster       # K-Means clustering
 make ml-garch CODE=600000   # GARCH(1,1) volatility model for one stock

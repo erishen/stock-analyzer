@@ -1,4 +1,4 @@
-.PHONY: help install deps sync-env fetch fetch-sample etl scan visualize analyze accuracy score monitor trade-report export market-timing compare sector sector-validate portfolio portfolio-sharpe web dev web-dev web-build web-public backtest backtest-momentum backtest-reversion backtest-trend backtest-multifactor backtest-optimized backtest-viz backtest-full backtest-benchmark optimize optimize-momentum optimize-reversion db-optimize stats test test-cov lint format clean docker-build docker-up docker-down docker-logs docker-restart docker-ps daily-update daily-update-ml daily-update-backfill backfill-etl data-refresh data-refresh-backfill push-report push-paper check-stale check-coverage check-gaps fill-gaps build-factors market-summary ml-gbm ml-walkforward ml-anomaly ml-cluster ml-garch
+.PHONY: help install deps sync-env fetch fetch-sample etl scan visualize analyze accuracy score monitor trade-report export market-timing compare sector sector-validate portfolio portfolio-sharpe web dev web-dev web-build web-public backtest backtest-momentum backtest-reversion backtest-trend backtest-multifactor backtest-optimized backtest-viz backtest-full backtest-benchmark optimize optimize-momentum optimize-reversion db-optimize stats test test-cov lint format clean docker-build docker-up docker-down docker-logs docker-restart docker-ps daily-update daily-update-ml daily-update-backfill backfill-etl data-refresh data-refresh-backfill push-report push-paper check-stale check-coverage check-gaps fill-gaps build-factors market-summary ml-gbm ml-walkforward ml-anomaly ml-cluster ml-garch universe
 
 help:
 	@echo "Stock Analyzer - 股票数据分析工具"
@@ -76,6 +76,7 @@ help:
 	@echo "  ml-anomaly  Isolation Forest 异常检测"
 	@echo "  ml-cluster  K-Means 聚类"
 	@echo "  ml-garch    GARCH(1,1) 波动率建模"
+	@echo "  universe    PIT 标的池重建 + 幸存者偏差口径"
 
 install:
 	uv sync --extra dev --extra web
@@ -381,6 +382,9 @@ ml-anomaly:
 ml-cluster:
 	uv sync --extra ml
 	uv run python -m src.main ml-cluster --output output/reports/ml_cluster_report.json
+
+universe:
+	uv run python -m src.main universe
 
 ml-garch:
 	uv sync --extra ml

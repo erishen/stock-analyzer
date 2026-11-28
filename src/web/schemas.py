@@ -441,6 +441,8 @@ class SectorResponse:
     analysis_date: str = ""
     sectors: list[SectorItem] = field(default_factory=list)
     rotation_signals: list[dict[str, Any]] = field(default_factory=list)
+    # 口径元信息(板块静态快照 + 标的池 PIT 过滤)
+    snapshot: dict[str, Any] = field(default_factory=dict)
     error: str = ""
 
     def to_dict(self) -> dict[str, Any]:
@@ -449,6 +451,7 @@ class SectorResponse:
             "analysis_date": self.analysis_date,
             "sectors": [s.to_dict() for s in self.sectors],
             "rotation_signals": self.rotation_signals,
+            "snapshot": self.snapshot,
             "error": self.error,
         }
 

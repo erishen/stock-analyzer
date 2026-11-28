@@ -273,6 +273,20 @@
   该段是整体下行 + 高波动 regime, 选出的高动量票回撤更深。
   另: 单特征基线在同一窗口 `turnover_rate` 的 20 日 rankIC 就有 +0.296,
   说明 0.15 的截面 IC 有相当一部分来自数据区间本身的相关性, 不宜当作可持续 alpha。
+- [x] **PIT 标的池 + 幸存者偏差量化**: 新增 `src/data/universe.py`
+  (`make universe`/`python -m src.main universe`), 把每只标的的 `first_date`/`last_date`
+  落成 `code_lifecycle` 窄表, 之后按日期取标的池走 `universe_as_of(date)` 而不是
+  "当前代码全集/静态名单"; 行业轮动的板块样本也按当日实际存在过滤, 并在
+  `/api/sector` 返回 `snapshot` 元信息(板块归属为静态快照, 回放窗口内视为不变)。
+  实测(2021-01-04~2026-11-27): 5,603 只标的中期间新上市 **1,659 只**
+  (2021: 490 / 2022: 503 / 2023: 313 / 2024: 100 / 2025: 116 / 2026: 137),
+  2021-01-04 当日在市 3,944 只 vs 数据末端 5,559 只;
+  `last_date < 数据末端` 的"停止更新"标的 44 只。
+  新增 `GET /api/universe/survivorship`、`GET /api/universe/asof?date=`,
+  报告落 `output/reports/survivorship.json`。
+  **残余偏差(未消除)**: 彻底退市、行情源不再返回的标的在库里没有任何行,
+  lifecycle 也补不出来, 报告里用 `residual_bias_note` 如实声明, 不能宣称已解决;
+  板块归类仍是静态快照, 只在输出里标注。
 
 ---
 
