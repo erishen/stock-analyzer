@@ -81,3 +81,14 @@ class TestDemoGuardOn:
             api._demo_protect(_make_request("198.51.100.1"), "scan")
         # 另一个来源 IP 不受影响
         api._demo_protect(_make_request("198.51.100.2"), "scan")
+
+
+class TestEnabledFlags:
+    """前端靠 /api/enabled 决定是否显示"演示环境"横幅, 标志必须真实反映环境变量。"""
+
+    def test_demo_flag_on(self, client, demo):
+        assert client.get("/api/enabled").json()["demo"] is True
+
+    def test_demo_flag_off(self, client, monkeypatch):
+        monkeypatch.delenv("DEMO_READONLY", raising=False)
+        assert client.get("/api/enabled").json()["demo"] is False

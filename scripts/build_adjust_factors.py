@@ -45,7 +45,22 @@ def main() -> int:
 
     events, stats = build_events(Path(args.db), codes=codes, workers=args.workers)
     total = write_factor_db(events, Path(args.out))
-    print(json.dumps({"stats": stats, "rows_in_db": total, "out": args.out}, ensure_ascii=False, indent=2))
+    failed = stats.pop("failed_codes", [])
+    if failed:
+        failed_file = Path(args.out).with_suffix(".failed_codes.txt")
+        failed_file.write_text("\n".join(failed) + "\n", encoding="utf-8")
+    print(
+        json.dumps(
+            {
+                "stats": stats,
+                "failed_codes_file": str(failed_file) if failed else None,
+                "rows_in_db": total,
+                "out": args.out,
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+    )
     return 0 if stats["events"] else 1
 
 

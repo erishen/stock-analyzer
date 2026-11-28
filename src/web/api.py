@@ -1269,8 +1269,12 @@ def _forward_update(path: str, method: str = "get", timeout: int = 10) -> dict:
 
 @app.get("/api/enabled")
 async def get_enabled_features():
-    """功能开关 (供前端决定是否展示数据更新入口)"""
-    return JSONResponse(content={"update": _update_enabled()})
+    """功能开关 (供前端决定是否展示数据更新入口)
+
+    ``demo``: 只读演示模式(DEMO_READONLY=1) —— 前端据此显示"演示环境"横幅,
+    并让被 403 拦下的操作按普通错误提示, 而不是静默变成空结果。
+    """
+    return JSONResponse(content={"update": _update_enabled(), "demo": _demo_mode()})
 
 
 @app.post("/api/update")

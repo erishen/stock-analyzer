@@ -86,6 +86,16 @@ def test_no_events_is_identity():
     assert adj == [CLOSES[d] for d in DATES]
 
 
+def test_factor_db_full_rebuild_drops_stale(tmp_path):
+    """重复构建必须整表重建 —— 否则上一轮成功、本轮抓取失败的票会留下陈旧事件。"""
+    db = tmp_path / "factors.db"
+    e1 = AdjustEvent("000001", "2024-01-03", 0.5, 0.0, 0.95)
+    e2 = AdjustEvent("000002", "2024-02-05", 1.0, 0.0, 0.9)
+    assert write_factor_db([e1, e2], db) == 2
+    assert write_factor_db([e1], db) == 1
+    assert set(load_events(db)) == {"000001"}
+
+
 def test_factor_db_roundtrip(tmp_path):
     db = tmp_path / "factors.db"
     evs = [
@@ -113,3 +123,46 @@ def test_qfq_closes_end_to_end(tmp_path):
     out = qfq_closes(Path(klines), Path(factor_db), "000008")
     assert [d for d, _ in out] == DATES
     assert out[-1][1] == 10.0  # 末根不动
+
+
+def test_fhps_empty_result_is_no_events(monkeypatch):
+    """东财返回 result:null 时 akshare 抛 TypeError —— 应视为"无分红记录"而非抓取失败。"""
+    import akshare as ak
+
+    from src.data.adjust import _fetch_raw_events
+
+    def boom(symbol: str):
+        raise TypeError("'NoneType' object is not subscriptable")
+
+    monkeypatch.setattr(ak, "stock_fhps_detail_em", boom)
+    assert _fetch_raw_events("002731") == []
+
+
+def test_build_events_retries_transient_failure(tmp_path, monkeypatch):
+    """单次抓取失败(限流/抖动)必须重试, 否则每次跑批都剩几只"失败"票。"""
+    import sqlite3
+
+    import src.data.adjust as mod
+
+    db = tmp_path / "k.db"
+    conn = sqlite3.connect(db)
+    conn.execute("CREATE TABLE stock_klines (code TEXT, date TEXT, close REAL)")
+    conn.execute("INSERT INTO stock_klines VALUES ('000010','2024-06-19',10.0)")
+    conn.execute("INSERT INTO stock_klines VALUES ('000010','2024-06-20',9.5)")
+    conn.commit()
+    conn.close()
+
+    calls = {"n": 0}
+
+    def flaky(code: str):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise RuntimeError("rate limited")
+        return [("2024-06-20", 0.5, 0.0)]
+
+    monkeypatch.setattr(mod, "_fetch_raw_events", flaky)
+    monkeypatch.setattr(mod.time, "sleep", lambda _s: None)
+    events, stats = mod.build_events(db, codes=["000010"], workers=1)
+    assert stats["failed"] == 0
+    assert stats["with_events"] == 1
+    assert len(events) == 1

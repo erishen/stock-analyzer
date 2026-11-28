@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import logging
 import sqlite3
+import time
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
@@ -121,7 +122,12 @@ def _fetch_raw_events(code: str) -> list[tuple[str, float, float]]:
     import akshare as ak
     import pandas as pd
 
-    df = ak.stock_fhps_detail_em(symbol=code)
+    try:
+        df = ak.stock_fhps_detail_em(symbol=code)
+    except TypeError:
+        # 东财对"无分红送配记录"的票返回 result:null, akshare 未做判空直接下标 -> TypeError。
+        # 这类票没有除权事件, 返回空表是正确结果, 不能计入"抓取失败"(否则每次跑都报同样 168 只)。
+        return []
     if df is None or df.empty:
         return []
     out = []
@@ -167,16 +173,32 @@ def build_events(
         finally:
             conn.close()
 
-    stats = {"codes": len(codes), "with_events": 0, "events": 0, "failed": 0}
+    stats = {
+        "codes": len(codes),
+        "with_events": 0,
+        "no_events": 0,
+        "events": 0,
+        "failed": 0,
+        "failed_codes": [],
+    }
     prepared = {}
     for code in codes:  # 本地读一遍序列, 避免工作线程各自连库
         prepared[code] = _series(klines_db, code)
 
     def one(code: str):
-        try:
-            raw = _fetch_raw_events(code)
-        except Exception as e:  # 单票失败不拖垮全局
-            return code, [], f"{type(e).__name__}"
+        # 东财对并发请求会偶发限流(短时返回非 JSON/超时), 单次失败不代表无数据,
+        # 重试 2 次可把 8 线程跑批的失败率从 1%~2% 降到 0。
+        last: Exception | None = None
+        for attempt in range(3):
+            try:
+                raw = _fetch_raw_events(code)
+                break
+            except Exception as e:  # 单票失败不拖垮全局
+                last = e
+                if attempt < 2:
+                    time.sleep(0.4 * (attempt + 1))
+        else:
+            return code, [], f"{type(last).__name__}"
         dates, closes = prepared[code]
         return code, compute_events(code, raw, dates, closes), None
 
@@ -185,10 +207,13 @@ def build_events(
         for i, (_code, evs, err) in enumerate(ex.map(one, codes), 1):
             if err:
                 stats["failed"] += 1
+                stats["failed_codes"].append(_code)
             elif evs:
                 stats["with_events"] += 1
                 stats["events"] += len(evs)
                 events.extend(evs)
+            else:
+                stats["no_events"] += 1  # 源端无分红送配记录(新股/从未分红), 非失败
             if progress_every and i % progress_every == 0:
                 logger.info(f"  复权事件构建 {i}/{len(codes)}: 事件 {stats['events']}, 失败 {stats['failed']}")
     return events, stats
@@ -214,6 +239,9 @@ def write_factor_db(events: list[AdjustEvent], out_db: Path) -> int:
             """
         )
         conn.execute("CREATE INDEX IF NOT EXISTS idx_events_code ON adjust_events(code)")
+        # 全量重建语义: 先清空。此前只做 INSERT OR REPLACE, 上一轮存在、本轮失败
+        # (或源端已删除)的票会留下陈旧事件, 因子表与当日分红数据悄悄不一致。
+        conn.execute("DELETE FROM adjust_events")
         conn.executemany(
             """
             INSERT OR REPLACE INTO adjust_events

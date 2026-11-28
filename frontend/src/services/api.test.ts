@@ -40,6 +40,16 @@ describe('fetchAPI', () => {
     expect(r.message).toContain('本地')
   })
 
+  it('403 + disabled 在非设置端点上应 reject 并带后端消息 (演示模式下面板要能提示)', async () => {
+    mockFetchOnce(() =>
+      new Response(
+        JSON.stringify({ detail: { disabled: true, message: '演示环境已禁用该操作(算力保护), 本地部署可用' } }),
+        { status: 403, headers: { 'Content-Type': 'application/json' } },
+      ),
+    )
+    await expect(fetchAPI('/scan', { method: 'POST' })).rejects.toThrow('演示环境已禁用该操作')
+  })
+
   it('403 无 disabled 标志应 reject (真正的拒绝访问)', async () => {
     mockFetchOnce(() =>
       new Response(JSON.stringify({ message: 'Forbidden' }), {

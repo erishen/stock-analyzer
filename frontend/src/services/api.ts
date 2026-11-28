@@ -2,6 +2,9 @@ import type { Stats, ScanResult, ScreenerFieldsResult, AssetSnapshotResult, Asse
 
 const API_BASE = '/api'
 
+// 403 + disabled 时按"禁用态"resolve 的端点(设置类页面靠它展示原因, 不弹错误)
+const DISABLED_TOLERANT = ['/agent/settings']
+
 // Agent 对话令牌: 私有部署在后端设 WEB_CHAT_TOKEN 后, 前端需带 Bearer;
 // 公开 Demo(AGENT_CHAT_PUBLIC=1) 不填也能用。存 localStorage, 不随请求外泄到服务端以外的任何地方。
 const WEB_CHAT_TOKEN_KEY = 'stock-analyzer:web_chat_token'
@@ -74,7 +77,13 @@ export async function fetchAPI<T>(endpoint: string, options: RequestInit = {}): 
     // 注意后端用 HTTPException(detail={...}) 包裹, disabled 在 data.detail 下; 兼容顶层 disabled。
     const disabled = obj.disabled === true || detail.disabled === true
     if (response.status === 403 && disabled) {
-      return { disabled: true, message: String(msg) } as unknown as T
+      // 仅设置类端点按"禁用态"静默 resolve(设置页要显示原因而不是报错);
+      // 其余端点(演示模式下的 scan/backtest/portfolio 等)抛可读错误,
+      // 让面板走正常的 error 展示, 不能把 {disabled:true} 当业务结果渲染。
+      if (DISABLED_TOLERANT.some((prefix) => endpoint.startsWith(prefix))) {
+        return { disabled: true, message: String(msg) } as unknown as T
+      }
+      throw new Error(String(msg))
     }
 
     throw new Error(String(msg))
@@ -236,7 +245,7 @@ export const api = {
 
   getUpdateStatus: () => fetchAPI<UpdateStatus>('/update/status'),
 
-  getEnabled: () => fetchAPI<{ update: boolean }>('/enabled'),
+  getEnabled: () => fetchAPI<{ update: boolean; demo?: boolean }>('/enabled'),
 
   agentChat: (messages: { role: string; content: string }[]) =>
     fetchAPI<AgentChatResult>('/agent/chat', {

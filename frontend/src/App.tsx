@@ -31,6 +31,7 @@ const App: FC = () => {
   // 持久化的 activeTab 也视为已访问, 刷新后可直接渲染, 不会空白。
   const [visited, setVisited] = useState<Set<string>>(() => new Set(['agent', activeTab]))
   const [stats, setStats] = useState<Stats | null>(null)
+  const [demo, setDemo] = useState(false)
 
   useEffect(() => {
     const onHashChange = () => {
@@ -54,6 +55,8 @@ const App: FC = () => {
 
   useEffect(() => {
     loadStats()
+    // 演示模式(DEMO_READONLY=1): 重算/刷新类接口会被 403 拦下, 顶部明示原因
+    api.getEnabled().then((r) => setDemo(!!r.demo)).catch(() => {})
   }, [])
 
   const switchTab = (id: string) => {
@@ -99,6 +102,13 @@ const App: FC = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       <Header />
+      {demo && (
+        <div className="bg-amber-50 border-y border-amber-200 text-amber-800 text-sm">
+          <div className="max-w-7xl mx-auto px-5 py-2">
+            演示环境 · 只读模式：强制刷新、重算回测/优化、训练等算力密集操作已禁用，其余功能正常。
+          </div>
+        </div>
+      )}
       <div className="max-w-7xl mx-auto px-5">
         <StatsBar stats={stats} />
         <Tabs activeTab={activeTab} onTabChange={switchTab} />
